@@ -17,24 +17,44 @@ type PaperTrade = {
   source: 'Screener';
   createdAt: string;
   updatedAt?: string;
+  rResult?: number;
+  paperPnl?: number;
 };
+
+const RISK_PER_TRADE = 1000;
+
+function resultForStatus(status: TradeStatus) {
+  if (status === 'Target Hit') return { rResult: 2, paperPnl: RISK_PER_TRADE * 2 };
+  if (status === 'SL Hit') return { rResult: -1, paperPnl: -RISK_PER_TRADE };
+  if (status === 'Cancelled') return { rResult: 0, paperPnl: 0 };
+  return { rResult: undefined, paperPnl: undefined };
+}
 
 export default function PaperPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
 
   useEffect(() => {
     const saved = JSON.parse(window.localStorage.getItem('paperTrades') || '[]') as PaperTrade[];
-    setTrades(saved.map((trade) => ({ ...trade, status: trade.status || 'Planned' })));
+    setTrades(saved.map((trade) => ({ ...trade, status: trade.status || 'Planned', ...resultForStatus(trade.status || 'Planned') })));
   }, []);
 
-  const counts = useMemo(() => {
-    return trades.reduce(
+  const stats = useMemo(() => {
+    const counts = trades.reduce(
       (acc, trade) => {
         acc[trade.status] = (acc[trade.status] || 0) + 1;
         return acc;
       },
       { Planned: 0, Entered: 0, 'Target Hit': 0, 'SL Hit': 0, Cancelled: 0 } as Record<TradeStatus, number>,
     );
+
+    const completed = trades.filter((trade) => trade.status === 'Target Hit' || trade.status === 'SL Hit');
+    const wins = trades.filter((trade) => trade.status === 'Target Hit').length;
+    const losses = trades.filter((trade) => trade.status === 'SL Hit').length;
+    const totalR = trades.reduce((sum, trade) => sum + (trade.rResult ?? 0), 0);
+    const paperPnl = trades.reduce((sum, trade) => sum + (trade.paperPnl ?? 0), 0);
+    const winRate = completed.length ? Math.round((wins / completed.length) * 100) : 0;
+
+    return { counts, completed: completed.length, wins, losses, totalR, paperPnl, winRate };
   }, [trades]);
 
   function persist(nextTrades: PaperTrade[]) {
@@ -43,11 +63,13 @@ export default function PaperPage() {
   }
 
   function updateStatus(id: string, status: TradeStatus) {
+    const result = resultForStatus(status);
     const nextTrades = trades.map((trade) =>
       trade.id === id
         ? {
             ...trade,
             status,
+            ...result,
             updatedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
           }
         : trade,
@@ -71,7 +93,7 @@ export default function PaperPage() {
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">Paper Trading</div>
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Paper Trade Management</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">Manage screener trades through Planned → Entered → Target Hit / SL Hit / Cancelled. No broker orders are placed.</p>
+            <p className="mt-2 max-w-3xl text-slate-400">Track screener trades using fixed R: Target Hit = +2R, SL Hit = -1R, Cancelled = 0R. Default risk per paper trade is ₹1,000.</p>
           </div>
           <div className="flex gap-3">
             <Link href="/scanner" className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Screener</Link>
@@ -80,11 +102,17 @@ export default function PaperPage() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-5">
-          <SummaryCard label="Planned" value={`${counts.Planned}`} hint="Waiting entry" />
-          <SummaryCard label="Entered" value={`${counts.Entered}`} hint="Active paper trades" />
-          <SummaryCard label="Target Hit" value={`${counts['Target Hit']}`} hint="Paper wins" />
-          <SummaryCard label="SL Hit" value={`${counts['SL Hit']}`} hint="Paper losses" />
-          <SummaryCard label="Cancelled" value={`${counts.Cancelled}`} hint="Skipped trades" />
+          <SummaryCard label="Total R" value={`${stats.totalR > 0 ? '+' : ''}${stats.totalR}R`} hint="+2R win / -1R loss" tone={stats.totalR >= 0 ? 'win' : 'loss'} />
+          <SummaryCard label="Paper P&L" value={`₹${stats.paperPnl.toLocaleString('en-IN')}`} hint="₹1,000 risk per trade" tone={stats.paperPnl >= 0 ? 'win' : 'loss'} />
+          <SummaryCard label="Win Rate" value={`${stats.winRate}%`} hint={`${stats.completed} completed`} />
+          <SummaryCard label="Target Hit" value={`${stats.counts['Target Hit']}`} hint="Paper wins" />
+          <SummaryCard label="SL Hit" value={`${stats.counts['SL Hit']}`} hint="Paper losses" />
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <SummaryCard label="Planned" value={`${stats.counts.Planned}`} hint="Waiting entry" />
+          <SummaryCard label="Entered" value={`${stats.counts.Entered}`} hint="Active paper trades" />
+          <SummaryCard label="Cancelled" value={`${stats.counts.Cancelled}`} hint="Skipped trades" />
         </div>
 
         {trades.length === 0 ? (
@@ -102,6 +130,7 @@ export default function PaperPage() {
                     <div className="flex flex-wrap items-center gap-3">
                       <h2 className="text-2xl font-bold text-white">{trade.symbol}</h2>
                       <StatusBadge status={trade.status} />
+                      <ResultBadge trade={trade} />
                       <span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">{trade.source}</span>
                     </div>
                     <p className="mt-2 text-sm text-slate-400">Added: {trade.createdAt}{trade.updatedAt ? ` • Updated: ${trade.updatedAt}` : ''}</p>
@@ -116,11 +145,12 @@ export default function PaperPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-4">
+                <div className="mt-5 grid gap-3 md:grid-cols-5">
                   <TradeBox label="Bias" value={trade.bias} />
                   <TradeBox label="Entry Plan" value={trade.entry} />
                   <TradeBox label="Stop Loss" value={trade.stopLoss} tone="loss" />
                   <TradeBox label="Target" value={trade.target} tone="win" />
+                  <TradeBox label="Result" value={formatResult(trade)} tone={(trade.rResult ?? 0) >= 0 ? 'win' : 'loss'} />
                 </div>
               </div>
             ))}
@@ -131,11 +161,19 @@ export default function PaperPage() {
   );
 }
 
-function SummaryCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+function formatResult(trade: PaperTrade) {
+  if (trade.status === 'Planned' || trade.status === 'Entered') return 'Open';
+  const r = trade.rResult ?? 0;
+  const pnl = trade.paperPnl ?? 0;
+  return `${r > 0 ? '+' : ''}${r}R / ₹${pnl.toLocaleString('en-IN')}`;
+}
+
+function SummaryCard({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: 'win' | 'loss' }) {
+  const toneClass = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white';
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
       <div className="text-sm text-slate-400">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+      <div className={`mt-2 text-2xl font-semibold ${toneClass}`}>{value}</div>
       <div className="mt-1 text-xs text-slate-500">{hint}</div>
     </div>
   );
@@ -168,4 +206,12 @@ function StatusBadge({ status }: { status: TradeStatus }) {
     Cancelled: 'border-slate-700 bg-slate-950 text-slate-300',
   };
   return <span className={`rounded-full border px-3 py-1 text-xs ${styles[status]}`}>{status}</span>;
+}
+
+function ResultBadge({ trade }: { trade: PaperTrade }) {
+  if (trade.status === 'Planned' || trade.status === 'Entered') return null;
+  const r = trade.rResult ?? 0;
+  const pnl = trade.paperPnl ?? 0;
+  const style = r > 0 ? 'border-emerald-800 bg-emerald-950/40 text-emerald-300' : r < 0 ? 'border-red-800 bg-red-950/40 text-red-300' : 'border-slate-700 bg-slate-950 text-slate-300';
+  return <span className={`rounded-full border px-3 py-1 text-xs ${style}`}>{r > 0 ? '+' : ''}{r}R / ₹{pnl.toLocaleString('en-IN')}</span>;
 }
