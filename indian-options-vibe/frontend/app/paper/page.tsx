@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { DownloadCsvButton } from '@/components/DownloadCsvButton';
 
 type TradeStatus = 'Planned' | 'Entered' | 'Target Hit' | 'SL Hit' | 'Cancelled';
 
@@ -74,22 +75,24 @@ export default function PaperPage() {
     const openEntered = todayTrades.filter((trade) => trade.status === 'Entered').length;
     const disciplineScore = Math.max(0, 100 - (maxTradesBreached ? 25 : 0) - (dailyLossBreached ? 35 : 0) - (openEntered > 1 ? 15 : 0));
 
-    return {
-      counts,
-      completed: completed.length,
-      totalR,
-      paperPnl,
-      winRate,
-      todayTrades,
-      todayCompleted: todayCompleted.length,
-      todayR,
-      todayPnl,
-      todayWinRate,
-      maxTradesBreached,
-      dailyLossBreached,
-      disciplineScore,
-      openEntered,
-    };
+    return { counts, completed: completed.length, totalR, paperPnl, winRate, todayTrades, todayCompleted: todayCompleted.length, todayR, todayPnl, todayWinRate, maxTradesBreached, dailyLossBreached, disciplineScore, openEntered };
+  }, [trades]);
+
+  const csvRows = useMemo(() => {
+    return trades.map((trade) => ({
+      added: trade.createdAt,
+      updated: trade.updatedAt || '',
+      symbol: trade.symbol,
+      bias: trade.bias,
+      setup: trade.setup,
+      entry_plan: trade.entry,
+      stop_loss: trade.stopLoss,
+      target: trade.target,
+      status: trade.status,
+      r_result: trade.rResult ?? '',
+      paper_pnl: trade.paperPnl ?? '',
+      source: trade.source,
+    }));
   }, [trades]);
 
   function persist(nextTrades: PaperTrade[]) {
@@ -101,12 +104,7 @@ export default function PaperPage() {
     const result = resultForStatus(status);
     const nextTrades = trades.map((trade) =>
       trade.id === id
-        ? {
-            ...trade,
-            status,
-            ...result,
-            updatedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-          }
+        ? { ...trade, status, ...result, updatedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) }
         : trade,
     );
     persist(nextTrades);
@@ -130,7 +128,8 @@ export default function PaperPage() {
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Paper Trade Management</h1>
             <p className="mt-2 max-w-3xl text-slate-400">Track screener trades using fixed R: Target Hit = +2R, SL Hit = -1R, Cancelled = 0R. Default risk per paper trade is ₹1,000.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            <DownloadCsvButton filename="paper-trades.csv" rows={csvRows} disabledLabel="No trades to export" />
             <Link href="/scanner" className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Screener</Link>
             {trades.length > 0 ? <button onClick={clearTrades} className="rounded-xl border border-red-900 px-4 py-3 text-sm text-red-300 hover:bg-red-950/30">Clear All</button> : null}
           </div>
@@ -243,11 +242,7 @@ function TradeBox({ label, value, tone }: { label: string; value: string; tone?:
 }
 
 function ActionButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
-  return (
-    <button disabled={disabled} onClick={onClick} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35">
-      {label}
-    </button>
-  );
+  return <button disabled={disabled} onClick={onClick} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35">{label}</button>;
 }
 
 function StatusBadge({ status }: { status: TradeStatus }) {
