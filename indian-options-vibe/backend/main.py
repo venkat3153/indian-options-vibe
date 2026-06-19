@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.backtest import router as backtest_router
 from api.scanner import router as scanner_router
 from api.runs import router as runs_router
+from api.brokers import router as brokers_router
 
 load_dotenv()
 
@@ -24,3 +25,4 @@ def health() -> dict:
 app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
 app.include_router(scanner_router, prefix="/api/scanner", tags=["scanner"])
 app.include_router(runs_router, prefix="/api/runs", tags=["runs"])
+app.include_router(brokers_router, prefix="/api/brokers", tags=["brokers"])
