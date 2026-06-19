@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PaperTradeButton } from '@/components/PaperTradeButton';
 
 type SymbolDetail = {
   symbol: string;
@@ -71,7 +72,7 @@ export default function SymbolDetailPage({ params }: { params: { symbol: string 
               <PlanBox label="Stop Loss" value={detail.stopLoss} />
               <PlanBox label="Target" value={detail.target} />
             </div>
-            <button className="mt-5 rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400">Add Paper Trade</button>
+            <PaperTradeButton trade={{ symbol: detail.symbol, setup: detail.setup, bias: detail.bias, entry: detail.entry, stopLoss: detail.stopLoss, target: detail.target }} />
           </div>
 
           <div className="rounded-3xl border border-red-900/60 bg-red-950/20 p-5">
