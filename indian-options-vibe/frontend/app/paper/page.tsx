@@ -22,12 +22,22 @@ type PaperTrade = {
 };
 
 const RISK_PER_TRADE = 1000;
+const MAX_TRADES_PER_DAY = 3;
+const DAILY_LOSS_LIMIT_R = -2;
 
 function resultForStatus(status: TradeStatus) {
   if (status === 'Target Hit') return { rResult: 2, paperPnl: RISK_PER_TRADE * 2 };
   if (status === 'SL Hit') return { rResult: -1, paperPnl: -RISK_PER_TRADE };
   if (status === 'Cancelled') return { rResult: 0, paperPnl: 0 };
   return { rResult: undefined, paperPnl: undefined };
+}
+
+function todayInIndia() {
+  return new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+}
+
+function isTodayTrade(trade: PaperTrade) {
+  return trade.createdAt.startsWith(todayInIndia());
 }
 
 export default function PaperPage() {
@@ -49,12 +59,37 @@ export default function PaperPage() {
 
     const completed = trades.filter((trade) => trade.status === 'Target Hit' || trade.status === 'SL Hit');
     const wins = trades.filter((trade) => trade.status === 'Target Hit').length;
-    const losses = trades.filter((trade) => trade.status === 'SL Hit').length;
     const totalR = trades.reduce((sum, trade) => sum + (trade.rResult ?? 0), 0);
     const paperPnl = trades.reduce((sum, trade) => sum + (trade.paperPnl ?? 0), 0);
     const winRate = completed.length ? Math.round((wins / completed.length) * 100) : 0;
 
-    return { counts, completed: completed.length, wins, losses, totalR, paperPnl, winRate };
+    const todayTrades = trades.filter(isTodayTrade);
+    const todayCompleted = todayTrades.filter((trade) => trade.status === 'Target Hit' || trade.status === 'SL Hit');
+    const todayWins = todayTrades.filter((trade) => trade.status === 'Target Hit').length;
+    const todayR = todayTrades.reduce((sum, trade) => sum + (trade.rResult ?? 0), 0);
+    const todayPnl = todayTrades.reduce((sum, trade) => sum + (trade.paperPnl ?? 0), 0);
+    const todayWinRate = todayCompleted.length ? Math.round((todayWins / todayCompleted.length) * 100) : 0;
+    const maxTradesBreached = todayTrades.length > MAX_TRADES_PER_DAY;
+    const dailyLossBreached = todayR <= DAILY_LOSS_LIMIT_R;
+    const openEntered = todayTrades.filter((trade) => trade.status === 'Entered').length;
+    const disciplineScore = Math.max(0, 100 - (maxTradesBreached ? 25 : 0) - (dailyLossBreached ? 35 : 0) - (openEntered > 1 ? 15 : 0));
+
+    return {
+      counts,
+      completed: completed.length,
+      totalR,
+      paperPnl,
+      winRate,
+      todayTrades,
+      todayCompleted: todayCompleted.length,
+      todayR,
+      todayPnl,
+      todayWinRate,
+      maxTradesBreached,
+      dailyLossBreached,
+      disciplineScore,
+      openEntered,
+    };
   }, [trades]);
 
   function persist(nextTrades: PaperTrade[]) {
@@ -98,6 +133,24 @@ export default function PaperPage() {
           <div className="flex gap-3">
             <Link href="/scanner" className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Screener</Link>
             {trades.length > 0 ? <button onClick={clearTrades} className="rounded-xl border border-red-900 px-4 py-3 text-sm text-red-300 hover:bg-red-950/30">Clear All</button> : null}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-emerald-900/70 bg-emerald-950/10 p-5">
+          <div className="flex flex-col justify-between gap-2 md:flex-row md:items-end">
+            <div>
+              <h2 className="text-xl font-bold text-white">Daily Discipline Summary</h2>
+              <p className="mt-1 text-sm text-slate-400">IST day boundary • Max {MAX_TRADES_PER_DAY} paper trades/day • Stop if daily R reaches {DAILY_LOSS_LIMIT_R}R.</p>
+            </div>
+            <div className="rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-300">Score: {stats.disciplineScore}/100</div>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-6">
+            <SummaryCard label="Today Trades" value={`${stats.todayTrades.length}/${MAX_TRADES_PER_DAY}`} hint={stats.maxTradesBreached ? 'Max trade rule breached' : 'Within max rule'} tone={stats.maxTradesBreached ? 'loss' : 'win'} />
+            <SummaryCard label="Today R" value={`${stats.todayR > 0 ? '+' : ''}${stats.todayR}R`} hint="IST day result" tone={stats.todayR >= 0 ? 'win' : 'loss'} />
+            <SummaryCard label="Today P&L" value={`₹${stats.todayPnl.toLocaleString('en-IN')}`} hint="Paper only" tone={stats.todayPnl >= 0 ? 'win' : 'loss'} />
+            <SummaryCard label="Today Win Rate" value={`${stats.todayWinRate}%`} hint={`${stats.todayCompleted} completed`} />
+            <SummaryCard label="Daily Loss Rule" value={stats.dailyLossBreached ? 'Breached' : 'OK'} hint="Stop at -2R" tone={stats.dailyLossBreached ? 'loss' : 'win'} />
+            <SummaryCard label="Open Trades" value={`${stats.openEntered}`} hint={stats.openEntered > 1 ? 'Too many active' : 'Controlled'} tone={stats.openEntered > 1 ? 'loss' : 'win'} />
           </div>
         </div>
 
