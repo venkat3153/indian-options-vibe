@@ -18,6 +18,21 @@ type SymbolDetail = {
   risk: 'Low' | 'Medium' | 'High';
 };
 
+type OptionChainRow = {
+  strike: string;
+  ceLtp: string;
+  ceVolume: string;
+  ceOi: string;
+  ceOiChange: string;
+  ceIv: string;
+  peLtp: string;
+  peVolume: string;
+  peOi: string;
+  peOiChange: string;
+  peIv: string;
+  signal: string;
+};
+
 const details: Record<string, SymbolDetail> = {
   NIFTY: { symbol: 'NIFTY', market: 'NSE', segment: 'Index Options', spot: '23,520', bias: 'Bullish', score: 84, setup: 'ATM CE pullback above VWAP', tradePlan: 'Wait for price to hold above VWAP. Enter paper CE only after bullish 5-minute close with volume confirmation.', bestCe: '23500 CE', bestPe: '23500 PE', entry: 'Above 23,560 spot confirmation', stopLoss: 'Below VWAP or -20% option premium', target: '+40% option premium or trail above 1:2 RR', risk: 'Medium' },
   SENSEX: { symbol: 'SENSEX', market: 'BSE', segment: 'Index Options', spot: '77,850', bias: 'Neutral', score: 62, setup: 'Wait near VWAP', tradePlan: 'No fresh option buy while price is trapped near VWAP. Paper trade only after clean break and retest.', bestCe: '77800 CE', bestPe: '77800 PE', entry: 'Above range high or below range low', stopLoss: 'Inside range re-entry', target: 'Next strike zone or 1:2 RR', risk: 'High' },
@@ -30,10 +45,12 @@ const details: Record<string, SymbolDetail> = {
   SBIN: { symbol: 'SBIN', market: 'NSE', segment: 'Intraday Stocks', spot: '845', bias: 'Bearish', score: 71, setup: 'PDL breakdown short watch', tradePlan: 'Cash stock paper short setup if price breaks previous day low and stays below VWAP.', bestCe: 'N/A', bestPe: 'N/A', entry: 'Below previous day low', stopLoss: 'Back above VWAP', target: '1:2 RR', risk: 'Medium' },
 };
 
-const optionChain = [
-  { strike: 'ATM - 100', ceLtp: '185.20', ceOi: '+12%', ceIv: '13.8', peLtp: '96.40', peOi: '-4%', peIv: '14.1' },
-  { strike: 'ATM', ceLtp: '124.50', ceOi: '+18%', ceIv: '14.2', peLtp: '121.80', peOi: '+7%', peIv: '14.5' },
-  { strike: 'ATM + 100', ceLtp: '82.10', ceOi: '+9%', ceIv: '14.7', peLtp: '178.30', peOi: '+15%', peIv: '15.0' },
+const optionChain: OptionChainRow[] = [
+  { strike: 'ATM - 200', ceLtp: '252.40', ceVolume: '18.2L', ceOi: '42.1L', ceOiChange: '+8.2%', ceIv: '13.4', peLtp: '54.80', peVolume: '9.1L', peOi: '31.8L', peOiChange: '-3.1%', peIv: '14.0', signal: 'ITM CE strength' },
+  { strike: 'ATM - 100', ceLtp: '185.20', ceVolume: '24.7L', ceOi: '51.4L', ceOiChange: '+12.0%', ceIv: '13.8', peLtp: '96.40', peVolume: '14.8L', peOi: '38.2L', peOiChange: '-4.0%', peIv: '14.1', signal: 'Call buildup' },
+  { strike: 'ATM', ceLtp: '124.50', ceVolume: '31.6L', ceOi: '68.7L', ceOiChange: '+18.0%', ceIv: '14.2', peLtp: '121.80', peVolume: '28.4L', peOi: '62.5L', peOiChange: '+7.0%', peIv: '14.5', signal: 'Best liquid strike' },
+  { strike: 'ATM + 100', ceLtp: '82.10', ceVolume: '21.3L', ceOi: '44.9L', ceOiChange: '+9.0%', ceIv: '14.7', peLtp: '178.30', peVolume: '18.2L', peOi: '53.6L', peOiChange: '+15.0%', peIv: '15.0', signal: 'Put hedge zone' },
+  { strike: 'ATM + 200', ceLtp: '48.70', ceVolume: '13.9L', ceOi: '35.2L', ceOiChange: '+5.4%', ceIv: '15.1', peLtp: '248.90', peVolume: '10.4L', peOi: '40.3L', peOiChange: '+9.8%', peIv: '15.4', signal: 'OTM lottery avoid' },
 ];
 
 export default function SymbolDetailPage({ params }: { params: { symbol: string } }) {
@@ -83,21 +100,36 @@ export default function SymbolDetailPage({ params }: { params: { symbol: string 
         </div>
 
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-          <h2 className="text-xl font-bold text-white">Mock Option Chain</h2>
-          <p className="mt-1 text-sm text-slate-400">Temporary option-chain structure. Real NSE/BSE data adapters will replace this later.</p>
-          <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-950 text-slate-400"><tr>{['Strike', 'CE LTP', 'CE OI', 'CE IV', 'PE LTP', 'PE OI', 'PE IV'].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
+          <div className="flex flex-col justify-between gap-2 md:flex-row md:items-end">
+            <div>
+              <h2 className="text-xl font-bold text-white">Mock Option Chain</h2>
+              <p className="mt-1 text-sm text-slate-400">Realistic structure for NSE/BSE option-chain data. Real adapters will replace mock values later.</p>
+            </div>
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Use liquid ATM/ITM strikes only</div>
+          </div>
+
+          <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-800">
+            <table className="min-w-[1180px] w-full text-left text-sm">
+              <thead className="bg-slate-950 text-slate-400">
+                <tr>
+                  {['Strike', 'CE LTP', 'CE Vol', 'CE OI', 'CE OI Chg', 'CE IV', 'PE LTP', 'PE Vol', 'PE OI', 'PE OI Chg', 'PE IV', 'Signal'].map((h) => <th key={h} className="p-3">{h}</th>)}
+                </tr>
+              </thead>
               <tbody>
                 {optionChain.map((row) => (
-                  <tr key={row.strike} className="border-t border-slate-800 text-slate-300">
+                  <tr key={row.strike} className="border-t border-slate-800 text-slate-300 hover:bg-slate-800/40">
                     <td className="p-3 font-semibold text-white">{row.strike}</td>
                     <td className="p-3">{row.ceLtp}</td>
-                    <td className="p-3 text-emerald-300">{row.ceOi}</td>
+                    <td className="p-3">{row.ceVolume}</td>
+                    <td className="p-3">{row.ceOi}</td>
+                    <td className="p-3 text-emerald-300">{row.ceOiChange}</td>
                     <td className="p-3">{row.ceIv}</td>
                     <td className="p-3">{row.peLtp}</td>
-                    <td className="p-3 text-emerald-300">{row.peOi}</td>
+                    <td className="p-3">{row.peVolume}</td>
+                    <td className="p-3">{row.peOi}</td>
+                    <td className={row.peOiChange.startsWith('-') ? 'p-3 text-red-300' : 'p-3 text-emerald-300'}>{row.peOiChange}</td>
                     <td className="p-3">{row.peIv}</td>
+                    <td className="p-3 font-medium text-emerald-300">{row.signal}</td>
                   </tr>
                 ))}
               </tbody>
