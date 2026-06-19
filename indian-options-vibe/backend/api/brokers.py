@@ -1,7 +1,14 @@
 import os
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from fastapi import APIRouter
+
+from brokers.dhan import (
+    DhanConfigError,
+    DhanReadOnlyAdapter,
+    dhan_error_response,
+    dhan_not_configured_response,
+)
 
 router = APIRouter()
 
@@ -58,6 +65,30 @@ def broker_status(broker_id: str) -> dict[str, Any]:
     }
 
 
+def unknown_broker_response(broker_id: str) -> dict[str, Any]:
+    return {"error": "unknown_broker", "broker_id": broker_id}
+
+
+async def run_dhan_read_only(action: str, call: Callable[[DhanReadOnlyAdapter], Awaitable[Any]]) -> dict[str, Any]:
+    try:
+        adapter = DhanReadOnlyAdapter()
+    except DhanConfigError:
+        return dhan_not_configured_response(action)
+
+    try:
+        data = await call(adapter)
+        return {
+            "broker": "Dhan",
+            "configured": True,
+            "mode": "dhan_live_read_only",
+            "action": action,
+            "data": data,
+            "live_orders_enabled": False,
+        }
+    except Exception as exc:
+        return dhan_error_response(action, exc)
+
+
 @router.get("/status")
 def get_all_broker_status() -> dict[str, Any]:
     brokers = [broker_status(broker_id) for broker_id in BROKER_CONFIGS]
@@ -73,95 +104,79 @@ def get_all_broker_status() -> dict[str, Any]:
 @router.get("/{broker_id}/status")
 def get_broker_status(broker_id: str) -> dict[str, Any]:
     if broker_id not in BROKER_CONFIGS:
-        return {"error": "unknown_broker", "broker_id": broker_id}
+        return unknown_broker_response(broker_id)
     return broker_status(broker_id)
 
 
 @router.get("/{broker_id}/profile")
-def get_broker_profile(broker_id: str) -> dict[str, Any]:
+async def get_broker_profile(broker_id: str) -> dict[str, Any]:
     if broker_id not in BROKER_CONFIGS:
-        return {"error": "unknown_broker", "broker_id": broker_id}
+        return unknown_broker_response(broker_id)
+
+    if broker_id == "dhan":
+        return await run_dhan_read_only("profile", lambda adapter: adapter.profile())
 
     status = broker_status(broker_id)
-    if not status["configured"]:
-        return {
-            "broker": status["name"],
-            "configured": False,
-            "mode": "read_only_blocked",
-            "message": "Add broker API keys in backend/.env before profile check.",
-            "live_orders_enabled": False,
-        }
-
     return {
         "broker": status["name"],
-        "configured": True,
-        "mode": "mock_read_only",
-        "profile": {
-            "client_name": "Single User MVP",
-            "account_type": "Trading",
-            "segment": "NSE F&O",
-        },
-        "note": "Real broker API call will replace this mock after adapter credentials are verified.",
+        "configured": status["configured"],
+        "mode": "adapter_pending",
+        "message": "Only Dhan read-only adapter is connected in this phase.",
         "live_orders_enabled": False,
     }
 
 
 @router.get("/{broker_id}/funds")
-def get_broker_funds(broker_id: str) -> dict[str, Any]:
+async def get_broker_funds(broker_id: str) -> dict[str, Any]:
     if broker_id not in BROKER_CONFIGS:
-        return {"error": "unknown_broker", "broker_id": broker_id}
+        return unknown_broker_response(broker_id)
+
+    if broker_id == "dhan":
+        return await run_dhan_read_only("funds", lambda adapter: adapter.funds())
 
     status = broker_status(broker_id)
-    if not status["configured"]:
-        return {
-            "broker": status["name"],
-            "configured": False,
-            "mode": "read_only_blocked",
-            "message": "Add broker API keys in backend/.env before funds check.",
-            "live_orders_enabled": False,
-        }
-
     return {
         "broker": status["name"],
-        "configured": True,
-        "mode": "mock_read_only",
-        "funds": {
-            "available_margin": 0,
-            "used_margin": 0,
-            "currency": "INR",
-        },
-        "note": "Real funds API call will replace this mock in the next adapter step.",
+        "configured": status["configured"],
+        "mode": "adapter_pending",
+        "message": "Only Dhan read-only adapter is connected in this phase.",
         "live_orders_enabled": False,
     }
 
 
 @router.get("/{broker_id}/positions")
-def get_broker_positions(broker_id: str) -> dict[str, Any]:
+async def get_broker_positions(broker_id: str) -> dict[str, Any]:
     if broker_id not in BROKER_CONFIGS:
-        return {"error": "unknown_broker", "broker_id": broker_id}
+        return unknown_broker_response(broker_id)
+
+    if broker_id == "dhan":
+        return await run_dhan_read_only("positions", lambda adapter: adapter.positions())
 
     status = broker_status(broker_id)
     return {
         "broker": status["name"],
         "configured": status["configured"],
-        "mode": "mock_read_only" if status["configured"] else "read_only_blocked",
+        "mode": "adapter_pending",
         "positions": [],
-        "message": "No real positions are fetched until the broker adapter is connected.",
+        "message": "Only Dhan read-only adapter is connected in this phase.",
         "live_orders_enabled": False,
     }
 
 
 @router.get("/{broker_id}/orders")
-def get_broker_orders(broker_id: str) -> dict[str, Any]:
+async def get_broker_orders(broker_id: str) -> dict[str, Any]:
     if broker_id not in BROKER_CONFIGS:
-        return {"error": "unknown_broker", "broker_id": broker_id}
+        return unknown_broker_response(broker_id)
+
+    if broker_id == "dhan":
+        return await run_dhan_read_only("orders", lambda adapter: adapter.orders())
 
     status = broker_status(broker_id)
     return {
         "broker": status["name"],
         "configured": status["configured"],
-        "mode": "mock_read_only" if status["configured"] else "read_only_blocked",
+        "mode": "adapter_pending",
         "orders": [],
-        "message": "No real order book is fetched until the broker adapter is connected.",
+        "message": "Only Dhan read-only adapter is connected in this phase.",
         "live_orders_enabled": False,
     }
