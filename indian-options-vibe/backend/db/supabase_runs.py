@@ -6,15 +6,31 @@ from supabase import Client, create_client
 TABLE_NAME = "backtest_runs"
 
 
+def normalize_supabase_url(url: str) -> str:
+    """Supabase client expects only https://project-ref.supabase.co.
+
+    Users sometimes paste the REST/Data API URL ending in /rest/v1.
+    This normalizes common pasted variants so the client does not call
+    /rest/v1/rest/v1 and trigger PGRST125 invalid path errors.
+    """
+    cleaned = url.strip().rstrip("/")
+
+    for suffix in ("/rest/v1", "/auth/v1", "/storage/v1"):
+        if cleaned.endswith(suffix):
+            cleaned = cleaned[: -len(suffix)]
+
+    return cleaned
+
+
 def get_supabase_client() -> Client | None:
     """Return Supabase client when env vars are configured, otherwise None."""
-    url = os.getenv("SUPABASE_URL")
+    raw_url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 
-    if not url or not key:
+    if not raw_url or not key:
         return None
 
-    return create_client(url, key)
+    return create_client(normalize_supabase_url(raw_url), key.strip())
 
 
 def is_supabase_enabled() -> bool:
