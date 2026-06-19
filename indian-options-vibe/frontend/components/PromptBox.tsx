@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 
 type BacktestResult = {
@@ -32,6 +33,34 @@ type BacktestResult = {
   };
 };
 
+type SavedRun = {
+  id: string;
+  title: string;
+  symbol: string;
+  timeframe: string;
+  mode: string;
+  status: string;
+  createdAt: string;
+  netPnl: number;
+  winRate: number;
+  profitFactor: number;
+  maxDrawdown: number;
+  totalTrades: number;
+  charges: number;
+  risk: string;
+  summary: string;
+  prompt: string;
+  trades: Array<{
+    time: string;
+    symbol: string;
+    side: string;
+    entry: number;
+    exit: number;
+    pnl: number;
+    result: string;
+  }>;
+};
+
 const examples = [
   'Backtest NIFTY ATM CE buying above VWAP with RSI > 60, SL 20%, target 40%, last 90 days.',
   'Backtest BANKNIFTY opening range breakout option buying with max daily loss ₹2000.',
@@ -47,12 +76,47 @@ const demoSteps = [
   'Generating risk report',
 ];
 
+function saveRunToHistory(result: BacktestResult) {
+  const savedRun: SavedRun = {
+    id: result.run_id,
+    title: `${result.symbol} ${result.timeframe} Paper Backtest`,
+    symbol: result.symbol,
+    timeframe: result.timeframe,
+    mode: 'Paper Backtest',
+    status: 'Completed',
+    createdAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    netPnl: result.metrics.net_pnl,
+    winRate: result.metrics.win_rate,
+    profitFactor: result.metrics.profit_factor,
+    maxDrawdown: result.metrics.max_drawdown,
+    totalTrades: result.metrics.total_trades,
+    charges: result.metrics.charges,
+    risk: result.metrics.max_drawdown < -10000 ? 'High' : 'Medium',
+    summary: result.prompt,
+    prompt: result.prompt,
+    trades: result.trades.map((trade) => ({
+      time: trade.time,
+      symbol: trade.symbol,
+      side: trade.side,
+      entry: trade.entry,
+      exit: trade.exit,
+      pnl: trade.pnl,
+      result: trade.exit_reason,
+    })),
+  };
+
+  const current = JSON.parse(window.localStorage.getItem('backtestRuns') || '[]') as SavedRun[];
+  const withoutDuplicate = current.filter((run) => run.id !== savedRun.id);
+  window.localStorage.setItem('backtestRuns', JSON.stringify([savedRun, ...withoutDuplicate].slice(0, 25)));
+}
+
 export function PromptBox() {
   const [prompt, setPrompt] = useState(examples[0]);
   const [symbol, setSymbol] = useState('NIFTY');
   const [timeframe, setTimeframe] = useState('5m');
   const [steps, setSteps] = useState<string[]>([]);
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [savedRunId, setSavedRunId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,6 +124,7 @@ export function PromptBox() {
     setLoading(true);
     setSteps([]);
     setResult(null);
+    setSavedRunId(null);
     setError(null);
 
     demoSteps.forEach((step, i) => {
@@ -78,8 +143,10 @@ export function PromptBox() {
       }
 
       const data = (await response.json()) as BacktestResult;
+      saveRunToHistory(data);
       setResult(data);
-      setSteps((current) => [...current, 'Backtest result received from backend']);
+      setSavedRunId(data.run_id);
+      setSteps((current) => [...current, 'Backtest result received from backend', 'Run saved to local run history']);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not connect to backend');
     } finally {
@@ -96,6 +163,7 @@ export function PromptBox() {
             <option>NIFTY</option>
             <option>BANKNIFTY</option>
             <option>FINNIFTY</option>
+            <option>SENSEX</option>
             <option>RELIANCE</option>
             <option>HDFCBANK</option>
           </select>
@@ -111,11 +179,7 @@ export function PromptBox() {
         </label>
       </div>
 
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        className="mt-4 min-h-32 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-sm outline-none focus:border-emerald-500"
-      />
+      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-4 min-h-32 w-full resize-none rounded-2xl border border-slate-700 bg-slate-950 p-4 text-sm outline-none focus:border-emerald-500" />
 
       <div className="mt-4 flex flex-wrap gap-2">
         {examples.map((ex) => (
@@ -125,25 +189,22 @@ export function PromptBox() {
         ))}
       </div>
 
-      <button disabled={loading} onClick={runBacktest} className="mt-4 rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
-        {loading ? 'Running Paper Backtest...' : 'Run Paper Backtest'}
-      </button>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button disabled={loading} onClick={runBacktest} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60">
+          {loading ? 'Running Paper Backtest...' : 'Run Paper Backtest'}
+        </button>
+        <Link href="/runs" className="rounded-xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 hover:bg-slate-800">View Runs</Link>
+      </div>
 
       {steps.length > 0 && (
         <div className="mt-5 space-y-2">
           {steps.map((step, i) => (
-            <div key={`${step}-${i}`} className="rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
-              Step {i + 1}: {step}
-            </div>
+            <div key={`${step}-${i}`} className="rounded-xl bg-slate-900 p-3 text-sm text-slate-300">Step {i + 1}: {step}</div>
           ))}
         </div>
       )}
 
-      {error && (
-        <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-200">
-          Backend error: {error}. Make sure the FastAPI server is running on http://localhost:8000.
-        </div>
-      )}
+      {error && <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-200">Backend error: {error}. Make sure the FastAPI server is running on http://localhost:8000.</div>}
 
       {result && (
         <div className="mt-6 rounded-3xl border border-emerald-900/70 bg-emerald-950/10 p-5">
@@ -153,7 +214,7 @@ export function PromptBox() {
               <h2 className="mt-2 text-2xl font-bold text-white">{result.symbol} paper result</h2>
               <p className="mt-1 text-sm text-slate-400">Run ID: {result.run_id} • Timeframe: {result.timeframe}</p>
             </div>
-            <div className="rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-300">Live Orders Locked</div>
+            <div className="rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-300">Saved to Runs</div>
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -165,19 +226,14 @@ export function PromptBox() {
             <Metric label="Charges" value={`₹${result.metrics.charges.toLocaleString('en-IN')}`} />
           </div>
 
+          <div className="mt-5 flex flex-wrap gap-3">
+            {savedRunId ? <Link href={`/runs/${savedRunId}`} className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Open Saved Report</Link> : null}
+            <Link href="/runs" className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800">View Run History</Link>
+          </div>
+
           <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-900 text-slate-400">
-                <tr>
-                  <th className="p-3">Time</th>
-                  <th className="p-3">Contract</th>
-                  <th className="p-3">Side</th>
-                  <th className="p-3">Entry</th>
-                  <th className="p-3">Exit</th>
-                  <th className="p-3">P&L</th>
-                  <th className="p-3">Reason</th>
-                </tr>
-              </thead>
+              <thead className="bg-slate-900 text-slate-400"><tr>{['Time', 'Contract', 'Side', 'Entry', 'Exit', 'P&L', 'Reason'].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
               <tbody>
                 {result.trades.map((trade, index) => (
                   <tr key={`${trade.symbol}-${index}`} className="border-t border-slate-800 text-slate-300">
@@ -200,10 +256,5 @@ export function PromptBox() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-xl font-semibold text-white">{value}</div>
-    </div>
-  );
+  return <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className="text-xs text-slate-500">{label}</div><div className="mt-1 text-xl font-semibold text-white">{value}</div></div>;
 }
