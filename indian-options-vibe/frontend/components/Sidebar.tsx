@@ -3,7 +3,7 @@ import Link from 'next/link';
 const items = [
   ['Home', '/'],
   ['Agent', '/agent'],
-  ['Scanner', '/scanner'],
+  ['Market Screener', '/scanner'],
   ['Paper Trading', '/paper'],
   ['Runs', '/runs/demo-run-001'],
   ['Broker Connect', '/broker'],
@@ -15,7 +15,7 @@ export function Sidebar() {
     <aside className="hidden w-72 shrink-0 border-r border-slate-800 bg-[#0b0f17] p-5 md:block">
       <div className="mb-8">
         <div className="text-xl font-bold tracking-tight">Indian Options Vibe</div>
-        <div className="mt-1 text-xs text-slate-400">Research + Backtest + Paper Mode</div>
+        <div className="mt-1 text-xs text-slate-400">Research + Screener + Paper Mode</div>
       </div>
       <nav className="space-y-2">
         {items.map(([label, href]) => (
@@ -25,7 +25,7 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="mt-10 rounded-2xl border border-emerald-900/70 bg-emerald-950/20 p-4 text-xs text-emerald-200">
-        Paper mode is default. Live order modules are intentionally locked until risk gates are complete.
+        Paper mode is default. NIFTY and SENSEX options stay as the primary focus. Live order modules are locked until risk gates are complete.
       </div>
     </aside>
   );
