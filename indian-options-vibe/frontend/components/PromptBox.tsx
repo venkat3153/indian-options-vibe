@@ -76,8 +76,8 @@ const demoSteps = [
   'Generating risk report',
 ];
 
-function saveRunToHistory(result: BacktestResult) {
-  const savedRun: SavedRun = {
+function buildSavedRun(result: BacktestResult): SavedRun {
+  return {
     id: result.run_id,
     title: `${result.symbol} ${result.timeframe} Paper Backtest`,
     symbol: result.symbol,
@@ -104,10 +104,24 @@ function saveRunToHistory(result: BacktestResult) {
       result: trade.exit_reason,
     })),
   };
+}
 
+function saveRunToLocalFallback(savedRun: SavedRun) {
   const current = JSON.parse(window.localStorage.getItem('backtestRuns') || '[]') as SavedRun[];
   const withoutDuplicate = current.filter((run) => run.id !== savedRun.id);
   window.localStorage.setItem('backtestRuns', JSON.stringify([savedRun, ...withoutDuplicate].slice(0, 25)));
+}
+
+async function saveRunToBackend(savedRun: SavedRun) {
+  const response = await fetch('http://localhost:8000/api/runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(savedRun),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Run history API returned ${response.status}`);
+  }
 }
 
 export function PromptBox() {
@@ -143,10 +157,12 @@ export function PromptBox() {
       }
 
       const data = (await response.json()) as BacktestResult;
-      saveRunToHistory(data);
+      const savedRun = buildSavedRun(data);
+      saveRunToLocalFallback(savedRun);
+      await saveRunToBackend(savedRun);
       setResult(data);
       setSavedRunId(data.run_id);
-      setSteps((current) => [...current, 'Backtest result received from backend', 'Run saved to local run history']);
+      setSteps((current) => [...current, 'Backtest result received from backend', 'Run saved to backend run history API']);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not connect to backend');
     } finally {
@@ -196,14 +212,7 @@ export function PromptBox() {
         <Link href="/runs" className="rounded-xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 hover:bg-slate-800">View Runs</Link>
       </div>
 
-      {steps.length > 0 && (
-        <div className="mt-5 space-y-2">
-          {steps.map((step, i) => (
-            <div key={`${step}-${i}`} className="rounded-xl bg-slate-900 p-3 text-sm text-slate-300">Step {i + 1}: {step}</div>
-          ))}
-        </div>
-      )}
-
+      {steps.length > 0 && <div className="mt-5 space-y-2">{steps.map((step, i) => <div key={`${step}-${i}`} className="rounded-xl bg-slate-900 p-3 text-sm text-slate-300">Step {i + 1}: {step}</div>)}</div>}
       {error && <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-200">Backend error: {error}. Make sure the FastAPI server is running on http://localhost:8000.</div>}
 
       {result && (
@@ -214,7 +223,7 @@ export function PromptBox() {
               <h2 className="mt-2 text-2xl font-bold text-white">{result.symbol} paper result</h2>
               <p className="mt-1 text-sm text-slate-400">Run ID: {result.run_id} • Timeframe: {result.timeframe}</p>
             </div>
-            <div className="rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-300">Saved to Runs</div>
+            <div className="rounded-full border border-emerald-800 px-4 py-2 text-sm text-emerald-300">Saved to Backend Runs</div>
           </div>
 
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -235,17 +244,7 @@ export function PromptBox() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-900 text-slate-400"><tr>{['Time', 'Contract', 'Side', 'Entry', 'Exit', 'P&L', 'Reason'].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
               <tbody>
-                {result.trades.map((trade, index) => (
-                  <tr key={`${trade.symbol}-${index}`} className="border-t border-slate-800 text-slate-300">
-                    <td className="p-3">{trade.time}</td>
-                    <td className="p-3">{trade.symbol}</td>
-                    <td className="p-3">{trade.side}</td>
-                    <td className="p-3">{trade.entry}</td>
-                    <td className="p-3">{trade.exit}</td>
-                    <td className={trade.pnl >= 0 ? 'p-3 text-emerald-400' : 'p-3 text-red-400'}>₹{trade.pnl.toLocaleString('en-IN')}</td>
-                    <td className="p-3">{trade.exit_reason}</td>
-                  </tr>
-                ))}
+                {result.trades.map((trade, index) => <tr key={`${trade.symbol}-${index}`} className="border-t border-slate-800 text-slate-300"><td className="p-3">{trade.time}</td><td className="p-3">{trade.symbol}</td><td className="p-3">{trade.side}</td><td className="p-3">{trade.entry}</td><td className="p-3">{trade.exit}</td><td className={trade.pnl >= 0 ? 'p-3 text-emerald-400' : 'p-3 text-red-400'}>₹{trade.pnl.toLocaleString('en-IN')}</td><td className="p-3">{trade.exit_reason}</td></tr>)}
               </tbody>
             </table>
           </div>
