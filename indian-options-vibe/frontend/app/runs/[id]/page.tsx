@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { MetricCard } from '@/components/MetricCard';
+import { DownloadCsvButton } from '@/components/DownloadCsvButton';
 
 const run = {
   id: 'demo-run-001',
@@ -32,6 +33,20 @@ const trades = [
   { time: '13:10', symbol: 'NIFTY 23550 CE', side: 'BUY', entry: '91.0', exit: '126.0', pnl: 1750, result: 'Target' },
   { time: '14:05', symbol: 'NIFTY 23600 CE', side: 'BUY', entry: '112.0', exit: '101.5', pnl: -525, result: 'Time Exit' },
 ];
+
+const csvRows = trades.map((trade) => ({
+  run_id: run.id,
+  strategy: run.title,
+  symbol: trade.symbol,
+  time: trade.time,
+  side: trade.side,
+  entry: trade.entry,
+  exit: trade.exit,
+  pnl: trade.pnl,
+  result: trade.result,
+  timeframe: run.timeframe,
+  mode: run.mode,
+}));
 
 const assumptions = [
   'ATM option selected from nearest strike to spot at signal time.',
@@ -104,8 +119,13 @@ export default function RunDetailPage() {
         </div>
 
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-          <h2 className="text-xl font-bold text-white">Trade Table</h2>
-          <p className="mt-1 text-sm text-slate-400">Sample trades returned by the dummy backend backtest.</p>
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+              <h2 className="text-xl font-bold text-white">Trade Table</h2>
+              <p className="mt-1 text-sm text-slate-400">Sample trades returned by the dummy backend backtest.</p>
+            </div>
+            <DownloadCsvButton filename="demo-run-001-trades.csv" rows={csvRows} />
+          </div>
           <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-950 text-slate-400">
