@@ -1,8 +1,11 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.backtest import router as backtest_router
 from api.scanner import router as scanner_router
 from api.runs import router as runs_router
+
+load_dotenv()
 
 app = FastAPI(title="Indian Options Vibe API", version="0.1.0")
 
