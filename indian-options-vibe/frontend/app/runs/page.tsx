@@ -45,6 +45,15 @@ export default function RunsPage() {
   const avgWinRate = runs.length ? runs.reduce((sum, run) => sum + run.winRate, 0) / runs.length : 0;
   const bestRun = runs.reduce((best, run) => (run.netPnl > best.netPnl ? run : best), runs[0]);
 
+  function persistSavedRuns(nextRuns: SavedRun[]) {
+    setSavedRuns(nextRuns);
+    window.localStorage.setItem('backtestRuns', JSON.stringify(nextRuns));
+  }
+
+  function deleteSavedRun(id: string) {
+    persistSavedRuns(savedRuns.filter((run) => run.id !== id));
+  }
+
   function clearSavedRuns() {
     window.localStorage.removeItem('backtestRuns');
     setSavedRuns([]);
@@ -73,14 +82,14 @@ export default function RunsPage() {
           <SummaryCard label="Avg Win Rate" value={`${avgWinRate.toFixed(1)}%`} hint={`Best: ${bestRun?.symbol || '-'}`} />
         </div>
 
-        {savedRuns.length > 0 ? <RunSection title="Saved Agent Runs" subtitle="These were created from the Agent and saved in browser localStorage." runs={savedRuns} /> : null}
+        {savedRuns.length > 0 ? <RunSection title="Saved Agent Runs" subtitle="These were created from the Agent and saved in browser localStorage." runs={savedRuns} canDelete onDelete={deleteSavedRun} /> : null}
         <RunSection title="Mock Run History" subtitle="Fallback demo runs used until backend database persistence is added." runs={mockRuns} />
       </div>
     </section>
   );
 }
 
-function RunSection({ title, subtitle, runs }: { title: string; subtitle: string; runs: SavedRun[] }) {
+function RunSection({ title, subtitle, runs, canDelete = false, onDelete }: { title: string; subtitle: string; runs: SavedRun[]; canDelete?: boolean; onDelete?: (id: string) => void }) {
   return (
     <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
       <div className="flex flex-col justify-between gap-2 md:flex-row md:items-end">
@@ -92,13 +101,13 @@ function RunSection({ title, subtitle, runs }: { title: string; subtitle: string
       </div>
 
       <div className="mt-5 space-y-4">
-        {runs.map((run) => <RunCard key={run.id} run={run} />)}
+        {runs.map((run) => <RunCard key={run.id} run={run} canDelete={canDelete} onDelete={onDelete} />)}
       </div>
     </div>
   );
 }
 
-function RunCard({ run }: { run: SavedRun }) {
+function RunCard({ run, canDelete = false, onDelete }: { run: SavedRun; canDelete?: boolean; onDelete?: (id: string) => void }) {
   return (
     <div className="rounded-3xl border border-slate-800 bg-slate-950 p-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
@@ -113,7 +122,10 @@ function RunCard({ run }: { run: SavedRun }) {
           <p className="mt-2 max-w-4xl text-sm text-slate-400">{run.summary}</p>
           <p className="mt-2 text-xs text-slate-500">Run ID: {run.id} • Created: {run.createdAt} • Mode: {run.mode}</p>
         </div>
-        <Link href={`/runs/${run.id}`} className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Open Report</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/runs/${run.id}`} className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">Open Report</Link>
+          {canDelete && onDelete ? <button onClick={() => onDelete(run.id)} className="rounded-xl border border-red-900 px-4 py-3 text-sm text-red-300 hover:bg-red-950/30">Delete</button> : null}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-5">
