@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ScreenerRow = {
   symbol: string;
@@ -18,16 +18,15 @@ type ScreenerRow = {
 
 type FilterKey = 'All' | 'Index Options' | 'Stock Options' | 'Intraday Stocks' | 'High Score' | 'NIFTY/SENSEX Focus' | 'Bullish' | 'Bearish' | 'Neutral/Weak';
 
-const rows: ScreenerRow[] = [
+type ScreenerResponse = {
+  mode: 'mock';
+  rows: ScreenerRow[];
+};
+
+const fallbackRows: ScreenerRow[] = [
   { symbol: 'NIFTY', market: 'NSE', segment: 'Index Options', spot: '23,520', bias: 'Bullish', score: 84, setup: 'ATM CE pullback above VWAP', signal: 'OI buildup + volume expansion', risk: 'Medium', action: 'Paper CE setup' },
   { symbol: 'SENSEX', market: 'BSE', segment: 'Index Options', spot: '77,850', bias: 'Neutral', score: 62, setup: 'Wait near VWAP', signal: 'Mixed OI, no clean direction', risk: 'High', action: 'Wait' },
   { symbol: 'BANKNIFTY', market: 'NSE', segment: 'Index Options', spot: '51,420', bias: 'Bearish', score: 78, setup: 'ATM PE breakout below VWAP', signal: 'Put OI + price breakdown', risk: 'Medium', action: 'Paper PE setup' },
-  { symbol: 'FINNIFTY', market: 'NSE', segment: 'Index Options', spot: '23,870', bias: 'Bullish', score: 69, setup: 'CE watch above day high', signal: 'Sector support from private banks', risk: 'Medium', action: 'Watchlist' },
-  { symbol: 'RELIANCE', market: 'NSE', segment: 'Stock Options', spot: '2,925', bias: 'Bullish', score: 72, setup: 'Stock CE watch', signal: 'VWAP reclaim + call volume', risk: 'Medium', action: 'Paper only' },
-  { symbol: 'HDFCBANK', market: 'NSE', segment: 'Stock Options', spot: '1,670', bias: 'Weak', score: 43, setup: 'Avoid until reclaim', signal: 'Below VWAP, low follow-through', risk: 'High', action: 'Avoid' },
-  { symbol: 'ICICIBANK', market: 'NSE', segment: 'Stock Options', spot: '1,115', bias: 'Bullish', score: 76, setup: 'CE momentum continuation', signal: 'Relative strength + volume', risk: 'Medium', action: 'Paper CE setup' },
-  { symbol: 'TCS', market: 'NSE', segment: 'Intraday Stocks', spot: '3,890', bias: 'Neutral', score: 58, setup: 'Range breakout watch', signal: 'Low volatility compression', risk: 'Medium', action: 'Wait' },
-  { symbol: 'SBIN', market: 'NSE', segment: 'Intraday Stocks', spot: '845', bias: 'Bearish', score: 71, setup: 'PDL breakdown short watch', signal: 'Below VWAP + selling volume', risk: 'Medium', action: 'Paper stock setup' },
 ];
 
 const filters: FilterKey[] = ['All', 'Index Options', 'Stock Options', 'Intraday Stocks', 'High Score', 'NIFTY/SENSEX Focus', 'Bullish', 'Bearish', 'Neutral/Weak'];
@@ -35,6 +34,32 @@ const focusSymbols = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
 
 export default function ScannerPage() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('All');
+  const [rows, setRows] = useState<ScreenerRow[]>(fallbackRows);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState<'backend' | 'fallback'>('fallback');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadRows() {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:8000/api/scanner/market');
+        if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+        const data = (await response.json()) as ScreenerResponse;
+        setRows(data.rows);
+        setSource('backend');
+        setError(null);
+      } catch (err) {
+        setRows(fallbackRows);
+        setSource('fallback');
+        setError(err instanceof Error ? err.message : 'Could not connect to scanner backend');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadRows();
+  }, []);
 
   const filteredRows = useMemo(() => {
     if (activeFilter === 'All') return rows;
@@ -47,7 +72,7 @@ export default function ScannerPage() {
     if (activeFilter === 'Bearish') return rows.filter((row) => row.bias === 'Bearish');
     if (activeFilter === 'Neutral/Weak') return rows.filter((row) => row.bias === 'Neutral' || row.bias === 'Weak');
     return rows;
-  }, [activeFilter]);
+  }, [activeFilter, rows]);
 
   const bestRow = filteredRows.reduce<ScreenerRow | null>((best, row) => (!best || row.score > best.score ? row : best), null);
   const priorityRows = filteredRows.filter((row) => focusSymbols.includes(row.symbol));
@@ -60,16 +85,22 @@ export default function ScannerPage() {
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">Market Screener MVP</div>
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Indian Options + Intraday Screener</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">Filter NIFTY, SENSEX, BANKNIFTY, stock options, and intraday stocks. Click any row to open the symbol detail page.</p>
+            <p className="mt-2 max-w-3xl text-slate-400">Filter NIFTY, SENSEX, BANKNIFTY, stock options, and intraday stocks. Data now comes from the FastAPI scanner endpoint.</p>
           </div>
           <div className="rounded-2xl border border-emerald-900/70 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-200">Paper signals only • Live orders locked</div>
         </div>
 
+        {error ? (
+          <div className="mt-5 rounded-2xl border border-yellow-900 bg-yellow-950/20 p-4 text-sm text-yellow-200">
+            Backend scanner fallback active: {error}. Start backend on http://localhost:8000 to use API data.
+          </div>
+        ) : null}
+
         <div className="mt-6 grid gap-4 md:grid-cols-4">
           <SummaryCard label="Active Filter" value={activeFilter} hint="Current screener view" />
-          <SummaryCard label="Matches" value={`${filteredRows.length}`} hint="Filtered setups" />
+          <SummaryCard label="Matches" value={`${filteredRows.length}`} hint={loading ? 'Loading API...' : 'Filtered setups'} />
           <SummaryCard label="Best Score" value={bestRow ? `${bestRow.score}` : '-'} hint={bestRow ? `${bestRow.symbol} ${bestRow.setup}` : 'No match'} />
-          <SummaryCard label="Primary Focus" value="NIFTY + SENSEX" hint="Index options first" />
+          <SummaryCard label="Data Source" value={source === 'backend' ? 'Backend API' : 'Fallback'} hint="Mock data for now" />
         </div>
 
         <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
@@ -82,21 +113,14 @@ export default function ScannerPage() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {filters.map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={activeFilter === filter ? 'rounded-full border border-emerald-700 bg-emerald-950/50 px-4 py-2 text-sm text-emerald-300' : 'rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800'}
-              >
+              <button key={filter} onClick={() => setActiveFilter(filter)} className={activeFilter === filter ? 'rounded-full border border-emerald-700 bg-emerald-950/50 px-4 py-2 text-sm text-emerald-300' : 'rounded-full border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800'}>
                 {filter}
               </button>
             ))}
           </div>
         </div>
 
-        {priorityRows.length > 0 ? (
-          <ScreenerSection title="Priority Index Options" subtitle="NIFTY, SENSEX, and BANKNIFTY stay on top when available in the current filter." rows={priorityRows} />
-        ) : null}
-
+        {priorityRows.length > 0 ? <ScreenerSection title="Priority Index Options" subtitle="NIFTY, SENSEX, and BANKNIFTY stay on top when available in the current filter." rows={priorityRows} /> : null}
         <ScreenerSection title={priorityRows.length > 0 ? 'Filtered Opportunities' : 'Filtered Results'} subtitle="Only rows matching the selected filter are shown here." rows={otherRows.length > 0 ? otherRows : priorityRows.length > 0 ? [] : filteredRows} />
       </div>
     </section>
