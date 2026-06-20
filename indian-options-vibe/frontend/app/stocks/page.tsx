@@ -19,11 +19,22 @@ type StockRow = {
 
 type ApiResponse = {
   mode: string;
+  source?: string;
   universe?: string;
   count: number;
   stocks: StockRow[];
   note?: string;
   error?: string;
+};
+
+type IngestResult = {
+  status: string;
+  mode: string;
+  symbols_attempted?: number;
+  candles_saved?: number;
+  failed_count?: number;
+  message?: string;
+  note?: string;
 };
 
 const SCORE_FILTERS = ['All', 'Strong watchlist', 'Improving', 'Neutral', 'Weak / avoid'];
@@ -32,6 +43,8 @@ export default function StocksResearchPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('All');
   const [query, setQuery] = useState('');
@@ -54,6 +67,7 @@ export default function StocksResearchPage() {
   async function seedData() {
     try {
       setSeeding(true);
+      setIngestResult(null);
       const response = await fetch('http://localhost:8000/api/research/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,6 +79,26 @@ export default function StocksResearchPage() {
       setError(err instanceof Error ? err.message : 'Could not seed research data');
     } finally {
       setSeeding(false);
+    }
+  }
+
+  async function fetchDhanDaily() {
+    try {
+      setIngesting(true);
+      setIngestResult(null);
+      const response = await fetch('http://localhost:8000/api/research/ingest/dhan-daily', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'nifty50', days: 180, limit: 50 }),
+      });
+      if (!response.ok) throw new Error(`Dhan ingest API returned ${response.status}`);
+      const json = await response.json();
+      setIngestResult(json);
+      await loadStocks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not fetch Dhan daily candles');
+    } finally {
+      setIngesting(false);
     }
   }
 
@@ -94,16 +128,19 @@ export default function StocksResearchPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <button onClick={loadStocks} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button>
-            <button onClick={seedData} disabled={seeding} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">{seeding ? 'Seeding...' : 'Seed NIFTY 50'}</button>
+            <button onClick={seedData} disabled={seeding || ingesting} className="rounded-xl border border-emerald-800 px-5 py-3 font-semibold text-emerald-200 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500">{seeding ? 'Seeding...' : 'Seed NIFTY 50'}</button>
+            <button onClick={fetchDhanDaily} disabled={seeding || ingesting} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">{ingesting ? 'Fetching Dhan...' : 'Fetch Dhan Daily'}</button>
           </div>
         </div>
 
         {error ? <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/20 p-4 text-sm text-red-200">{error}</div> : null}
+        {ingestResult ? <div className="mt-5 rounded-2xl border border-emerald-900 bg-emerald-950/20 p-4 text-sm text-emerald-200">Dhan ingest: {ingestResult.status} • Symbols: {ingestResult.symbols_attempted ?? 0} • Candles saved: {ingestResult.candles_saved ?? 0} • Failed: {ingestResult.failed_count ?? 0} {ingestResult.message ? `• ${ingestResult.message}` : ''}</div> : null}
         {data?.note ? <div className="mt-5 rounded-2xl border border-blue-900 bg-blue-950/20 p-4 text-sm text-blue-200">{data.note}</div> : null}
 
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-5">
           <Metric label="Universe" value={data?.universe || 'NIFTY50'} hint="Start small, then expand" />
           <Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} />
+          <Metric label="Data Source" value={data?.source || 'checking'} hint="Dhan after ingestion" />
           <Metric label="Top Score" value={leaders[0] ? `${leaders[0].quant_score}` : '0'} hint={leaders[0]?.symbol || 'No data'} tone="win" />
           <Metric label="Execution" value="Locked" hint="Research only" tone="loss" />
         </div>
@@ -139,7 +176,7 @@ export default function StocksResearchPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? <tr><td colSpan={10} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={10} className="py-10 text-center text-slate-500">No stocks found. Click Seed NIFTY 50.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} />)}
+                  {loading ? <tr><td colSpan={10} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={10} className="py-10 text-center text-slate-500">No stocks found. Click Seed NIFTY 50, then Fetch Dhan Daily.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} />)}
                 </tbody>
               </table>
             </div>
@@ -183,7 +220,7 @@ function StockTableRow({ row }: { row: StockRow }) {
 
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: 'win' | 'loss' }) {
   const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white';
-  return <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="text-sm text-slate-400">{label}</div><div className={`mt-2 text-2xl font-bold ${cls}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div>;
+  return <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="text-sm text-slate-400">{label}</div><div className={`mt-2 text-lg font-bold ${cls}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div>;
 }
 
 function SectorBar({ row }: { row: { sector: string; score: number; count: number } }) {
