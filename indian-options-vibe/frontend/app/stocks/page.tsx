@@ -6,7 +6,7 @@ type StockRow = { symbol: string; name: string; sector: string; close: number; c
 type ApiResponse = { mode: string; source?: string; universe?: string; count: number; stocks: StockRow[]; note?: string; error?: string };
 type LiveQuote = { symbol: string; security_id: string; ltp: number | null; prev_close: number | null; change: number | null; change_pct: number | null };
 type LiveQuoteResponse = { status: string; mode: string; source: string; count: number; quotes: LiveQuote[]; message?: string };
-type WatchlistItem = { symbol: string; name?: string; sector?: string; quant_score?: number; live_signal?: string; reason?: string; notes?: string; status?: string; entry_idea?: string; invalidation?: string; target_idea?: string; outcome?: string; outcome_date?: string; review_note?: string; lesson?: string; source?: string; created_at?: string; updated_at?: string };
+type WatchlistItem = { symbol: string; name?: string; sector?: string; quant_score?: number; live_signal?: string; reason?: string; notes?: string; status?: string; entry_idea?: string; invalidation?: string; target_idea?: string; outcome?: string; outcome_date?: string; review_note?: string; lesson?: string; source?: string };
 type ResearchFilter = 'All' | 'Saved Watchlist' | 'Live Watch' | 'Extended / Avoid' | 'Volume Breakout' | 'Near 20D High' | 'Weak / Avoid' | 'Strong watchlist' | 'Improving' | 'Neutral';
 type LiveSignal = { label: 'Live Watch' | 'Extended / Avoid' | 'Wait' | 'Weak Live'; reason: string; tone: 'win' | 'warn' | 'loss' | 'neutral' };
 
@@ -26,213 +26,39 @@ export default function StocksResearchPage() {
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  async function loadStocks() {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:8000/api/research/stocks');
-      if (!response.ok) throw new Error(`Research API returned ${response.status}`);
-      setData(await response.json());
-      setError(null);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not load stocks'); }
-    finally { setLoading(false); }
-  }
+  async function loadStocks() { try { setLoading(true); const r = await fetch('http://localhost:8000/api/research/stocks'); if (!r.ok) throw new Error(`Research API returned ${r.status}`); setData(await r.json()); setError(null); } catch (e) { setError(e instanceof Error ? e.message : 'Could not load stocks'); } finally { setLoading(false); } }
+  async function loadLiveQuotes() { try { setLiveLoading(true); const r = await fetch('http://localhost:8000/api/live/quotes?limit=50'); if (!r.ok) throw new Error(`Live API returned ${r.status}`); setLiveData(await r.json()); } catch (e) { setLiveData({ status: 'error', mode: 'frontend_error', source: 'none', count: 0, quotes: [], message: e instanceof Error ? e.message : 'Could not load live quotes' }); } finally { setLiveLoading(false); } }
+  async function loadWatchlist() { try { const r = await fetch('http://localhost:8000/api/watchlist'); if (!r.ok) throw new Error(`Watchlist API returned ${r.status}`); const j = await r.json(); setWatchlist(j.items || []); } catch (e) { setError(e instanceof Error ? e.message : 'Could not load watchlist'); } }
+  async function fetchDhanDaily() { try { setIngesting(true); const r = await fetch('http://localhost:8000/api/research/ingest/dhan-daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'nifty50', days: 180, limit: 50 }) }); if (!r.ok) throw new Error(`Dhan ingest API returned ${r.status}`); await loadStocks(); await loadLiveQuotes(); } catch (e) { setError(e instanceof Error ? e.message : 'Could not fetch Dhan daily candles'); } finally { setIngesting(false); } }
+  async function saveWatchlist(payload: WatchlistItem) { try { setSavingSymbol(payload.symbol); const r = await fetch('http://localhost:8000/api/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const j = await r.json(); if (!r.ok || j.status === 'error') throw new Error(j.error || `Watchlist save returned ${r.status}`); await loadWatchlist(); setError(null); } catch (e) { setError(e instanceof Error ? e.message : 'Could not save watchlist'); } finally { setSavingSymbol(null); } }
+  async function addToWatchlist(row: StockRow, quote?: LiveQuote) { const s = getLiveSignal(row, quote); const rr = getResearchReason(row); await saveWatchlist({ symbol: row.symbol, name: row.name, sector: row.sector, quant_score: row.quant_score, live_signal: s.label, reason: `${rr.reason} ${s.reason}`, status: 'Watching', outcome: 'Pending', entry_idea: getDefaultEntryIdea(row), invalidation: getDefaultInvalidation(row), target_idea: getDefaultTargetIdea(row), source: 'stocks_dashboard' }); }
+  async function updateWatchlistItem(item: WatchlistItem, changes: Partial<WatchlistItem>) { await saveWatchlist({ ...item, ...changes, symbol: item.symbol }); }
+  async function removeFromWatchlist(symbol: string) { try { setSavingSymbol(symbol); const r = await fetch(`http://localhost:8000/api/watchlist/${encodeURIComponent(symbol)}`, { method: 'DELETE' }); if (!r.ok) throw new Error(`Watchlist remove returned ${r.status}`); await loadWatchlist(); } catch (e) { setError(e instanceof Error ? e.message : 'Could not remove from watchlist'); } finally { setSavingSymbol(null); } }
 
-  async function loadLiveQuotes() {
-    try {
-      setLiveLoading(true);
-      const response = await fetch('http://localhost:8000/api/live/quotes?limit=50');
-      if (!response.ok) throw new Error(`Live API returned ${response.status}`);
-      setLiveData(await response.json());
-    } catch (err) { setLiveData({ status: 'error', mode: 'frontend_error', source: 'none', count: 0, quotes: [], message: err instanceof Error ? err.message : 'Could not load live quotes' }); }
-    finally { setLiveLoading(false); }
-  }
-
-  async function loadWatchlist() {
-    try {
-      const response = await fetch('http://localhost:8000/api/watchlist');
-      if (!response.ok) throw new Error(`Watchlist API returned ${response.status}`);
-      const json = await response.json();
-      setWatchlist(json.items || []);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not load watchlist'); }
-  }
-
-  async function fetchDhanDaily() {
-    try {
-      setIngesting(true);
-      const response = await fetch('http://localhost:8000/api/research/ingest/dhan-daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'nifty50', days: 180, limit: 50 }) });
-      if (!response.ok) throw new Error(`Dhan ingest API returned ${response.status}`);
-      await loadStocks();
-      await loadLiveQuotes();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not fetch Dhan daily candles'); }
-    finally { setIngesting(false); }
-  }
-
-  async function saveWatchlist(payload: WatchlistItem) {
-    try {
-      setSavingSymbol(payload.symbol);
-      const response = await fetch('http://localhost:8000/api/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const json = await response.json();
-      if (!response.ok || json.status === 'error') throw new Error(json.error || `Watchlist save returned ${response.status}`);
-      await loadWatchlist();
-      setError(null);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not save watchlist'); }
-    finally { setSavingSymbol(null); }
-  }
-
-  async function addToWatchlist(row: StockRow, quote?: LiveQuote) {
-    const signal = getLiveSignal(row, quote);
-    const reason = getResearchReason(row);
-    await saveWatchlist({
-      symbol: row.symbol,
-      name: row.name,
-      sector: row.sector,
-      quant_score: row.quant_score,
-      live_signal: signal.label,
-      reason: `${reason.reason} ${signal.reason}`,
-      status: 'Watching',
-      outcome: 'Pending',
-      entry_idea: getDefaultEntryIdea(row),
-      invalidation: getDefaultInvalidation(row),
-      target_idea: getDefaultTargetIdea(row),
-      source: 'stocks_dashboard',
-    });
-  }
-
-  async function updateWatchlistItem(item: WatchlistItem, changes: Partial<WatchlistItem>) {
-    await saveWatchlist({ ...item, ...changes, symbol: item.symbol });
-  }
-
-  async function removeFromWatchlist(symbol: string) {
-    try {
-      setSavingSymbol(symbol);
-      const response = await fetch(`http://localhost:8000/api/watchlist/${encodeURIComponent(symbol)}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(`Watchlist remove returned ${response.status}`);
-      await loadWatchlist();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Could not remove from watchlist'); }
-    finally { setSavingSymbol(null); }
-  }
-
-  useEffect(() => {
-    loadStocks(); loadLiveQuotes(); loadWatchlist();
-    const timer = window.setInterval(loadLiveQuotes, 15000);
-    return () => window.clearInterval(timer);
-  }, []);
+  useEffect(() => { loadStocks(); loadLiveQuotes(); loadWatchlist(); const t = window.setInterval(loadLiveQuotes, 15000); return () => window.clearInterval(t); }, []);
 
   const stocks = data?.stocks || [];
   const liveBySymbol = useMemo(() => new Map((liveData?.quotes || []).map((q) => [q.symbol, q])), [liveData]);
-  const watchlistSet = useMemo(() => new Set(watchlist.map((item) => item.symbol)), [watchlist]);
+  const watchlistSet = useMemo(() => new Set(watchlist.map((x) => x.symbol)), [watchlist]);
   const counts = useMemo(() => getFilterCounts(stocks, liveBySymbol, watchlistSet), [stocks, liveBySymbol, watchlistSet]);
-  const rows = useMemo(() => stocks.filter((row) => matchesFilter(row, filter, liveBySymbol.get(row.symbol), watchlistSet)).filter((row) => !query || `${row.symbol} ${row.name} ${row.sector}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => b.quant_score - a.quant_score), [stocks, filter, liveBySymbol, watchlistSet, query]);
-  const liveOk = liveData?.status === 'success';
+  const rows = useMemo(() => stocks.filter((r) => matchesFilter(r, filter, liveBySymbol.get(r.symbol), watchlistSet)).filter((r) => !query || `${r.symbol} ${r.name} ${r.sector}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => b.quant_score - a.quant_score), [stocks, filter, liveBySymbol, watchlistSet, query]);
   const outcomeCounts = getOutcomeCounts(watchlist);
+  const liveOk = liveData?.status === 'success';
 
-  return (
-    <section className="p-8 md:p-12">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-          <div>
-            <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Quant Research</div>
-            <h1 className="mt-3 text-3xl font-bold md:text-4xl">Stocks Research Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 research with Dhan historical candles, live LTP, watchlist planning, and outcome tracking. Research only. No live orders.</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={() => { loadStocks(); loadLiveQuotes(); loadWatchlist(); }} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button>
-            <button onClick={loadLiveQuotes} disabled={liveLoading} className="rounded-xl border border-blue-800 px-5 py-3 font-semibold text-blue-200 hover:bg-blue-950 disabled:opacity-50">{liveLoading ? 'Live...' : 'Refresh Live'}</button>
-            <button onClick={fetchDhanDaily} disabled={ingesting} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">{ingesting ? 'Fetching Dhan...' : 'Fetch Dhan Daily'}</button>
-          </div>
-        </div>
-
-        {error ? <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/20 p-4 text-sm text-red-200">{error}</div> : null}
-        {data?.note ? <div className="mt-5 rounded-2xl border border-blue-900 bg-blue-950/20 p-4 text-sm text-blue-200">{data.note}</div> : null}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-6">
-          <Metric label="Universe" value={data?.universe || 'NIFTY50'} hint="Start small, then expand" />
-          <Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} />
-          <Metric label="Live Feed" value={liveOk ? 'Connected' : 'Checking'} hint={`${liveData?.count || 0} LTP snapshots`} tone={liveOk ? 'win' : undefined} />
-          <Metric label="Saved Watchlist" value={String(watchlist.length)} hint="Detailed plans" tone="win" />
-          <Metric label="Worked / Failed" value={`${outcomeCounts.Worked}/${outcomeCounts.Failed}`} hint="Research feedback" />
-          <Metric label="Execution" value="Locked" hint="Research only" tone="loss" />
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-5">
-          <InsightCard title="Saved Watchlist" value={String(watchlist.length)} hint="Your saved stocks" onClick={() => setFilter('Saved Watchlist')} active={filter === 'Saved Watchlist'} />
-          <InsightCard title="Live Watch" value={String(counts['Live Watch'])} hint="LTP positive + setup" onClick={() => setFilter('Live Watch')} active={filter === 'Live Watch'} />
-          <InsightCard title="Volume Breakout" value={String(counts['Volume Breakout'])} hint="Volume 1.5x+" onClick={() => setFilter('Volume Breakout')} active={filter === 'Volume Breakout'} />
-          <InsightCard title="Near 20D High" value={String(counts['Near 20D High'])} hint="Breakout zone" onClick={() => setFilter('Near 20D High')} active={filter === 'Near 20D High'} />
-          <InsightCard title="Weak / Avoid" value={String(counts['Weak / Avoid'])} hint="Weak momentum" onClick={() => setFilter('Weak / Avoid')} active={filter === 'Weak / Avoid'} tone="loss" />
-        </div>
-
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.22fr_0.78fr]">
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{filter === 'All' ? 'Top Quant Picks' : filter}</h2>
-                <p className="mt-1 text-sm text-slate-400">Save only research ideas. Track outcome after price moves.</p>
-              </div>
-              <div className="flex flex-wrap gap-2">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-xl border px-3 py-2 text-xs ${filter === item ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{item}</button>)}</div>
-            </div>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search symbol, company, or sector" className="mt-5 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500" />
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[1420px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-[0.16em] text-slate-500"><tr className="border-b border-slate-800"><th className="py-3">Symbol</th><th>Sector</th><th>Close</th><th>Live LTP</th><th>Live %</th><th>Signal</th><th>1D</th><th>5D</th><th>Vol x</th><th>20D Pos</th><th>Score</th><th>Watchlist</th><th>Risk</th></tr></thead>
-                <tbody>{loading ? <tr><td colSpan={13} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={13} className="py-10 text-center text-slate-500">No stocks found for this filter.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} quote={liveBySymbol.get(row.symbol)} isSaved={watchlistSet.has(row.symbol)} saving={savingSymbol === row.symbol} onAdd={addToWatchlist} onRemove={removeFromWatchlist} />)}</tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="text-xl font-bold text-white">Watchlist Outcome Tracking</h2>
-            <p className="mt-1 text-sm text-slate-400">Plan, outcome, review note, and lesson. Permanent Supabase storage.</p>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-              <MiniStat label="Pending" value={outcomeCounts.Pending} />
-              <MiniStat label="Worked" value={outcomeCounts.Worked} tone="win" />
-              <MiniStat label="Failed" value={outcomeCounts.Failed} tone="loss" />
-            </div>
-            <div className="mt-4 space-y-4">
-              {watchlist.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">No saved stocks yet.</div> : watchlist.map((item) => <WatchlistDetailsCard key={item.symbol} item={item} quote={liveBySymbol.get(item.symbol)} saving={savingSymbol === item.symbol} onSave={updateWatchlistItem} onRemove={removeFromWatchlist} />)}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <section className="p-8 md:p-12"><div className="mx-auto max-w-7xl">
+    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start"><div><div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Quant Research</div><h1 className="mt-3 text-3xl font-bold md:text-4xl">Stocks Research Dashboard</h1><p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 research with Dhan candles, live LTP, compact watchlist plans, and outcome tracking. Research only.</p></div><div className="flex flex-wrap gap-3"><button onClick={() => { loadStocks(); loadLiveQuotes(); loadWatchlist(); }} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button><button onClick={loadLiveQuotes} disabled={liveLoading} className="rounded-xl border border-blue-800 px-5 py-3 font-semibold text-blue-200 hover:bg-blue-950 disabled:opacity-50">{liveLoading ? 'Live...' : 'Refresh Live'}</button><button onClick={fetchDhanDaily} disabled={ingesting} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">{ingesting ? 'Fetching Dhan...' : 'Fetch Dhan Daily'}</button></div></div>
+    {error ? <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/20 p-4 text-sm text-red-200">{error}</div> : null}{data?.note ? <div className="mt-5 rounded-2xl border border-blue-900 bg-blue-950/20 p-4 text-sm text-blue-200">{data.note}</div> : null}
+    <div className="mt-6 grid gap-4 md:grid-cols-6"><Metric label="Universe" value={data?.universe || 'NIFTY50'} hint="Start small, then expand" /><Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} /><Metric label="Live Feed" value={liveOk ? 'Connected' : 'Checking'} hint={`${liveData?.count || 0} LTP snapshots`} tone={liveOk ? 'win' : undefined} /><Metric label="Saved Watchlist" value={String(watchlist.length)} hint="Detailed plans" tone="win" /><Metric label="Worked / Failed" value={`${outcomeCounts.Worked}/${outcomeCounts.Failed}`} hint="Research feedback" /><Metric label="Execution" value="Locked" hint="Research only" tone="loss" /></div>
+    <div className="mt-6 grid gap-4 md:grid-cols-5"><InsightCard title="Saved Watchlist" value={String(watchlist.length)} hint="Your saved stocks" onClick={() => setFilter('Saved Watchlist')} active={filter === 'Saved Watchlist'} /><InsightCard title="Live Watch" value={String(counts['Live Watch'])} hint="LTP positive + setup" onClick={() => setFilter('Live Watch')} active={filter === 'Live Watch'} /><InsightCard title="Volume Breakout" value={String(counts['Volume Breakout'])} hint="Volume 1.5x+" onClick={() => setFilter('Volume Breakout')} active={filter === 'Volume Breakout'} /><InsightCard title="Near 20D High" value={String(counts['Near 20D High'])} hint="Breakout zone" onClick={() => setFilter('Near 20D High')} active={filter === 'Near 20D High'} /><InsightCard title="Weak / Avoid" value={String(counts['Weak / Avoid'])} hint="Weak momentum" onClick={() => setFilter('Weak / Avoid')} active={filter === 'Weak / Avoid'} tone="loss" /></div>
+    <div className="mt-8 grid gap-6 lg:grid-cols-[1.22fr_0.78fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5"><div className="flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><h2 className="text-2xl font-bold text-white">{filter === 'All' ? 'Top Quant Picks' : filter}</h2><p className="mt-1 text-sm text-slate-400">Save research ideas. Review outcome after price moves.</p></div><div className="flex flex-wrap gap-2">{FILTERS.map((f) => <button key={f} onClick={() => setFilter(f)} className={`rounded-xl border px-3 py-2 text-xs ${filter === f ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{f}</button>)}</div></div><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search symbol, company, or sector" className="mt-5 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500" /><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[1420px] text-left text-sm"><thead className="text-xs uppercase tracking-[0.16em] text-slate-500"><tr className="border-b border-slate-800"><th className="py-3">Symbol</th><th>Sector</th><th>Close</th><th>Live LTP</th><th>Live %</th><th>Signal</th><th>1D</th><th>5D</th><th>Vol x</th><th>20D Pos</th><th>Score</th><th>Watchlist</th><th>Risk</th></tr></thead><tbody>{loading ? <tr><td colSpan={13} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={13} className="py-10 text-center text-slate-500">No stocks found for this filter.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} quote={liveBySymbol.get(row.symbol)} isSaved={watchlistSet.has(row.symbol)} saving={savingSymbol === row.symbol} onAdd={addToWatchlist} onRemove={removeFromWatchlist} />)}</tbody></table></div></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5"><h2 className="text-xl font-bold text-white">Watchlist Outcome Tracking</h2><p className="mt-1 text-sm text-slate-400">Compact cards. Expand only when editing the plan.</p><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><MiniStat label="Pending" value={outcomeCounts.Pending} /><MiniStat label="Worked" value={outcomeCounts.Worked} tone="win" /><MiniStat label="Failed" value={outcomeCounts.Failed} tone="loss" /></div><div className="mt-4 space-y-4">{watchlist.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">No saved stocks yet.</div> : watchlist.map((item) => <WatchlistDetailsCard key={item.symbol} item={item} quote={liveBySymbol.get(item.symbol)} saving={savingSymbol === item.symbol} onSave={updateWatchlistItem} onRemove={removeFromWatchlist} />)}</div></div></div>
+  </div></section>;
 }
 
-function StockTableRow({ row, quote, isSaved, saving, onAdd, onRemove }: { row: StockRow; quote?: LiveQuote; isSaved: boolean; saving: boolean; onAdd: (row: StockRow, quote?: LiveQuote) => void; onRemove: (symbol: string) => void }) {
-  const signal = getLiveSignal(row, quote);
-  return <tr className="border-b border-slate-800/80 text-slate-300 hover:bg-slate-800/40"><td className="py-4"><div className="font-bold text-white">{row.symbol}</div><div className="text-xs text-slate-500">{row.name}</div></td><td>{row.sector}</td><td>{money(row.close)}</td><td className="font-bold text-white">{quote?.ltp != null ? money(quote.ltp) : '-'}</td><td className={Number(quote?.change_pct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : '-'}</td><td><SignalBadge signal={signal} /></td><td className={row.change_1d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.change_1d_pct}%</td><td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td><td>{row.volume_ratio}x</td><td>{row.position_20d_pct}%</td><td><span className={row.quant_score >= 70 ? 'font-bold text-emerald-300' : row.quant_score >= 45 ? 'font-bold text-yellow-300' : 'font-bold text-red-300'}>{row.quant_score}</span></td><td>{isSaved ? <button disabled={saving} onClick={() => onRemove(row.symbol)} className="rounded-xl border border-red-800 px-3 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">{saving ? 'Removing...' : 'Remove'}</button> : <button disabled={saving} onClick={() => onAdd(row, quote)} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950 disabled:opacity-60">{saving ? 'Saving...' : 'Add'}</button>}</td><td className="max-w-[260px] text-xs text-slate-400">{signal.reason}</td></tr>;
-}
+function StockTableRow({ row, quote, isSaved, saving, onAdd, onRemove }: { row: StockRow; quote?: LiveQuote; isSaved: boolean; saving: boolean; onAdd: (row: StockRow, quote?: LiveQuote) => void; onRemove: (symbol: string) => void }) { const signal = getLiveSignal(row, quote); return <tr className="border-b border-slate-800/80 text-slate-300 hover:bg-slate-800/40"><td className="py-4"><div className="font-bold text-white">{row.symbol}</div><div className="text-xs text-slate-500">{row.name}</div></td><td>{row.sector}</td><td>{money(row.close)}</td><td className="font-bold text-white">{quote?.ltp != null ? money(quote.ltp) : '-'}</td><td className={Number(quote?.change_pct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : '-'}</td><td><SignalBadge signal={signal} /></td><td className={row.change_1d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.change_1d_pct}%</td><td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td><td>{row.volume_ratio}x</td><td>{row.position_20d_pct}%</td><td><span className={row.quant_score >= 70 ? 'font-bold text-emerald-300' : row.quant_score >= 45 ? 'font-bold text-yellow-300' : 'font-bold text-red-300'}>{row.quant_score}</span></td><td>{isSaved ? <button disabled={saving} onClick={() => onRemove(row.symbol)} className="rounded-xl border border-red-800 px-3 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">{saving ? 'Removing...' : 'Remove'}</button> : <button disabled={saving} onClick={() => onAdd(row, quote)} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950 disabled:opacity-60">{saving ? 'Saving...' : 'Add'}</button>}</td><td className="max-w-[260px] text-xs text-slate-400">{signal.reason}</td></tr>; }
 
-function WatchlistDetailsCard({ item, quote, saving, onSave, onRemove }: { item: WatchlistItem; quote?: LiveQuote; saving: boolean; onSave: (item: WatchlistItem, changes: Partial<WatchlistItem>) => void; onRemove: (symbol: string) => void }) {
-  const [status, setStatus] = useState(item.status || 'Watching');
-  const [entryIdea, setEntryIdea] = useState(item.entry_idea || '');
-  const [invalidation, setInvalidation] = useState(item.invalidation || '');
-  const [targetIdea, setTargetIdea] = useState(item.target_idea || '');
-  const [notes, setNotes] = useState(item.notes || '');
-  const [outcome, setOutcome] = useState(item.outcome || 'Pending');
-  const [outcomeDate, setOutcomeDate] = useState(item.outcome_date || '');
-  const [reviewNote, setReviewNote] = useState(item.review_note || '');
-  const [lesson, setLesson] = useState(item.lesson || '');
+function WatchlistDetailsCard({ item, quote, saving, onSave, onRemove }: { item: WatchlistItem; quote?: LiveQuote; saving: boolean; onSave: (item: WatchlistItem, changes: Partial<WatchlistItem>) => void; onRemove: (symbol: string) => void }) { const [expanded, setExpanded] = useState(false); const [status, setStatus] = useState(item.status || 'Watching'); const [entryIdea, setEntryIdea] = useState(item.entry_idea || ''); const [invalidation, setInvalidation] = useState(item.invalidation || ''); const [targetIdea, setTargetIdea] = useState(item.target_idea || ''); const [notes, setNotes] = useState(item.notes || ''); const [outcome, setOutcome] = useState(item.outcome || 'Pending'); const [outcomeDate, setOutcomeDate] = useState(item.outcome_date || ''); const [reviewNote, setReviewNote] = useState(item.review_note || ''); const [lesson, setLesson] = useState(item.lesson || ''); const outcomeTone = outcome === 'Worked' ? 'border-emerald-800 bg-emerald-500/10 text-emerald-300' : outcome === 'Failed' ? 'border-red-800 bg-red-500/10 text-red-300' : 'border-slate-700 bg-slate-800 text-slate-300'; return <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className="flex items-start justify-between gap-3"><button onClick={() => setExpanded(!expanded)} className="flex-1 text-left"><div className="flex items-center gap-2"><div className="text-lg font-bold text-white">{item.symbol}</div><span className={`rounded-full border px-2 py-1 text-[11px] ${outcomeTone}`}>{outcome}</span></div><div className="mt-1 text-xs text-slate-500">{item.name || item.sector || 'Saved idea'} • Score {item.quant_score ?? '-'} • {status}</div></button><div className="text-right"><div className="text-sm font-bold text-emerald-300">{quote?.ltp != null ? money(quote.ltp) : 'Live -'}</div><div className={Number(quote?.change_pct || 0) >= 0 ? 'text-xs text-emerald-300' : 'text-xs text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : ''}</div></div></div><div className="mt-3 grid grid-cols-3 gap-2 text-xs"><MiniStat label="Status" valueText={status} /><MiniStat label="Outcome" valueText={outcome} tone={outcome === 'Worked' ? 'win' : outcome === 'Failed' ? 'loss' : undefined} /><MiniStat label="Score" value={item.quant_score || 0} tone={(item.quant_score || 0) >= 70 ? 'win' : undefined} /></div><div className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400"><div className="font-semibold text-slate-300">Entry</div><div className="mt-1 line-clamp-2">{entryIdea || 'No entry idea saved.'}</div></div><button onClick={() => setExpanded(!expanded)} className="mt-3 w-full rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">{expanded ? 'Collapse Details' : 'Expand Details'}</button>{expanded ? <div className="mt-4 grid gap-3 border-t border-slate-800 pt-4"><label className="text-xs text-slate-400">Status<select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{WATCH_STATUSES.map((x) => <option key={x}>{x}</option>)}</select></label><label className="text-xs text-slate-400">Outcome<select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{OUTCOMES.map((x) => <option key={x}>{x}</option>)}</select></label><label className="text-xs text-slate-400">Outcome date<input type="date" value={outcomeDate} onChange={(e) => setOutcomeDate(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><label className="text-xs text-slate-400">Entry idea<input value={entryIdea} onChange={(e) => setEntryIdea(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><label className="text-xs text-slate-400">Invalidation / stop condition<input value={invalidation} onChange={(e) => setInvalidation(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><label className="text-xs text-slate-400">Target idea<input value={targetIdea} onChange={(e) => setTargetIdea(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><label className="text-xs text-slate-400">Notes<textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><label className="text-xs text-slate-400">Review note<textarea value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><label className="text-xs text-slate-400">Lesson learned<textarea value={lesson} onChange={(e) => setLesson(e.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label><div className="rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">{item.reason || 'No reason saved.'}</div><div className="flex gap-2"><button disabled={saving} onClick={() => onSave(item, { status, entry_idea: entryIdea, invalidation, target_idea: targetIdea, notes, outcome, outcome_date: outcomeDate || undefined, review_note: reviewNote, lesson })} className="rounded-xl bg-blue-500 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-400 disabled:opacity-60">{saving ? 'Saving...' : 'Save Review'}</button><button disabled={saving} onClick={() => onRemove(item.symbol)} className="rounded-xl border border-red-900 px-4 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">Remove</button></div></div> : null}</div>; }
 
-  return <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
-    <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-bold text-white">{item.symbol}</div><div className="text-xs text-slate-500">{item.name || item.sector || 'Saved idea'} • Score {item.quant_score ?? '-'}</div></div><div className="text-right"><div className="text-sm font-bold text-emerald-300">{quote?.ltp != null ? money(quote.ltp) : 'Live -'}</div><div className={Number(quote?.change_pct || 0) >= 0 ? 'text-xs text-emerald-300' : 'text-xs text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : ''}</div></div></div>
-    <div className="mt-3 grid gap-3">
-      <label className="text-xs text-slate-400">Status<select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{WATCH_STATUSES.map((x) => <option key={x}>{x}</option>)}</select></label>
-      <label className="text-xs text-slate-400">Outcome<select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{OUTCOMES.map((x) => <option key={x}>{x}</option>)}</select></label>
-      <label className="text-xs text-slate-400">Outcome date<input type="date" value={outcomeDate} onChange={(e) => setOutcomeDate(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Entry idea<input value={entryIdea} onChange={(e) => setEntryIdea(e.target.value)} placeholder="Wait for breakout retest / VWAP reclaim" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Invalidation / stop condition<input value={invalidation} onChange={(e) => setInvalidation(e.target.value)} placeholder="Below VWAP / below previous day low" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Target idea<input value={targetIdea} onChange={(e) => setTargetIdea(e.target.value)} placeholder="Previous high / 1:2 RR / trail strength" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Notes<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Why am I watching this? What should I avoid?" className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Review note<textarea value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="What happened after this idea triggered or failed?" className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Lesson learned<textarea value={lesson} onChange={(e) => setLesson(e.target.value)} placeholder="What should I repeat or avoid next time?" className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-    </div>
-    <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">{item.reason || 'No reason saved.'}</div>
-    <div className="mt-3 flex gap-2"><button disabled={saving} onClick={() => onSave(item, { status, entry_idea: entryIdea, invalidation, target_idea: targetIdea, notes, outcome, outcome_date: outcomeDate || undefined, review_note: reviewNote, lesson })} className="rounded-xl bg-blue-500 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-400 disabled:opacity-60">{saving ? 'Saving...' : 'Save Review'}</button><button disabled={saving} onClick={() => onRemove(item.symbol)} className="rounded-xl border border-red-900 px-4 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">Remove</button></div>
-  </div>;
-}
-
-function MiniStat({ label, value, tone }: { label: string; value: number; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><div className="text-slate-500">{label}</div><div className={`mt-1 text-lg font-bold ${cls}`}>{value}</div></div>; }
+function MiniStat({ label, value, valueText, tone }: { label: string; value?: number; valueText?: string; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><div className="text-slate-500">{label}</div><div className={`mt-1 text-sm font-bold ${cls}`}>{valueText ?? value ?? 0}</div></div>; }
 function SignalBadge({ signal }: { signal: LiveSignal }) { const cls = signal.tone === 'win' ? 'border-emerald-700 bg-emerald-500/10 text-emerald-300' : signal.tone === 'warn' ? 'border-yellow-700 bg-yellow-500/10 text-yellow-300' : signal.tone === 'loss' ? 'border-red-700 bg-red-500/10 text-red-300' : 'border-slate-700 bg-slate-800 text-slate-300'; return <span className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs ${cls}`}>{signal.label}</span>; }
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="text-sm text-slate-400">{label}</div><div className={`mt-2 text-lg font-bold ${cls}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div>; }
 function InsightCard({ title, value, hint, active, tone, onClick }: { title: string; value: string; hint: string; active: boolean; tone?: 'loss'; onClick: () => void }) { return <button onClick={onClick} className={`rounded-2xl border p-5 text-left transition ${active ? 'border-emerald-400 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/70 hover:bg-slate-800/60'}`}><div className="text-sm text-slate-400">{title}</div><div className={`mt-2 text-2xl font-bold ${tone === 'loss' ? 'text-red-300' : 'text-emerald-300'}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></button>; }
