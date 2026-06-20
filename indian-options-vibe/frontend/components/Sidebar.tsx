@@ -5,6 +5,7 @@ const items = [
   ['Agent', '/agent'],
   ['Market Screener', '/scanner'],
   ['Paper Trading', '/paper'],
+  ['Journal Dashboard', '/journal'],
   ['Runs', '/runs/demo-run-001'],
   ['Broker Connect', '/broker'],
   ['Settings', '/settings'],
