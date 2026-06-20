@@ -27,7 +27,6 @@ type PaperTrade = {
 
 type Filter = 'All' | 'Open' | 'Target Hit' | 'SL Hit' | 'Cancelled' | 'Manual P&L';
 type Period = 'Today' | 'This Week' | 'This Month' | 'All Time';
-
 type Row = { label: string; value: number; pct: number };
 
 type ScoreParts = {
@@ -38,7 +37,15 @@ type ScoreParts = {
   completion: number;
 };
 
+type RuleStatus = 'pass' | 'warning' | 'locked';
+type DisciplineRule = { label: string; value: string; status: RuleStatus; hint: string };
+
 const RISK_PER_TRADE = 1000;
+const MAX_TRADES_PER_DAY = 3;
+const MAX_DAILY_LOSS = 2000;
+const MAX_SL_HITS_PER_DAY = 2;
+const MAX_MARKET_CLOSED_ADDS = 0;
+
 const FILTERS: Filter[] = ['All', 'Open', 'Target Hit', 'SL Hit', 'Cancelled', 'Manual P&L'];
 const PERIODS: Period[] = ['Today', 'This Week', 'This Month', 'All Time'];
 
@@ -91,7 +98,9 @@ export default function JournalPage() {
   }, []);
 
   const periodTrades = useMemo(() => filterByPeriod(trades, period), [trades, period]);
+  const todayTrades = useMemo(() => filterByPeriod(trades, 'Today'), [trades]);
   const stats = useMemo(() => getStats(periodTrades), [periodTrades]);
+  const dailyDiscipline = useMemo(() => getDailyDiscipline(todayTrades), [todayTrades]);
   const filteredTrades = useMemo(() => filterTrades(periodTrades, filter), [periodTrades, filter]);
 
   return (
@@ -101,7 +110,7 @@ export default function JournalPage() {
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-400">Trading Journal</div>
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Trading Journal Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">Paper trade analytics with broker, market, Dhan funds snapshots, discipline tags, outcome tracking, and period filters.</p>
+            <p className="mt-2 max-w-3xl text-slate-400">Paper trade analytics with normal discipline rules first. Algo-specific rules will come only after the scalping model is stable.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button onClick={loadTrades} className="rounded-xl bg-blue-500 px-5 py-3 font-semibold text-white hover:bg-blue-400">Refresh</button>
@@ -110,6 +119,8 @@ export default function JournalPage() {
         </div>
 
         {error ? <div className="mt-5 rounded-2xl border border-yellow-900 bg-yellow-950/20 p-4 text-sm text-yellow-200">Notice: {error}</div> : null}
+
+        <DailyDisciplinePanel discipline={dailyDiscipline} />
 
         <div className="mt-5 flex flex-wrap gap-2">
           {PERIODS.map((item) => (
@@ -186,6 +197,49 @@ export default function JournalPage() {
         </div>
       </div>
     </section>
+  );
+}
+
+function DailyDisciplinePanel({ discipline }: { discipline: ReturnType<typeof getDailyDiscipline> }) {
+  const panelClass = discipline.locked
+    ? 'border-red-900 bg-red-950/15'
+    : discipline.warnings > 0
+      ? 'border-yellow-900 bg-yellow-950/10'
+      : 'border-emerald-900 bg-emerald-950/10';
+
+  return (
+    <div className={`mt-6 rounded-3xl border p-5 ${panelClass}`}>
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Daily Discipline Lock</div>
+          <h2 className="mt-2 text-2xl font-bold text-white">Normal risk rules first</h2>
+          <p className="mt-1 text-sm text-slate-400">These rules protect you while the scalping algo model is still under development. They are warnings for paper mode and will become hard locks before live execution.</p>
+        </div>
+        <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${discipline.locked ? 'border-red-700 text-red-300' : discipline.warnings > 0 ? 'border-yellow-700 text-yellow-300' : 'border-emerald-700 text-emerald-300'}`}>
+          {discipline.locked ? 'LOCKED' : discipline.warnings > 0 ? 'WARNING' : 'PASS'}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        {discipline.rules.map((rule) => <RuleCard key={rule.label} rule={rule} />)}
+      </div>
+    </div>
+  );
+}
+
+function RuleCard({ rule }: { rule: DisciplineRule }) {
+  const tone = rule.status === 'pass'
+    ? 'border-emerald-900 text-emerald-300'
+    : rule.status === 'warning'
+      ? 'border-yellow-900 text-yellow-300'
+      : 'border-red-900 text-red-300';
+
+  return (
+    <div className={`rounded-2xl border bg-slate-950/70 p-4 ${tone}`}>
+      <div className="text-xs uppercase tracking-[0.12em] text-slate-500">{rule.label}</div>
+      <div className="mt-2 text-xl font-bold">{rule.value}</div>
+      <div className="mt-1 text-xs text-slate-500">{rule.hint}</div>
+    </div>
   );
 }
 
@@ -267,6 +321,56 @@ function getStats(trades: PaperTrade[]) {
   const scoreParts = getScoreParts({ winRate, profitFactor, maxDrawdown, closedAdds, completionRate });
   const score = Math.round((scoreParts.winRate + scoreParts.profitFactor + scoreParts.drawdownControl + scoreParts.discipline + scoreParts.completion) / 5);
   return { total: trades.length, completed: completed.length, wins, losses, neutral, netPnl, winRate, profitFactor, maxDrawdown, avgWinLoss, ce, pe, closedAdds, score, scoreParts, dailyRows: groupRows(completed, dayKey), symbolRows: groupRows(completed, (t) => t.symbol), equityPoints: equityPoints(completed) };
+}
+
+function getDailyDiscipline(todayTrades: PaperTrade[]) {
+  const completed = todayTrades.filter((trade) => !isOpenTrade(trade));
+  const dailyPnl = completed.reduce((sum, trade) => sum + getPnl(trade), 0);
+  const slHits = completed.filter((trade) => trade.status === 'SL Hit' || getPnl(trade) <= -RISK_PER_TRADE).length;
+  const marketClosedAdds = todayTrades.filter((trade) => trade.marketSnapshot?.is_open === false).length;
+  const revengeRisk = slHits >= 1 && todayTrades.length > slHits;
+
+  const rules: DisciplineRule[] = [
+    {
+      label: 'Trades Today',
+      value: `${todayTrades.length}/${MAX_TRADES_PER_DAY}`,
+      status: todayTrades.length > MAX_TRADES_PER_DAY ? 'locked' : todayTrades.length === MAX_TRADES_PER_DAY ? 'warning' : 'pass',
+      hint: 'Avoid overtrading. Stop after max trades.',
+    },
+    {
+      label: 'Daily P&L',
+      value: money(dailyPnl),
+      status: dailyPnl <= -MAX_DAILY_LOSS ? 'locked' : dailyPnl < 0 ? 'warning' : 'pass',
+      hint: `Daily loss guard: ${money(-MAX_DAILY_LOSS)}`,
+    },
+    {
+      label: 'SL Hits',
+      value: `${slHits}/${MAX_SL_HITS_PER_DAY}`,
+      status: slHits >= MAX_SL_HITS_PER_DAY ? 'locked' : slHits === 1 ? 'warning' : 'pass',
+      hint: 'No trade after 2 SL hits.',
+    },
+    {
+      label: 'Market Closed Adds',
+      value: `${marketClosedAdds}/${MAX_MARKET_CLOSED_ADDS}`,
+      status: marketClosedAdds > MAX_MARKET_CLOSED_ADDS ? 'warning' : 'pass',
+      hint: 'Paper logs allowed, live orders locked.',
+    },
+    {
+      label: 'Revenge Risk',
+      value: revengeRisk ? 'High' : 'Low',
+      status: revengeRisk ? 'warning' : 'pass',
+      hint: 'Warning when trading continues after SL.',
+    },
+  ];
+
+  return {
+    rules,
+    locked: rules.some((rule) => rule.status === 'locked'),
+    warnings: rules.filter((rule) => rule.status === 'warning').length,
+    dailyPnl,
+    slHits,
+    tradesToday: todayTrades.length,
+  };
 }
 
 function getScoreParts({ winRate, profitFactor, maxDrawdown, closedAdds, completionRate }: { winRate: number; profitFactor: number; maxDrawdown: number; closedAdds: number; completionRate: number }): ScoreParts {
