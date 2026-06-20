@@ -4,6 +4,7 @@ from db.supabase_runs import get_supabase_client
 
 SYMBOLS_TABLE = "symbols"
 DAILY_CANDLES_TABLE = "daily_candles"
+WATCHLIST_TABLE = "research_watchlist"
 
 # security_id is Dhan / NSE exchange security id used by /charts/historical.
 # If any symbol fails, refresh mapping later from Dhan security master CSV.
@@ -104,3 +105,31 @@ def list_daily_candles_from_supabase(symbol: str | None = None, limit: int = 250
         query = query.eq("symbol", symbol.upper())
     response = query.order("candle_date", desc=True).limit(limit).execute()
     return response.data or []
+
+
+def list_watchlist_from_supabase() -> list[dict[str, Any]]:
+    client = get_supabase_client()
+    if not client:
+        raise RuntimeError("Supabase is not configured")
+
+    response = client.table(WATCHLIST_TABLE).select("*").order("created_at", desc=True).execute()
+    return response.data or []
+
+
+def upsert_watchlist_item_to_supabase(row: dict[str, Any]) -> dict[str, Any]:
+    client = get_supabase_client()
+    if not client:
+        raise RuntimeError("Supabase is not configured")
+
+    response = client.table(WATCHLIST_TABLE).upsert(row, on_conflict="symbol").execute()
+    data = response.data or []
+    return data[0] if data else row
+
+
+def delete_watchlist_item_from_supabase(symbol: str) -> dict[str, Any]:
+    client = get_supabase_client()
+    if not client:
+        raise RuntimeError("Supabase is not configured")
+
+    response = client.table(WATCHLIST_TABLE).delete().eq("symbol", symbol.upper()).execute()
+    return {"symbol": symbol.upper(), "deleted": bool(response.data)}
