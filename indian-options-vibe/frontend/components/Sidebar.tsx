@@ -3,6 +3,7 @@ import Link from 'next/link';
 const items = [
   ['Home', '/'],
   ['Agent', '/agent'],
+  ['Stocks Research', '/stocks'],
   ['Market Screener', '/scanner'],
   ['Paper Trading', '/paper'],
   ['Journal Dashboard', '/journal'],
