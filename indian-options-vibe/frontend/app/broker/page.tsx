@@ -419,12 +419,104 @@ function BrokerResultPanel({ result, onClear }: { result: CheckResult; onClear: 
             </div>
           ) : null}
 
+          <BrokerDataTable action={result.action} data={data} />
+
           <div className="mt-5 rounded-2xl border border-slate-800 bg-black p-4">
             <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Raw response</div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs text-slate-300">{JSON.stringify(payload, null, 2)}</pre>
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function BrokerDataTable({ action, data }: { action: string; data: any }) {
+  if (action !== 'positions' && action !== 'orders') return null;
+
+  const rows = Array.isArray(data) ? data : [];
+  const title = action === 'positions' ? 'Positions Table' : 'Orders Table';
+  const emptyText = action === 'positions' ? 'No open positions returned by broker.' : 'No orders returned by broker for today.';
+
+  if (rows.length === 0) {
+    return (
+      <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</div>
+        <div className="mt-3 rounded-xl border border-slate-800 bg-black/30 p-4 text-sm text-slate-300">{emptyText}</div>
+      </div>
+    );
+  }
+
+  if (action === 'positions') {
+    return (
+      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+        <div className="border-b border-slate-800 p-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="bg-black/40 text-xs uppercase tracking-[0.12em] text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Symbol</th>
+                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Side</th>
+                <th className="px-4 py-3">Net Qty</th>
+                <th className="px-4 py-3">Buy Avg</th>
+                <th className="px-4 py-3">Sell Avg</th>
+                <th className="px-4 py-3">P&L / MTM</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {rows.map((row, index) => {
+                const pnl = Number(pick(row, ['realizedProfit', 'unrealizedProfit', 'mtm', 'pnl', 'profitAndLoss']) || 0);
+                return (
+                  <tr key={index} className="text-slate-300">
+                    <td className="px-4 py-3 font-semibold text-white">{pick(row, ['tradingSymbol', 'symbol', 'securityId', 'drvOptionType'])}</td>
+                    <td className="px-4 py-3">{pick(row, ['productType', 'product', 'exchangeSegment'])}</td>
+                    <td className="px-4 py-3">{pick(row, ['positionType', 'transactionType', 'side'])}</td>
+                    <td className="px-4 py-3">{pick(row, ['netQty', 'netQuantity', 'quantity', 'qty'])}</td>
+                    <td className="px-4 py-3">{numberText(pick(row, ['buyAvg', 'buyAvgPrice', 'averageBuyPrice']))}</td>
+                    <td className="px-4 py-3">{numberText(pick(row, ['sellAvg', 'sellAvgPrice', 'averageSellPrice']))}</td>
+                    <td className={`px-4 py-3 font-semibold ${pnl > 0 ? 'text-emerald-300' : pnl < 0 ? 'text-red-300' : 'text-slate-300'}`}>{money(pnl)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+      <div className="border-b border-slate-800 p-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[900px] text-left text-sm">
+          <thead className="bg-black/40 text-xs uppercase tracking-[0.12em] text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Time</th>
+              <th className="px-4 py-3">Symbol</th>
+              <th className="px-4 py-3">Side</th>
+              <th className="px-4 py-3">Qty</th>
+              <th className="px-4 py-3">Price</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {rows.map((row, index) => (
+              <tr key={index} className="text-slate-300">
+                <td className="px-4 py-3">{pick(row, ['orderTime', 'exchangeTime', 'createTime', 'orderDateTime'])}</td>
+                <td className="px-4 py-3 font-semibold text-white">{pick(row, ['tradingSymbol', 'symbol', 'securityId'])}</td>
+                <td className="px-4 py-3">{pick(row, ['transactionType', 'side', 'orderSide'])}</td>
+                <td className="px-4 py-3">{pick(row, ['quantity', 'qty', 'filledQty', 'remainingQuantity'])}</td>
+                <td className="px-4 py-3">{numberText(pick(row, ['price', 'averageTradedPrice', 'triggerPrice']))}</td>
+                <td className="px-4 py-3">{pick(row, ['orderType', 'productType', 'validity'])}</td>
+                <td className="px-4 py-3"><span className="rounded-full border border-slate-700 px-2 py-1 text-xs">{pick(row, ['orderStatus', 'status', 'omsErrorDescription'])}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -461,6 +553,20 @@ function summarizeBrokerData(action: string, data: any): Array<{ label: string; 
   }
 
   return [];
+}
+
+function pick(row: Record<string, any>, keys: string[]) {
+  for (const key of keys) {
+    if (row?.[key] !== undefined && row?.[key] !== null && row?.[key] !== '') return String(row[key]);
+  }
+  return '-';
+}
+
+function numberText(value: unknown) {
+  if (value === '-' || value === undefined || value === null || value === '') return '-';
+  const numberValue = Number(value);
+  if (Number.isNaN(numberValue)) return String(value);
+  return numberValue.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
 function money(value: unknown) {
