@@ -21,7 +21,7 @@ class DhanReadOnlyAdapter:
     """Read-only DhanHQ adapter.
 
     This adapter intentionally does not expose any place/modify/cancel order method.
-    It is only for profile, funds, positions, order book, and market-data checks.
+    It is only for profile, funds, positions, order book, historical data, and market-data checks.
     """
 
     def __init__(self) -> None:
@@ -40,6 +40,16 @@ class DhanReadOnlyAdapter:
             "dhanClientId": self.client_id or "",
         }
 
+    @property
+    def marketfeed_headers(self) -> dict[str, str]:
+        # Dhan marketfeed endpoints use client-id header instead of dhanClientId.
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "access-token": self.access_token or "",
+            "client-id": self.client_id or "",
+        }
+
     async def _get(self, path: str) -> Any:
         url = f"{DHAN_BASE_URL}{path}"
         try:
@@ -50,11 +60,12 @@ class DhanReadOnlyAdapter:
 
         return self._parse_response(response)
 
-    async def _post(self, path: str, payload: dict[str, Any]) -> Any:
+    async def _post(self, path: str, payload: dict[str, Any], *, marketfeed: bool = False) -> Any:
         url = f"{DHAN_BASE_URL}{path}"
+        headers = self.marketfeed_headers if marketfeed else self.headers
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=self.headers, json=payload)
+                response = await client.post(url, headers=headers, json=payload)
         except httpx.HTTPError as exc:
             raise DhanApiError(f"Could not reach Dhan API: {exc}") from exc
 
@@ -106,6 +117,17 @@ class DhanReadOnlyAdapter:
                 "fromDate": from_date,
                 "toDate": to_date,
             },
+        )
+
+    async def market_ltp(self, security_ids: list[str], exchange_segment: str = "NSE_EQ") -> Any:
+        cleaned_ids = [int(str(item)) for item in security_ids if str(item).strip()]
+        if not cleaned_ids:
+            return {"data": {exchange_segment: {}}, "status": "empty"}
+
+        return await self._post(
+            "/marketfeed/ltp",
+            {exchange_segment: cleaned_ids},
+            marketfeed=True,
         )
 
 
