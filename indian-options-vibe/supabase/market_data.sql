@@ -8,10 +8,14 @@ create table if not exists public.symbols (
   sector text default 'Unknown',
   exchange text default 'NSE',
   universe text default 'NIFTY50',
+  security_id text,
   is_active boolean default true,
   inserted_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- Safe migration if symbols table already exists from v1.
+alter table public.symbols add column if not exists security_id text;
 
 create table if not exists public.daily_candles (
   id bigserial primary key,
@@ -47,6 +51,7 @@ create table if not exists public.research_scores (
 
 create index if not exists idx_daily_candles_symbol_date on public.daily_candles(symbol, candle_date desc);
 create index if not exists idx_symbols_universe on public.symbols(universe);
+create index if not exists idx_symbols_security_id on public.symbols(security_id);
 create index if not exists idx_research_scores_date_score on public.research_scores(score_date desc, quant_score desc);
 
 alter table public.symbols enable row level security;
