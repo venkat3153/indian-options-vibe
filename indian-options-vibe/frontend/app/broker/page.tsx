@@ -33,6 +33,26 @@ type BrokerStatusResponse = {
   brokers: BrokerApiStatus[];
 };
 
+type MarketStatus = {
+  market: string;
+  timezone: string;
+  now_ist: string;
+  status: 'open' | 'closed';
+  is_open: boolean;
+  is_weekend: boolean;
+  regular_session: string;
+  reason: string;
+  next_allowed: string;
+  live_orders_enabled: boolean;
+  live_orders_reason: string;
+  order_actions: {
+    place_order: boolean;
+    modify_order: boolean;
+    cancel_order: boolean;
+    auto_trade: boolean;
+  };
+};
+
 type CheckResult = {
   brokerId: string;
   brokerName: string;
@@ -90,8 +110,11 @@ const riskRules = [
 
 export default function BrokerPage() {
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatusResponse | null>(null);
+  const [marketStatus, setMarketStatus] = useState<MarketStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [marketLoading, setMarketLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [marketError, setMarketError] = useState<string | null>(null);
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
 
   async function loadBrokerStatus() {
@@ -108,6 +131,26 @@ export default function BrokerPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadMarketStatus() {
+    try {
+      setMarketLoading(true);
+      const response = await fetch('http://localhost:8000/api/market/status');
+      if (!response.ok) throw new Error(`Market status API returned ${response.status}`);
+      const data = (await response.json()) as MarketStatus;
+      setMarketStatus(data);
+      setMarketError(null);
+    } catch (err) {
+      setMarketError(err instanceof Error ? err.message : 'Could not reach market status API');
+      setMarketStatus(null);
+    } finally {
+      setMarketLoading(false);
+    }
+  }
+
+  async function refreshAllStatus() {
+    await Promise.all([loadBrokerStatus(), loadMarketStatus()]);
   }
 
   async function runReadOnlyCheck(broker: Broker, action: string) {
@@ -129,7 +172,7 @@ export default function BrokerPage() {
   }
 
   useEffect(() => {
-    loadBrokerStatus();
+    refreshAllStatus();
   }, []);
 
   const brokerMap = useMemo(() => {
@@ -139,6 +182,7 @@ export default function BrokerPage() {
   }, [brokerStatus]);
 
   const configuredCount = brokerStatus?.brokers.filter((broker) => broker.configured).length || 0;
+  const marketClosed = marketStatus ? !marketStatus.is_open : true;
 
   return (
     <section className="p-8 md:p-12">
@@ -161,6 +205,7 @@ export default function BrokerPage() {
         </div>
 
         {error ? <div className="mt-5 rounded-2xl border border-yellow-900 bg-yellow-950/20 p-4 text-sm text-yellow-200">Broker API fallback active: {error}</div> : null}
+        {marketError ? <div className="mt-5 rounded-2xl border border-yellow-900 bg-yellow-950/20 p-4 text-sm text-yellow-200">Market API fallback active: {marketError}</div> : null}
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <SummaryCard label="Mode" value={brokerStatus?.mode === 'single_user' ? 'Single User' : loading ? 'Checking' : 'Offline'} hint="Your broker accounts only" />
@@ -168,6 +213,8 @@ export default function BrokerPage() {
           <SummaryCard label="First Adapter" value={(brokerStatus?.first_adapter || 'dhan').toUpperCase()} hint="Read-only first" />
           <SummaryCard label="Configured" value={`${configuredCount}/${brokers.length}`} hint="Broker env keys detected" tone={configuredCount > 0 ? 'win' : undefined} />
         </div>
+
+        <MarketSafetyPanel status={marketStatus} loading={marketLoading} onRefresh={refreshAllStatus} />
 
         <div className="mt-8 rounded-3xl border border-emerald-900/60 bg-emerald-950/10 p-5">
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
@@ -178,8 +225,8 @@ export default function BrokerPage() {
                 We will add backend broker adapters for profile, funds, positions, and order book checks. Live order placement remains disabled until the discipline guard and manual approval flow are stable.
               </p>
             </div>
-            <button onClick={loadBrokerStatus} className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300 hover:border-emerald-800 hover:text-emerald-300">
-              {loading ? 'Checking broker API...' : 'Refresh broker status'}
+            <button onClick={refreshAllStatus} className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300 hover:border-emerald-800 hover:text-emerald-300">
+              {loading || marketLoading ? 'Checking status...' : 'Refresh all status'}
             </button>
           </div>
         </div>
@@ -188,7 +235,7 @@ export default function BrokerPage() {
 
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
           {brokers.map((broker) => (
-            <BrokerCard key={broker.id} broker={broker} apiStatus={brokerMap.get(broker.id)} onRunCheck={runReadOnlyCheck} activeCheck={checkResult} />
+            <BrokerCard key={broker.id} broker={broker} apiStatus={brokerMap.get(broker.id)} onRunCheck={runReadOnlyCheck} activeCheck={checkResult} marketClosed={marketClosed} />
           ))}
         </div>
 
@@ -227,16 +274,53 @@ ZERODHA_ACCESS_TOKEN=`}</pre>
   );
 }
 
+function MarketSafetyPanel({ status, loading, onRefresh }: { status: MarketStatus | null; loading: boolean; onRefresh: () => void }) {
+  const isOpen = Boolean(status?.is_open);
+  const statusText = loading ? 'Checking' : isOpen ? 'Open' : 'Closed';
+  const statusTone = isOpen ? 'border-yellow-800 bg-yellow-950/30 text-yellow-300' : 'border-red-900 bg-red-950/30 text-red-300';
+
+  return (
+    <div className="mt-8 rounded-3xl border border-red-900/70 bg-red-950/10 p-5">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+        <div>
+          <div className="text-sm font-semibold uppercase tracking-[0.22em] text-red-300">Market Safety Lock</div>
+          <h2 className="mt-2 text-2xl font-bold text-white">NSE market status: {statusText}</h2>
+          <p className="mt-2 max-w-4xl text-sm text-slate-300">
+            {status?.reason || 'Checking NSE market window using IST. Live orders remain locked by default.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className={`rounded-full border px-3 py-2 text-xs ${statusTone}`}>{statusText}</span>
+          <button onClick={onRefresh} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-emerald-800 hover:text-emerald-300">Refresh</button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <SummaryCard label="Session" value={status?.regular_session || '09:15-15:30 IST'} hint="NSE regular session" />
+        <SummaryCard label="Now" value={status?.now_ist?.replace(' IST', '') || 'Checking'} hint="Indian time" />
+        <SummaryCard label="Next Allowed" value={status?.next_allowed || 'After safety checks'} hint="Earliest market window" />
+        <SummaryCard label="Live Orders" value="Locked" hint={status?.live_orders_reason || 'Manual approval required'} tone="loss" />
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-red-900/60 bg-black/30 p-4 text-sm text-red-200">
+        🔒 Place, modify, cancel, and auto-trade actions are blocked. Today we only use read-only checks and UI building.
+      </div>
+    </div>
+  );
+}
+
 function BrokerCard({
   broker,
   apiStatus,
   onRunCheck,
   activeCheck,
+  marketClosed,
 }: {
   broker: Broker;
   apiStatus?: BrokerApiStatus;
   onRunCheck: (broker: Broker, action: string) => void;
   activeCheck: CheckResult | null;
+  marketClosed: boolean;
 }) {
   const configured = Boolean(apiStatus?.configured);
   const statusLabel = apiStatus ? (configured ? 'Configured' : 'Not configured') : broker.staticStatus;
@@ -294,7 +378,7 @@ function BrokerCard({
       </div>
 
       <div className="mt-5 rounded-2xl border border-red-900/60 bg-red-950/10 p-4 text-sm text-red-200">
-        {apiStatus?.live_orders_reason || 'Live place/modify/cancel order APIs are intentionally locked in this phase.'}
+        {marketClosed ? 'Market is closed or outside allowed time. ' : ''}{apiStatus?.live_orders_reason || 'Live place/modify/cancel order APIs are intentionally locked in this phase.'}
       </div>
     </div>
   );
