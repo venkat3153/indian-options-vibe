@@ -33,6 +33,15 @@ type BrokerStatusResponse = {
   brokers: BrokerApiStatus[];
 };
 
+type CheckResult = {
+  brokerId: string;
+  brokerName: string;
+  action: string;
+  loading: boolean;
+  error?: string | null;
+  response?: any;
+};
+
 const brokers: Broker[] = [
   {
     id: 'dhan',
@@ -83,6 +92,7 @@ export default function BrokerPage() {
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
 
   async function loadBrokerStatus() {
     try {
@@ -97,6 +107,24 @@ export default function BrokerPage() {
       setBrokerStatus(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function runReadOnlyCheck(broker: Broker, action: string) {
+    setCheckResult({ brokerId: broker.id, brokerName: broker.name, action, loading: true });
+    try {
+      const response = await fetch(`http://localhost:8000/api/brokers/${broker.id}/${action}`);
+      if (!response.ok) throw new Error(`Broker ${action} check returned ${response.status}`);
+      const data = await response.json();
+      setCheckResult({ brokerId: broker.id, brokerName: broker.name, action, loading: false, response: data });
+    } catch (err) {
+      setCheckResult({
+        brokerId: broker.id,
+        brokerName: broker.name,
+        action,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Read-only check failed',
+      });
     }
   }
 
@@ -156,9 +184,11 @@ export default function BrokerPage() {
           </div>
         </div>
 
+        {checkResult ? <BrokerResultPanel result={checkResult} onClear={() => setCheckResult(null)} /> : null}
+
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
           {brokers.map((broker) => (
-            <BrokerCard key={broker.id} broker={broker} apiStatus={brokerMap.get(broker.id)} />
+            <BrokerCard key={broker.id} broker={broker} apiStatus={brokerMap.get(broker.id)} onRunCheck={runReadOnlyCheck} activeCheck={checkResult} />
           ))}
         </div>
 
@@ -197,7 +227,17 @@ ZERODHA_ACCESS_TOKEN=`}</pre>
   );
 }
 
-function BrokerCard({ broker, apiStatus }: { broker: Broker; apiStatus?: BrokerApiStatus }) {
+function BrokerCard({
+  broker,
+  apiStatus,
+  onRunCheck,
+  activeCheck,
+}: {
+  broker: Broker;
+  apiStatus?: BrokerApiStatus;
+  onRunCheck: (broker: Broker, action: string) => void;
+  activeCheck: CheckResult | null;
+}) {
   const configured = Boolean(apiStatus?.configured);
   const statusLabel = apiStatus ? (configured ? 'Configured' : 'Not configured') : broker.staticStatus;
   const statusClass = configured ? 'border-emerald-800 bg-emerald-950/30 text-emerald-300' : 'border-yellow-800 bg-yellow-950/30 text-yellow-300';
@@ -237,11 +277,19 @@ function BrokerCard({ broker, apiStatus }: { broker: Broker; apiStatus?: BrokerA
       <div className="mt-5">
         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Read-only tests</div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {tests.map((item) => (
-            <a key={item} href={`http://localhost:8000/api/brokers/${broker.id}/${item}`} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-3 text-left text-sm text-slate-300 hover:border-emerald-800 hover:text-emerald-300">
-              {labelCase(item)} check →
-            </a>
-          ))}
+          {tests.map((item) => {
+            const isActive = activeCheck?.brokerId === broker.id && activeCheck?.action === item && activeCheck?.loading;
+            return (
+              <button
+                key={item}
+                onClick={() => onRunCheck(broker, item)}
+                className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-3 text-left text-sm text-slate-300 hover:border-emerald-800 hover:text-emerald-300 disabled:cursor-wait disabled:opacity-60"
+                disabled={isActive}
+              >
+                {isActive ? 'Checking...' : `${labelCase(item)} check →`}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -250,6 +298,90 @@ function BrokerCard({ broker, apiStatus }: { broker: Broker; apiStatus?: BrokerA
       </div>
     </div>
   );
+}
+
+function BrokerResultPanel({ result, onClear }: { result: CheckResult; onClear: () => void }) {
+  const payload = result.response;
+  const statusOk = payload?.configured === true && !payload?.error && !result.error;
+  const data = payload?.data;
+  const summary = summarizeBrokerData(result.action, data);
+
+  return (
+    <div className="mt-8 rounded-3xl border border-emerald-900/60 bg-slate-900/80 p-5">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Read-only result</div>
+          <h2 className="mt-2 text-2xl font-bold text-white">{result.brokerName} {labelCase(result.action)} Check</h2>
+          <p className="mt-1 text-sm text-slate-400">Live orders remain locked. This panel only displays broker read-only data.</p>
+        </div>
+        <div className="flex gap-2">
+          <span className={`rounded-full border px-3 py-2 text-xs ${statusOk ? 'border-emerald-800 bg-emerald-950/30 text-emerald-300' : 'border-yellow-800 bg-yellow-950/30 text-yellow-300'}`}>
+            {result.loading ? 'Checking' : statusOk ? 'Connected' : 'Needs attention'}
+          </span>
+          <button onClick={onClear} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:border-red-800 hover:text-red-300">Clear</button>
+        </div>
+      </div>
+
+      {result.loading ? <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300">Fetching read-only data from backend...</div> : null}
+      {result.error ? <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/20 p-4 text-sm text-red-200">{result.error}</div> : null}
+
+      {!result.loading && !result.error ? (
+        <>
+          {summary.length > 0 ? (
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              {summary.map((item) => (
+                <SummaryCard key={item.label} label={item.label} value={item.value} hint={item.hint} tone={item.tone} />
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-5 rounded-2xl border border-slate-800 bg-black p-4">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Raw response</div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs text-slate-300">{JSON.stringify(payload, null, 2)}</pre>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function summarizeBrokerData(action: string, data: any): Array<{ label: string; value: string; hint: string; tone?: 'win' | 'loss' }> {
+  if (!data) return [];
+
+  if (action === 'profile') {
+    return [
+      { label: 'Token Validity', value: String(data.tokenValidity || 'Active'), hint: 'Dhan token status', tone: 'win' },
+      { label: 'Data Plan', value: String(data.dataPlan || 'Unknown'), hint: `Data validity: ${data.dataValidity || 'N/A'}` },
+      { label: 'MTF', value: String(data.mtf || 'Unknown'), hint: `DDPI: ${data.ddpi || 'N/A'}` },
+    ];
+  }
+
+  if (action === 'funds') {
+    return [
+      { label: 'Available', value: money(data.availableBalance), hint: 'Available balance', tone: Number(data.availableBalance || 0) > 0 ? 'win' : undefined },
+      { label: 'Withdrawable', value: money(data.withdrawableBalance), hint: 'Withdrawable balance' },
+      { label: 'Utilized', value: money(data.utilizedAmount), hint: 'Used margin' },
+    ];
+  }
+
+  if (action === 'positions') {
+    return [
+      { label: 'Open Positions', value: Array.isArray(data) ? String(data.length) : '0', hint: 'Read-only position count' },
+    ];
+  }
+
+  if (action === 'orders') {
+    return [
+      { label: 'Today Orders', value: Array.isArray(data) ? String(data.length) : '0', hint: 'Read-only order count' },
+    ];
+  }
+
+  return [];
+}
+
+function money(value: unknown) {
+  const numberValue = Number(value || 0);
+  return `₹${numberValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 }
 
 function SummaryCard({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: 'win' | 'loss' }) {
