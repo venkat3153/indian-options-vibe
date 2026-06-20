@@ -24,6 +24,7 @@ class WatchlistItemRequest(BaseModel):
     source: str = "stocks_dashboard"
     notes: str | None = None
     status: str | None = "Watching"
+    action_tag: str | None = "Wait"
     entry_idea: str | None = None
     invalidation: str | None = None
     target_idea: str | None = None
@@ -60,6 +61,7 @@ def add_watchlist_item(request: WatchlistItemRequest) -> dict[str, Any]:
         "source": request.source,
         "notes": request.notes,
         "status": request.status or "Watching",
+        "action_tag": request.action_tag or "Wait",
         "entry_idea": request.entry_idea,
         "invalidation": request.invalidation,
         "target_idea": request.target_idea,
