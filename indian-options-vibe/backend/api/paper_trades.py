@@ -1,12 +1,13 @@
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from db.supabase_paper_trades import (
     is_paper_trade_storage_enabled,
     list_paper_trades_from_supabase,
     save_paper_trade_to_supabase,
+    update_paper_trade_in_supabase,
 )
 
 router = APIRouter()
@@ -29,9 +30,22 @@ class PaperTrade(BaseModel):
     updatedAt: str | None = None
     rResult: float | None = None
     paperPnl: float | None = None
+    notes: str | None = ""
+    mistake: str | None = ""
+    emotion: str | None = ""
     brokerSnapshot: dict[str, Any] = Field(default_factory=dict)
     marketSnapshot: dict[str, Any] = Field(default_factory=dict)
     fundsSnapshot: dict[str, Any] = Field(default_factory=dict)
+
+
+class PaperTradeUpdate(BaseModel):
+    status: str | None = None
+    rResult: float | None = None
+    paperPnl: float | None = None
+    notes: str | None = None
+    mistake: str | None = None
+    emotion: str | None = None
+    updatedAt: str | None = None
 
 
 @router.post("")
@@ -63,3 +77,29 @@ def list_paper_trades() -> dict[str, Any]:
 
     trades = list(PAPER_TRADE_STORE.values())
     return {"mode": "memory", "count": len(trades), "trades": trades}
+
+
+@router.patch("/{trade_id}")
+def update_paper_trade(trade_id: str, update: PaperTradeUpdate) -> dict[str, Any]:
+    patch = update.model_dump(exclude_unset=True)
+
+    if is_paper_trade_storage_enabled():
+        try:
+            updated = update_paper_trade_in_supabase(trade_id, patch)
+            if not updated:
+                raise HTTPException(status_code=404, detail=f"Paper trade {trade_id} not found")
+            PAPER_TRADE_STORE[trade_id] = updated
+            return {"status": "updated", "mode": "supabase", "trade": updated}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            if trade_id in PAPER_TRADE_STORE:
+                PAPER_TRADE_STORE[trade_id].update(patch)
+                return {"status": "updated_fallback", "mode": "memory", "error": str(exc), "trade": PAPER_TRADE_STORE[trade_id]}
+            raise HTTPException(status_code=500, detail=str(exc))
+
+    if trade_id not in PAPER_TRADE_STORE:
+        raise HTTPException(status_code=404, detail=f"Paper trade {trade_id} not found")
+
+    PAPER_TRADE_STORE[trade_id].update(patch)
+    return {"status": "updated", "mode": "memory", "trade": PAPER_TRADE_STORE[trade_id]}
