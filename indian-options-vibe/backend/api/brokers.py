@@ -69,6 +69,39 @@ def unknown_broker_response(broker_id: str) -> dict[str, Any]:
     return {"error": "unknown_broker", "broker_id": broker_id}
 
 
+def normalize_dhan_funds(data: Any) -> Any:
+    """Add frontend-friendly aliases while preserving the original Dhan response."""
+    if not isinstance(data, dict):
+        return data
+
+    available_balance = data.get("availableBalance")
+    if available_balance is None:
+        available_balance = data.get("sodLimit")
+    if available_balance is None:
+        available_balance = data.get("withdrawableBalance")
+
+    withdrawable_balance = data.get("withdrawableBalance")
+    if withdrawable_balance is None:
+        withdrawable_balance = available_balance
+
+    utilized_amount = data.get("utilizedAmount")
+    if utilized_amount is None:
+        utilized_amount = 0
+
+    return {
+        **data,
+        "available": available_balance,
+        "available_balance": available_balance,
+        "availableBalance": available_balance,
+        "withdrawable": withdrawable_balance,
+        "withdrawable_balance": withdrawable_balance,
+        "withdrawableBalance": withdrawable_balance,
+        "utilized": utilized_amount,
+        "utilized_amount": utilized_amount,
+        "utilizedAmount": utilized_amount,
+    }
+
+
 async def run_dhan_read_only(action: str, call: Callable[[DhanReadOnlyAdapter], Awaitable[Any]]) -> dict[str, Any]:
     try:
         adapter = DhanReadOnlyAdapter()
@@ -77,6 +110,9 @@ async def run_dhan_read_only(action: str, call: Callable[[DhanReadOnlyAdapter], 
 
     try:
         data = await call(adapter)
+        if action == "funds":
+            data = normalize_dhan_funds(data)
+
         return {
             "broker": "Dhan",
             "configured": True,
