@@ -21,7 +21,7 @@ class DhanReadOnlyAdapter:
     """Read-only DhanHQ adapter.
 
     This adapter intentionally does not expose any place/modify/cancel order method.
-    It is only for profile, funds, positions, and order book checks.
+    It is only for profile, funds, positions, order book, and market-data checks.
     """
 
     def __init__(self) -> None:
@@ -48,6 +48,19 @@ class DhanReadOnlyAdapter:
         except httpx.HTTPError as exc:
             raise DhanApiError(f"Could not reach Dhan API: {exc}") from exc
 
+        return self._parse_response(response)
+
+    async def _post(self, path: str, payload: dict[str, Any]) -> Any:
+        url = f"{DHAN_BASE_URL}{path}"
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=self.headers, json=payload)
+        except httpx.HTTPError as exc:
+            raise DhanApiError(f"Could not reach Dhan API: {exc}") from exc
+
+        return self._parse_response(response)
+
+    def _parse_response(self, response: httpx.Response) -> Any:
         try:
             payload = response.json()
         except ValueError:
@@ -73,6 +86,27 @@ class DhanReadOnlyAdapter:
 
     async def orders(self) -> Any:
         return await self._get("/orders")
+
+    async def historical_daily(
+        self,
+        security_id: str,
+        from_date: str,
+        to_date: str,
+        exchange_segment: str = "NSE_EQ",
+        instrument: str = "EQUITY",
+    ) -> Any:
+        return await self._post(
+            "/charts/historical",
+            {
+                "securityId": str(security_id),
+                "exchangeSegment": exchange_segment,
+                "instrument": instrument,
+                "expiryCode": 0,
+                "oi": False,
+                "fromDate": from_date,
+                "toDate": to_date,
+            },
+        )
 
 
 def dhan_not_configured_response(action: str) -> dict[str, Any]:
