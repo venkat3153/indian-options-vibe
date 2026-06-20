@@ -37,7 +37,9 @@ type IngestResult = {
   note?: string;
 };
 
-const SCORE_FILTERS = ['All', 'Strong watchlist', 'Improving', 'Neutral', 'Weak / avoid'];
+type ResearchFilter = 'All' | 'Top Momentum' | 'Volume Breakout' | 'Near 20D High' | 'Weak / Avoid' | 'Strong watchlist' | 'Improving' | 'Neutral';
+
+const RESEARCH_FILTERS: ResearchFilter[] = ['All', 'Top Momentum', 'Volume Breakout', 'Near 20D High', 'Weak / Avoid', 'Strong watchlist', 'Improving', 'Neutral'];
 
 export default function StocksResearchPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -46,7 +48,7 @@ export default function StocksResearchPage() {
   const [ingesting, setIngesting] = useState(false);
   const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState<ResearchFilter>('All');
   const [query, setQuery] = useState('');
 
   async function loadStocks() {
@@ -104,18 +106,23 @@ export default function StocksResearchPage() {
 
   useEffect(() => { loadStocks(); }, []);
 
-  const rows = useMemo(() => {
-    const stocks = data?.stocks || [];
-    return stocks.filter((row) => {
-      const matchesFilter = filter === 'All' || row.tag === filter;
+  const allStocks = data?.stocks || [];
+
+  const filteredRows = useMemo(() => {
+    return allStocks.filter((row) => {
+      const matchesResearchFilter = matchesFilter(row, filter);
       const text = `${row.symbol} ${row.name} ${row.sector}`.toLowerCase();
       const matchesQuery = !query || text.includes(query.toLowerCase());
-      return matchesFilter && matchesQuery;
+      return matchesResearchFilter && matchesQuery;
     });
-  }, [data, filter, query]);
+  }, [allStocks, filter, query]);
 
+  const rows = useMemo(() => sortByFilter(filteredRows, filter), [filteredRows, filter]);
   const leaders = rows.slice(0, 5);
-  const sectorRows = useMemo(() => getSectorRows(rows), [rows]);
+  const sectorRows = useMemo(() => getSectorRows(allStocks), [allStocks]);
+  const filterCounts = useMemo(() => getFilterCounts(allStocks), [allStocks]);
+  const strongestSector = sectorRows[0];
+  const watchlistCount = allStocks.filter((row) => row.quant_score >= 70).length;
 
   return (
     <section className="p-8 md:p-12">
@@ -124,7 +131,7 @@ export default function StocksResearchPage() {
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Quant Research</div>
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Stocks Research Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 first. This is the data warehouse and quant scoring layer before algo execution. Research only. No live orders.</p>
+            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 first. Daily Dhan historical candles power swing and pre-market research. Real-time WebSocket scanner comes later.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button onClick={loadStocks} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button>
@@ -140,27 +147,34 @@ export default function StocksResearchPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-5">
           <Metric label="Universe" value={data?.universe || 'NIFTY50'} hint="Start small, then expand" />
           <Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} />
-          <Metric label="Data Source" value={data?.source || 'checking'} hint="Dhan after ingestion" />
-          <Metric label="Top Score" value={leaders[0] ? `${leaders[0].quant_score}` : '0'} hint={leaders[0]?.symbol || 'No data'} tone="win" />
+          <Metric label="Data Source" value={data?.source || 'checking'} hint="Historical daily candles" />
+          <Metric label="Watchlist Candidates" value={String(watchlistCount)} hint="Score 70+" tone="win" />
           <Metric label="Execution" value="Locked" hint="Research only" tone="loss" />
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <InsightCard title="Top Momentum" value={String(filterCounts['Top Momentum'])} hint="Positive 5D and 20D strength" onClick={() => setFilter('Top Momentum')} active={filter === 'Top Momentum'} />
+          <InsightCard title="Volume Breakout" value={String(filterCounts['Volume Breakout'])} hint="Volume 1.5x+ vs 20D average" onClick={() => setFilter('Volume Breakout')} active={filter === 'Volume Breakout'} />
+          <InsightCard title="Near 20D High" value={String(filterCounts['Near 20D High'])} hint="Price position 85%+ in range" onClick={() => setFilter('Near 20D High')} active={filter === 'Near 20D High'} />
+          <InsightCard title="Weak / Avoid" value={String(filterCounts['Weak / Avoid'])} hint="Weak score or negative momentum" onClick={() => setFilter('Weak / Avoid')} active={filter === 'Weak / Avoid'} tone="loss" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
-                <h2 className="text-2xl font-bold text-white">Top Quant Picks</h2>
+                <h2 className="text-2xl font-bold text-white">{filter === 'All' ? 'Top Quant Picks' : filter}</h2>
                 <p className="mt-1 text-sm text-slate-400">Score combines 20-day momentum, volume expansion, and breakout position.</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {SCORE_FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-xl border px-3 py-2 text-xs ${filter === item ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{item}</button>)}
+                {RESEARCH_FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-xl border px-3 py-2 text-xs ${filter === item ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{item}</button>)}
               </div>
             </div>
 
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search symbol, company, or sector" className="mt-5 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500" />
 
             <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
+              <table className="w-full min-w-[1080px] text-left text-sm">
                 <thead className="text-xs uppercase tracking-[0.16em] text-slate-500">
                   <tr className="border-b border-slate-800">
                     <th className="py-3">Symbol</th>
@@ -172,11 +186,12 @@ export default function StocksResearchPage() {
                     <th>Vol x</th>
                     <th>20D Pos</th>
                     <th>Score</th>
-                    <th>Tag</th>
+                    <th>Setup</th>
+                    <th>Risk</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? <tr><td colSpan={10} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={10} className="py-10 text-center text-slate-500">No stocks found. Click Seed NIFTY 50, then Fetch Dhan Daily.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} />)}
+                  {loading ? <tr><td colSpan={11} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={11} className="py-10 text-center text-slate-500">No stocks found for this filter.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} />)}
                 </tbody>
               </table>
             </div>
@@ -184,14 +199,16 @@ export default function StocksResearchPage() {
 
           <div className="space-y-6">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <h2 className="text-xl font-bold text-white">AI Research Notes</h2>
+              <h2 className="text-xl font-bold text-white">Research Reasons</h2>
+              <p className="mt-1 text-sm text-slate-400">Why the stock is showing up. Research only, not a buy signal.</p>
               <div className="mt-4 space-y-3">
-                {leaders.map((row) => <div key={row.symbol} className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className="flex items-center justify-between"><div className="font-bold text-white">{row.symbol}</div><div className="text-lg font-bold text-emerald-300">{row.quant_score}</div></div><p className="mt-2 text-sm text-slate-400">{row.ai_reason}</p></div>)}
+                {leaders.map((row) => <ReasonCard key={row.symbol} row={row} />)}
               </div>
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
               <h2 className="text-xl font-bold text-white">Sector Strength</h2>
+              <p className="mt-1 text-sm text-slate-400">Strongest: {strongestSector ? strongestSector.sector : 'No data'}</p>
               <div className="mt-4 space-y-4">{sectorRows.map((row) => <SectorBar key={row.sector} row={row} />)}</div>
             </div>
           </div>
@@ -202,6 +219,7 @@ export default function StocksResearchPage() {
 }
 
 function StockTableRow({ row }: { row: StockRow }) {
+  const reason = getResearchReason(row);
   return (
     <tr className="border-b border-slate-800/80 text-slate-300 hover:bg-slate-800/40">
       <td className="py-4"><div className="font-bold text-white">{row.symbol}</div><div className="text-xs text-slate-500">{row.name}</div></td>
@@ -213,8 +231,20 @@ function StockTableRow({ row }: { row: StockRow }) {
       <td>{row.volume_ratio}x</td>
       <td>{row.position_20d_pct}%</td>
       <td><span className={row.quant_score >= 70 ? 'font-bold text-emerald-300' : row.quant_score >= 45 ? 'font-bold text-yellow-300' : 'font-bold text-red-300'}>{row.quant_score}</span></td>
-      <td><span className="rounded-full border border-slate-700 px-2 py-1 text-xs text-slate-300">{row.tag}</span></td>
+      <td><span className="rounded-full border border-slate-700 px-2 py-1 text-xs text-slate-300">{reason.setup}</span></td>
+      <td className="max-w-[230px] text-xs text-slate-400">{reason.risk}</td>
     </tr>
+  );
+}
+
+function ReasonCard({ row }: { row: StockRow }) {
+  const reason = getResearchReason(row);
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+      <div className="flex items-center justify-between"><div className="font-bold text-white">{row.symbol}</div><div className="text-lg font-bold text-emerald-300">{row.quant_score}</div></div>
+      <div className="mt-2 text-sm text-slate-300">{reason.reason}</div>
+      <div className="mt-2 rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">Action: Add to research watchlist only. Wait for chart confirmation. No auto execution.</div>
+    </div>
   );
 }
 
@@ -223,8 +253,58 @@ function Metric({ label, value, hint, tone }: { label: string; value: string; hi
   return <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="text-sm text-slate-400">{label}</div><div className={`mt-2 text-lg font-bold ${cls}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div>;
 }
 
+function InsightCard({ title, value, hint, active, tone, onClick }: { title: string; value: string; hint: string; active: boolean; tone?: 'loss'; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className={`rounded-2xl border p-5 text-left transition ${active ? 'border-emerald-400 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/70 hover:bg-slate-800/60'}`}>
+      <div className="text-sm text-slate-400">{title}</div>
+      <div className={`mt-2 text-2xl font-bold ${tone === 'loss' ? 'text-red-300' : 'text-emerald-300'}`}>{value}</div>
+      <div className="mt-1 text-xs text-slate-500">{hint}</div>
+    </button>
+  );
+}
+
 function SectorBar({ row }: { row: { sector: string; score: number; count: number } }) {
   return <div><div className="mb-2 flex justify-between text-sm"><span>{row.sector}</span><span className="text-slate-400">{row.score} • {row.count} stocks</span></div><div className="h-3 rounded-full bg-slate-800"><div className="h-3 rounded-full bg-emerald-500" style={{ width: `${Math.max(4, row.score)}%` }} /></div></div>;
+}
+
+function matchesFilter(row: StockRow, filter: ResearchFilter) {
+  if (filter === 'All') return true;
+  if (filter === 'Top Momentum') return row.return_5d_pct > 1 && row.return_20d_pct > 2 && row.quant_score >= 55;
+  if (filter === 'Volume Breakout') return row.volume_ratio >= 1.5;
+  if (filter === 'Near 20D High') return row.position_20d_pct >= 85;
+  if (filter === 'Weak / Avoid') return row.quant_score < 45 || row.return_5d_pct < -1 || row.return_20d_pct < -2;
+  return row.tag === filter;
+}
+
+function sortByFilter(rows: StockRow[], filter: ResearchFilter) {
+  const sorted = [...rows];
+  if (filter === 'Top Momentum') return sorted.sort((a, b) => (b.return_20d_pct + b.return_5d_pct) - (a.return_20d_pct + a.return_5d_pct));
+  if (filter === 'Volume Breakout') return sorted.sort((a, b) => b.volume_ratio - a.volume_ratio);
+  if (filter === 'Near 20D High') return sorted.sort((a, b) => b.position_20d_pct - a.position_20d_pct);
+  if (filter === 'Weak / Avoid') return sorted.sort((a, b) => a.quant_score - b.quant_score);
+  return sorted.sort((a, b) => b.quant_score - a.quant_score);
+}
+
+function getFilterCounts(rows: StockRow[]) {
+  return {
+    'Top Momentum': rows.filter((row) => matchesFilter(row, 'Top Momentum')).length,
+    'Volume Breakout': rows.filter((row) => matchesFilter(row, 'Volume Breakout')).length,
+    'Near 20D High': rows.filter((row) => matchesFilter(row, 'Near 20D High')).length,
+    'Weak / Avoid': rows.filter((row) => matchesFilter(row, 'Weak / Avoid')).length,
+  };
+}
+
+function getResearchReason(row: StockRow) {
+  const parts: string[] = [];
+  if (row.volume_ratio >= 1.5) parts.push(`volume ${row.volume_ratio}x`);
+  if (row.position_20d_pct >= 85) parts.push(`near 20D high at ${row.position_20d_pct}% range position`);
+  if (row.return_5d_pct > 1) parts.push(`5D momentum ${row.return_5d_pct}%`);
+  if (row.return_20d_pct > 2) parts.push(`20D momentum ${row.return_20d_pct}%`);
+  if (parts.length === 0) parts.push(`score ${row.quant_score}/100 with no clean breakout trigger yet`);
+
+  const setup = row.quant_score >= 70 ? 'Watchlist' : row.quant_score >= 55 ? 'Developing' : row.quant_score < 45 ? 'Avoid' : 'Neutral';
+  const risk = row.position_20d_pct > 90 ? 'Avoid chasing. Wait for pullback or breakout confirmation.' : row.volume_ratio < 1 ? 'Volume confirmation missing.' : 'Wait for confirmation before planning trade.';
+  return { setup, risk, reason: `${row.symbol}: ${parts.join(' + ')}.` };
 }
 
 function getSectorRows(rows: StockRow[]) {
