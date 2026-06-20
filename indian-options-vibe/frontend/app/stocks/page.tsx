@@ -6,12 +6,13 @@ type StockRow = { symbol: string; name: string; sector: string; close: number; c
 type ApiResponse = { mode: string; source?: string; universe?: string; count: number; stocks: StockRow[]; note?: string; error?: string };
 type LiveQuote = { symbol: string; security_id: string; ltp: number | null; prev_close: number | null; change: number | null; change_pct: number | null };
 type LiveQuoteResponse = { status: string; mode: string; source: string; count: number; quotes: LiveQuote[]; message?: string };
-type WatchlistItem = { symbol: string; name?: string; sector?: string; quant_score?: number; live_signal?: string; reason?: string; notes?: string; status?: string; entry_idea?: string; invalidation?: string; target_idea?: string; created_at?: string; updated_at?: string };
+type WatchlistItem = { symbol: string; name?: string; sector?: string; quant_score?: number; live_signal?: string; reason?: string; notes?: string; status?: string; entry_idea?: string; invalidation?: string; target_idea?: string; outcome?: string; outcome_date?: string; review_note?: string; lesson?: string; source?: string; created_at?: string; updated_at?: string };
 type ResearchFilter = 'All' | 'Saved Watchlist' | 'Live Watch' | 'Extended / Avoid' | 'Volume Breakout' | 'Near 20D High' | 'Weak / Avoid' | 'Strong watchlist' | 'Improving' | 'Neutral';
 type LiveSignal = { label: 'Live Watch' | 'Extended / Avoid' | 'Wait' | 'Weak Live'; reason: string; tone: 'win' | 'warn' | 'loss' | 'neutral' };
 
 const FILTERS: ResearchFilter[] = ['All', 'Saved Watchlist', 'Live Watch', 'Extended / Avoid', 'Volume Breakout', 'Near 20D High', 'Weak / Avoid', 'Strong watchlist', 'Improving', 'Neutral'];
 const WATCH_STATUSES = ['Watching', 'Triggered', 'Avoided', 'Closed'];
+const OUTCOMES = ['Pending', 'Triggered', 'Missed', 'Worked', 'Failed', 'No Trade'];
 
 export default function StocksResearchPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
@@ -89,10 +90,11 @@ export default function StocksResearchPage() {
       live_signal: signal.label,
       reason: `${reason.reason} ${signal.reason}`,
       status: 'Watching',
+      outcome: 'Pending',
       entry_idea: getDefaultEntryIdea(row),
       invalidation: getDefaultInvalidation(row),
       target_idea: getDefaultTargetIdea(row),
-      source: 'stocks_dashboard' as any,
+      source: 'stocks_dashboard',
     });
   }
 
@@ -122,6 +124,7 @@ export default function StocksResearchPage() {
   const counts = useMemo(() => getFilterCounts(stocks, liveBySymbol, watchlistSet), [stocks, liveBySymbol, watchlistSet]);
   const rows = useMemo(() => stocks.filter((row) => matchesFilter(row, filter, liveBySymbol.get(row.symbol), watchlistSet)).filter((row) => !query || `${row.symbol} ${row.name} ${row.sector}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => b.quant_score - a.quant_score), [stocks, filter, liveBySymbol, watchlistSet, query]);
   const liveOk = liveData?.status === 'success';
+  const outcomeCounts = getOutcomeCounts(watchlist);
 
   return (
     <section className="p-8 md:p-12">
@@ -130,7 +133,7 @@ export default function StocksResearchPage() {
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Quant Research</div>
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Stocks Research Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 research with Dhan historical candles, live LTP, scanner badges, and detailed watchlist planning. Research only. No live orders.</p>
+            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 research with Dhan historical candles, live LTP, watchlist planning, and outcome tracking. Research only. No live orders.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => { loadStocks(); loadLiveQuotes(); loadWatchlist(); }} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button>
@@ -145,26 +148,26 @@ export default function StocksResearchPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-6">
           <Metric label="Universe" value={data?.universe || 'NIFTY50'} hint="Start small, then expand" />
           <Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} />
-          <Metric label="Data Source" value={data?.source || 'checking'} hint="Historical candles" />
           <Metric label="Live Feed" value={liveOk ? 'Connected' : 'Checking'} hint={`${liveData?.count || 0} LTP snapshots`} tone={liveOk ? 'win' : undefined} />
           <Metric label="Saved Watchlist" value={String(watchlist.length)} hint="Detailed plans" tone="win" />
+          <Metric label="Worked / Failed" value={`${outcomeCounts.Worked}/${outcomeCounts.Failed}`} hint="Research feedback" />
           <Metric label="Execution" value="Locked" hint="Research only" tone="loss" />
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-5">
           <InsightCard title="Saved Watchlist" value={String(watchlist.length)} hint="Your saved stocks" onClick={() => setFilter('Saved Watchlist')} active={filter === 'Saved Watchlist'} />
           <InsightCard title="Live Watch" value={String(counts['Live Watch'])} hint="LTP positive + setup" onClick={() => setFilter('Live Watch')} active={filter === 'Live Watch'} />
-          <InsightCard title="Extended / Avoid" value={String(counts['Extended / Avoid'])} hint="Do not chase" onClick={() => setFilter('Extended / Avoid')} active={filter === 'Extended / Avoid'} tone="loss" />
           <InsightCard title="Volume Breakout" value={String(counts['Volume Breakout'])} hint="Volume 1.5x+" onClick={() => setFilter('Volume Breakout')} active={filter === 'Volume Breakout'} />
+          <InsightCard title="Near 20D High" value={String(counts['Near 20D High'])} hint="Breakout zone" onClick={() => setFilter('Near 20D High')} active={filter === 'Near 20D High'} />
           <InsightCard title="Weak / Avoid" value={String(counts['Weak / Avoid'])} hint="Weak momentum" onClick={() => setFilter('Weak / Avoid')} active={filter === 'Weak / Avoid'} tone="loss" />
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.22fr_0.78fr]">
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
                 <h2 className="text-2xl font-bold text-white">{filter === 'All' ? 'Top Quant Picks' : filter}</h2>
-                <p className="mt-1 text-sm text-slate-400">Add only research ideas. Trade execution stays locked.</p>
+                <p className="mt-1 text-sm text-slate-400">Save only research ideas. Track outcome after price moves.</p>
               </div>
               <div className="flex flex-wrap gap-2">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-xl border px-3 py-2 text-xs ${filter === item ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{item}</button>)}</div>
             </div>
@@ -178,8 +181,13 @@ export default function StocksResearchPage() {
           </div>
 
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-            <h2 className="text-xl font-bold text-white">Watchlist Details</h2>
-            <p className="mt-1 text-sm text-slate-400">Entry idea, invalidation, target, notes, and status. Permanent Supabase storage.</p>
+            <h2 className="text-xl font-bold text-white">Watchlist Outcome Tracking</h2>
+            <p className="mt-1 text-sm text-slate-400">Plan, outcome, review note, and lesson. Permanent Supabase storage.</p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+              <MiniStat label="Pending" value={outcomeCounts.Pending} />
+              <MiniStat label="Worked" value={outcomeCounts.Worked} tone="win" />
+              <MiniStat label="Failed" value={outcomeCounts.Failed} tone="loss" />
+            </div>
             <div className="mt-4 space-y-4">
               {watchlist.length === 0 ? <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">No saved stocks yet.</div> : watchlist.map((item) => <WatchlistDetailsCard key={item.symbol} item={item} quote={liveBySymbol.get(item.symbol)} saving={savingSymbol === item.symbol} onSave={updateWatchlistItem} onRemove={removeFromWatchlist} />)}
             </div>
@@ -192,9 +200,7 @@ export default function StocksResearchPage() {
 
 function StockTableRow({ row, quote, isSaved, saving, onAdd, onRemove }: { row: StockRow; quote?: LiveQuote; isSaved: boolean; saving: boolean; onAdd: (row: StockRow, quote?: LiveQuote) => void; onRemove: (symbol: string) => void }) {
   const signal = getLiveSignal(row, quote);
-  return <tr className="border-b border-slate-800/80 text-slate-300 hover:bg-slate-800/40">
-    <td className="py-4"><div className="font-bold text-white">{row.symbol}</div><div className="text-xs text-slate-500">{row.name}</div></td><td>{row.sector}</td><td>{money(row.close)}</td><td className="font-bold text-white">{quote?.ltp != null ? money(quote.ltp) : '-'}</td><td className={Number(quote?.change_pct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : '-'}</td><td><SignalBadge signal={signal} /></td><td className={row.change_1d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.change_1d_pct}%</td><td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td><td>{row.volume_ratio}x</td><td>{row.position_20d_pct}%</td><td><span className={row.quant_score >= 70 ? 'font-bold text-emerald-300' : row.quant_score >= 45 ? 'font-bold text-yellow-300' : 'font-bold text-red-300'}>{row.quant_score}</span></td><td>{isSaved ? <button disabled={saving} onClick={() => onRemove(row.symbol)} className="rounded-xl border border-red-800 px-3 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">{saving ? 'Removing...' : 'Remove'}</button> : <button disabled={saving} onClick={() => onAdd(row, quote)} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950 disabled:opacity-60">{saving ? 'Saving...' : 'Add'}</button>}</td><td className="max-w-[260px] text-xs text-slate-400">{signal.reason}</td>
-  </tr>;
+  return <tr className="border-b border-slate-800/80 text-slate-300 hover:bg-slate-800/40"><td className="py-4"><div className="font-bold text-white">{row.symbol}</div><div className="text-xs text-slate-500">{row.name}</div></td><td>{row.sector}</td><td>{money(row.close)}</td><td className="font-bold text-white">{quote?.ltp != null ? money(quote.ltp) : '-'}</td><td className={Number(quote?.change_pct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : '-'}</td><td><SignalBadge signal={signal} /></td><td className={row.change_1d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.change_1d_pct}%</td><td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td><td>{row.volume_ratio}x</td><td>{row.position_20d_pct}%</td><td><span className={row.quant_score >= 70 ? 'font-bold text-emerald-300' : row.quant_score >= 45 ? 'font-bold text-yellow-300' : 'font-bold text-red-300'}>{row.quant_score}</span></td><td>{isSaved ? <button disabled={saving} onClick={() => onRemove(row.symbol)} className="rounded-xl border border-red-800 px-3 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">{saving ? 'Removing...' : 'Remove'}</button> : <button disabled={saving} onClick={() => onAdd(row, quote)} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950 disabled:opacity-60">{saving ? 'Saving...' : 'Add'}</button>}</td><td className="max-w-[260px] text-xs text-slate-400">{signal.reason}</td></tr>;
 }
 
 function WatchlistDetailsCard({ item, quote, saving, onSave, onRemove }: { item: WatchlistItem; quote?: LiveQuote; saving: boolean; onSave: (item: WatchlistItem, changes: Partial<WatchlistItem>) => void; onRemove: (symbol: string) => void }) {
@@ -203,26 +209,36 @@ function WatchlistDetailsCard({ item, quote, saving, onSave, onRemove }: { item:
   const [invalidation, setInvalidation] = useState(item.invalidation || '');
   const [targetIdea, setTargetIdea] = useState(item.target_idea || '');
   const [notes, setNotes] = useState(item.notes || '');
+  const [outcome, setOutcome] = useState(item.outcome || 'Pending');
+  const [outcomeDate, setOutcomeDate] = useState(item.outcome_date || '');
+  const [reviewNote, setReviewNote] = useState(item.review_note || '');
+  const [lesson, setLesson] = useState(item.lesson || '');
 
   return <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
     <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-bold text-white">{item.symbol}</div><div className="text-xs text-slate-500">{item.name || item.sector || 'Saved idea'} • Score {item.quant_score ?? '-'}</div></div><div className="text-right"><div className="text-sm font-bold text-emerald-300">{quote?.ltp != null ? money(quote.ltp) : 'Live -'}</div><div className={Number(quote?.change_pct || 0) >= 0 ? 'text-xs text-emerald-300' : 'text-xs text-red-300'}>{quote?.change_pct != null ? `${quote.change_pct}%` : ''}</div></div></div>
     <div className="mt-3 grid gap-3">
-      <label className="text-xs text-slate-400">Status<select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{WATCH_STATUSES.map((item) => <option key={item}>{item}</option>)}</select></label>
-      <label className="text-xs text-slate-400">Entry idea<input value={entryIdea} onChange={(e) => setEntryIdea(e.target.value)} placeholder="Example: wait for breakout retest / VWAP reclaim" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Invalidation / stop condition<input value={invalidation} onChange={(e) => setInvalidation(e.target.value)} placeholder="Example: below VWAP / below previous day low" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
-      <label className="text-xs text-slate-400">Target idea<input value={targetIdea} onChange={(e) => setTargetIdea(e.target.value)} placeholder="Example: previous high / 1:2 RR / trail strength" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
+      <label className="text-xs text-slate-400">Status<select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{WATCH_STATUSES.map((x) => <option key={x}>{x}</option>)}</select></label>
+      <label className="text-xs text-slate-400">Outcome<select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white">{OUTCOMES.map((x) => <option key={x}>{x}</option>)}</select></label>
+      <label className="text-xs text-slate-400">Outcome date<input type="date" value={outcomeDate} onChange={(e) => setOutcomeDate(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
+      <label className="text-xs text-slate-400">Entry idea<input value={entryIdea} onChange={(e) => setEntryIdea(e.target.value)} placeholder="Wait for breakout retest / VWAP reclaim" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
+      <label className="text-xs text-slate-400">Invalidation / stop condition<input value={invalidation} onChange={(e) => setInvalidation(e.target.value)} placeholder="Below VWAP / below previous day low" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
+      <label className="text-xs text-slate-400">Target idea<input value={targetIdea} onChange={(e) => setTargetIdea(e.target.value)} placeholder="Previous high / 1:2 RR / trail strength" className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
       <label className="text-xs text-slate-400">Notes<textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Why am I watching this? What should I avoid?" className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
+      <label className="text-xs text-slate-400">Review note<textarea value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} placeholder="What happened after this idea triggered or failed?" className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
+      <label className="text-xs text-slate-400">Lesson learned<textarea value={lesson} onChange={(e) => setLesson(e.target.value)} placeholder="What should I repeat or avoid next time?" className="mt-1 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" /></label>
     </div>
     <div className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">{item.reason || 'No reason saved.'}</div>
-    <div className="mt-3 flex gap-2"><button disabled={saving} onClick={() => onSave(item, { status, entry_idea: entryIdea, invalidation, target_idea: targetIdea, notes })} className="rounded-xl bg-blue-500 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-400 disabled:opacity-60">{saving ? 'Saving...' : 'Save Details'}</button><button disabled={saving} onClick={() => onRemove(item.symbol)} className="rounded-xl border border-red-900 px-4 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">Remove</button></div>
+    <div className="mt-3 flex gap-2"><button disabled={saving} onClick={() => onSave(item, { status, entry_idea: entryIdea, invalidation, target_idea: targetIdea, notes, outcome, outcome_date: outcomeDate || undefined, review_note: reviewNote, lesson })} className="rounded-xl bg-blue-500 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-400 disabled:opacity-60">{saving ? 'Saving...' : 'Save Review'}</button><button disabled={saving} onClick={() => onRemove(item.symbol)} className="rounded-xl border border-red-900 px-4 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">Remove</button></div>
   </div>;
 }
 
+function MiniStat({ label, value, tone }: { label: string; value: number; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-xl border border-slate-800 bg-slate-950 p-3"><div className="text-slate-500">{label}</div><div className={`mt-1 text-lg font-bold ${cls}`}>{value}</div></div>; }
 function SignalBadge({ signal }: { signal: LiveSignal }) { const cls = signal.tone === 'win' ? 'border-emerald-700 bg-emerald-500/10 text-emerald-300' : signal.tone === 'warn' ? 'border-yellow-700 bg-yellow-500/10 text-yellow-300' : signal.tone === 'loss' ? 'border-red-700 bg-red-500/10 text-red-300' : 'border-slate-700 bg-slate-800 text-slate-300'; return <span className={`whitespace-nowrap rounded-full border px-2 py-1 text-xs ${cls}`}>{signal.label}</span>; }
 function Metric({ label, value, hint, tone }: { label: string; value: string; hint: string; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5"><div className="text-sm text-slate-400">{label}</div><div className={`mt-2 text-lg font-bold ${cls}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></div>; }
 function InsightCard({ title, value, hint, active, tone, onClick }: { title: string; value: string; hint: string; active: boolean; tone?: 'loss'; onClick: () => void }) { return <button onClick={onClick} className={`rounded-2xl border p-5 text-left transition ${active ? 'border-emerald-400 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/70 hover:bg-slate-800/60'}`}><div className="text-sm text-slate-400">{title}</div><div className={`mt-2 text-2xl font-bold ${tone === 'loss' ? 'text-red-300' : 'text-emerald-300'}`}>{value}</div><div className="mt-1 text-xs text-slate-500">{hint}</div></button>; }
 function matchesFilter(row: StockRow, filter: ResearchFilter, quote: LiveQuote | undefined, watchlistSet: Set<string>) { const signal = getLiveSignal(row, quote); if (filter === 'All') return true; if (filter === 'Saved Watchlist') return watchlistSet.has(row.symbol); if (filter === 'Live Watch') return signal.label === 'Live Watch'; if (filter === 'Extended / Avoid') return signal.label === 'Extended / Avoid'; if (filter === 'Volume Breakout') return row.volume_ratio >= 1.5; if (filter === 'Near 20D High') return row.position_20d_pct >= 85; if (filter === 'Weak / Avoid') return row.quant_score < 45 || row.return_5d_pct < -1 || row.return_20d_pct < -2 || signal.label === 'Weak Live'; return row.tag === filter; }
 function getFilterCounts(rows: StockRow[], liveBySymbol: Map<string, LiveQuote>, watchlistSet: Set<string>) { return { 'Saved Watchlist': watchlistSet.size, 'Live Watch': rows.filter((row) => matchesFilter(row, 'Live Watch', liveBySymbol.get(row.symbol), watchlistSet)).length, 'Extended / Avoid': rows.filter((row) => matchesFilter(row, 'Extended / Avoid', liveBySymbol.get(row.symbol), watchlistSet)).length, 'Volume Breakout': rows.filter((row) => row.volume_ratio >= 1.5).length, 'Near 20D High': rows.filter((row) => row.position_20d_pct >= 85).length, 'Weak / Avoid': rows.filter((row) => matchesFilter(row, 'Weak / Avoid', liveBySymbol.get(row.symbol), watchlistSet)).length }; }
+function getOutcomeCounts(items: WatchlistItem[]) { return { Pending: items.filter((x) => !x.outcome || x.outcome === 'Pending').length, Worked: items.filter((x) => x.outcome === 'Worked').length, Failed: items.filter((x) => x.outcome === 'Failed').length }; }
 function getLiveSignal(row: StockRow, quote?: LiveQuote): LiveSignal { const liveChange = Number(quote?.change_pct ?? 0); const hasLive = quote?.ltp != null; const hasSetup = row.volume_ratio >= 1.5 || row.position_20d_pct >= 85 || row.quant_score >= 70; if (row.position_20d_pct >= 92 && liveChange >= 1) return { label: 'Extended / Avoid', tone: 'warn', reason: 'Price is already extended near the top of its 20D range. Do not chase; wait for pullback or breakout retest.' }; if (hasLive && liveChange >= 0.35 && hasSetup) return { label: 'Live Watch', tone: 'win', reason: 'Live LTP is positive and historical setup is present. Add to watchlist only; wait for chart confirmation.' }; if (hasLive && liveChange <= -0.75) return { label: 'Weak Live', tone: 'loss', reason: 'Live move is weak. Avoid fresh long planning unless structure improves.' }; return { label: 'Wait', tone: 'neutral', reason: 'No live confirmation yet. Keep it as research only.' }; }
 function getResearchReason(row: StockRow) { const parts: string[] = []; if (row.volume_ratio >= 1.5) parts.push(`volume ${row.volume_ratio}x`); if (row.position_20d_pct >= 85) parts.push(`near 20D high at ${row.position_20d_pct}% range position`); if (row.return_5d_pct > 1) parts.push(`5D momentum ${row.return_5d_pct}%`); if (row.return_20d_pct > 2) parts.push(`20D momentum ${row.return_20d_pct}%`); if (parts.length === 0) parts.push(`score ${row.quant_score}/100 with no clean breakout trigger yet`); return { reason: `${row.symbol}: ${parts.join(' + ')}.` }; }
 function getDefaultEntryIdea(row: StockRow) { if (row.position_20d_pct >= 85) return 'Wait for breakout confirmation or pullback retest. Do not chase first spike.'; if (row.volume_ratio >= 1.5) return 'Watch for volume continuation with clean structure.'; return 'Wait for clear price action confirmation.'; }
