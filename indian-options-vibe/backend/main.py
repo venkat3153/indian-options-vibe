@@ -7,6 +7,7 @@ from api.runs import router as runs_router
 from api.brokers import router as brokers_router
 from api.market import router as market_router
 from api.paper_trades import router as paper_trades_router
+from api.research import router as research_router
 
 load_dotenv()
 
@@ -17,7 +18,7 @@ app.add_middleware(
     allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 @app.get("/health")
@@ -30,3 +31,4 @@ app.include_router(runs_router, prefix="/api/runs", tags=["runs"])
 app.include_router(brokers_router, prefix="/api/brokers", tags=["brokers"])
 app.include_router(market_router, prefix="/api/market", tags=["market"])
 app.include_router(paper_trades_router, prefix="/api/paper-trades", tags=["paper-trades"])
+app.include_router(research_router, prefix="/api/research", tags=["research"])
