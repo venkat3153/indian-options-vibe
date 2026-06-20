@@ -27,6 +27,10 @@ class WatchlistItemRequest(BaseModel):
     entry_idea: str | None = None
     invalidation: str | None = None
     target_idea: str | None = None
+    outcome: str | None = "Pending"
+    outcome_date: str | None = None
+    review_note: str | None = None
+    lesson: str | None = None
 
 
 @router.get("")
@@ -59,11 +63,15 @@ def add_watchlist_item(request: WatchlistItemRequest) -> dict[str, Any]:
         "entry_idea": request.entry_idea,
         "invalidation": request.invalidation,
         "target_idea": request.target_idea,
+        "outcome": request.outcome or "Pending",
+        "outcome_date": request.outcome_date,
+        "review_note": request.review_note,
+        "lesson": request.lesson,
         "is_active": True,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Keep insert/update resilient if user has not run the v2 SQL migration yet.
+    # Keep insert/update resilient if user has not run the latest SQL migration yet.
     row = {key: value for key, value in row.items() if value is not None}
 
     try:
