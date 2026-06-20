@@ -23,6 +23,10 @@ class WatchlistItemRequest(BaseModel):
     reason: str | None = None
     source: str = "stocks_dashboard"
     notes: str | None = None
+    status: str | None = "Watching"
+    entry_idea: str | None = None
+    invalidation: str | None = None
+    target_idea: str | None = None
 
 
 @router.get("")
@@ -51,9 +55,16 @@ def add_watchlist_item(request: WatchlistItemRequest) -> dict[str, Any]:
         "reason": request.reason,
         "source": request.source,
         "notes": request.notes,
+        "status": request.status or "Watching",
+        "entry_idea": request.entry_idea,
+        "invalidation": request.invalidation,
+        "target_idea": request.target_idea,
         "is_active": True,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+    # Keep insert/update resilient if user has not run the v2 SQL migration yet.
+    row = {key: value for key, value in row.items() if value is not None}
 
     try:
         saved = upsert_watchlist_item_to_supabase(row)
