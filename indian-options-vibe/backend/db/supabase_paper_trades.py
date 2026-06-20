@@ -25,6 +25,9 @@ def to_db_row(trade: dict[str, Any]) -> dict[str, Any]:
         "updated_at_label": trade.get("updatedAt"),
         "r_result": trade.get("rResult"),
         "paper_pnl": trade.get("paperPnl"),
+        "notes": trade.get("notes", ""),
+        "mistake": trade.get("mistake", ""),
+        "emotion": trade.get("emotion", ""),
         "broker_snapshot": trade.get("brokerSnapshot") or {},
         "market_snapshot": trade.get("marketSnapshot") or {},
         "funds_snapshot": trade.get("fundsSnapshot") or {},
@@ -50,6 +53,9 @@ def from_db_row(row: dict[str, Any]) -> dict[str, Any]:
         "updatedAt": row.get("updated_at_label") or raw.get("updatedAt"),
         "rResult": row.get("r_result"),
         "paperPnl": row.get("paper_pnl"),
+        "notes": row.get("notes") or raw.get("notes", ""),
+        "mistake": row.get("mistake") or raw.get("mistake", ""),
+        "emotion": row.get("emotion") or raw.get("emotion", ""),
         "brokerSnapshot": row.get("broker_snapshot") or raw.get("brokerSnapshot") or {},
         "marketSnapshot": row.get("market_snapshot") or raw.get("marketSnapshot") or {},
         "fundsSnapshot": row.get("funds_snapshot") or raw.get("fundsSnapshot") or {},
@@ -73,6 +79,25 @@ def list_paper_trades_from_supabase() -> list[dict[str, Any]]:
 
     response = client.table(TABLE_NAME).select("*").order("inserted_at", desc=True).execute()
     return [from_db_row(row) for row in response.data or []]
+
+
+def update_paper_trade_in_supabase(trade_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
+    client = get_supabase_client()
+    if not client:
+        raise RuntimeError("Supabase is not configured")
+
+    current_response = client.table(TABLE_NAME).select("*").eq("id", trade_id).limit(1).execute()
+    rows = current_response.data or []
+    if not rows:
+        return None
+
+    current = from_db_row(rows[0])
+    updated = {**current, **patch}
+    updated["id"] = trade_id
+
+    response = client.table(TABLE_NAME).upsert(to_db_row(updated)).execute()
+    updated_rows = response.data or []
+    return from_db_row(updated_rows[0]) if updated_rows else updated
 
 
 def delete_paper_trade_from_supabase(trade_id: str) -> dict[str, Any] | None:
