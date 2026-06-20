@@ -8,6 +8,7 @@ from api.brokers import router as brokers_router
 from api.market import router as market_router
 from api.paper_trades import router as paper_trades_router
 from api.research import router as research_router
+from api.live import router as quotes_router
 
 load_dotenv()
 
@@ -32,3 +33,4 @@ app.include_router(brokers_router, prefix="/api/brokers", tags=["brokers"])
 app.include_router(market_router, prefix="/api/market", tags=["market"])
 app.include_router(paper_trades_router, prefix="/api/paper-trades", tags=["paper-trades"])
 app.include_router(research_router, prefix="/api/research", tags=["research"])
+app.include_router(quotes_router, prefix="/api/live", tags=["live"])
