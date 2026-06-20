@@ -37,13 +37,36 @@ type IngestResult = {
   note?: string;
 };
 
+type LiveQuote = {
+  symbol: string;
+  security_id: string;
+  ltp: number | null;
+  prev_close: number | null;
+  change: number | null;
+  change_pct: number | null;
+};
+
+type LiveQuoteResponse = {
+  status: string;
+  mode: string;
+  source: string;
+  updated_at?: string;
+  count: number;
+  quotes: LiveQuote[];
+  message?: string;
+  note?: string;
+  cache?: string;
+};
+
 type ResearchFilter = 'All' | 'Top Momentum' | 'Volume Breakout' | 'Near 20D High' | 'Weak / Avoid' | 'Strong watchlist' | 'Improving' | 'Neutral';
 
 const RESEARCH_FILTERS: ResearchFilter[] = ['All', 'Top Momentum', 'Volume Breakout', 'Near 20D High', 'Weak / Avoid', 'Strong watchlist', 'Improving', 'Neutral'];
 
 export default function StocksResearchPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
+  const [liveData, setLiveData] = useState<LiveQuoteResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveLoading, setLiveLoading] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [ingestResult, setIngestResult] = useState<IngestResult | null>(null);
@@ -66,6 +89,20 @@ export default function StocksResearchPage() {
     }
   }
 
+  async function loadLiveQuotes() {
+    try {
+      setLiveLoading(true);
+      const response = await fetch('http://localhost:8000/api/live/quotes?limit=50');
+      if (!response.ok) throw new Error(`Live API returned ${response.status}`);
+      const json = await response.json();
+      setLiveData(json);
+    } catch (err) {
+      setLiveData({ status: 'error', mode: 'frontend_error', source: 'none', count: 0, quotes: [], message: err instanceof Error ? err.message : 'Could not load live quotes' });
+    } finally {
+      setLiveLoading(false);
+    }
+  }
+
   async function seedData() {
     try {
       setSeeding(true);
@@ -77,6 +114,7 @@ export default function StocksResearchPage() {
       });
       if (!response.ok) throw new Error(`Seed API returned ${response.status}`);
       await loadStocks();
+      await loadLiveQuotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not seed research data');
     } finally {
@@ -97,6 +135,7 @@ export default function StocksResearchPage() {
       const json = await response.json();
       setIngestResult(json);
       await loadStocks();
+      await loadLiveQuotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not fetch Dhan daily candles');
     } finally {
@@ -104,9 +143,19 @@ export default function StocksResearchPage() {
     }
   }
 
-  useEffect(() => { loadStocks(); }, []);
+  useEffect(() => {
+    loadStocks();
+    loadLiveQuotes();
+    const timer = window.setInterval(loadLiveQuotes, 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const allStocks = data?.stocks || [];
+  const liveBySymbol = useMemo(() => {
+    const map = new Map<string, LiveQuote>();
+    (liveData?.quotes || []).forEach((quote) => map.set(quote.symbol, quote));
+    return map;
+  }, [liveData]);
 
   const filteredRows = useMemo(() => {
     return allStocks.filter((row) => {
@@ -123,6 +172,7 @@ export default function StocksResearchPage() {
   const filterCounts = useMemo(() => getFilterCounts(allStocks), [allStocks]);
   const strongestSector = sectorRows[0];
   const watchlistCount = allStocks.filter((row) => row.quant_score >= 70).length;
+  const liveOk = liveData?.status === 'success';
 
   return (
     <section className="p-8 md:p-12">
@@ -131,10 +181,11 @@ export default function StocksResearchPage() {
           <div>
             <div className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Quant Research</div>
             <h1 className="mt-3 text-3xl font-bold md:text-4xl">Stocks Research Dashboard</h1>
-            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 first. Daily Dhan historical candles power swing and pre-market research. Real-time WebSocket scanner comes later.</p>
+            <p className="mt-2 max-w-3xl text-slate-400">NIFTY 50 first. Daily Dhan historical candles power research. Dhan live LTP snapshot is now added. Full WebSocket scanner comes later.</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={loadStocks} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button>
+            <button onClick={() => { loadStocks(); loadLiveQuotes(); }} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button>
+            <button onClick={loadLiveQuotes} disabled={liveLoading} className="rounded-xl border border-blue-800 px-5 py-3 font-semibold text-blue-200 hover:bg-blue-950 disabled:cursor-not-allowed disabled:text-slate-500">{liveLoading ? 'Live...' : 'Refresh Live'}</button>
             <button onClick={seedData} disabled={seeding || ingesting} className="rounded-xl border border-emerald-800 px-5 py-3 font-semibold text-emerald-200 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500">{seeding ? 'Seeding...' : 'Seed NIFTY 50'}</button>
             <button onClick={fetchDhanDaily} disabled={seeding || ingesting} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400">{ingesting ? 'Fetching Dhan...' : 'Fetch Dhan Daily'}</button>
           </div>
@@ -142,12 +193,14 @@ export default function StocksResearchPage() {
 
         {error ? <div className="mt-5 rounded-2xl border border-red-900 bg-red-950/20 p-4 text-sm text-red-200">{error}</div> : null}
         {ingestResult ? <div className="mt-5 rounded-2xl border border-emerald-900 bg-emerald-950/20 p-4 text-sm text-emerald-200">Dhan ingest: {ingestResult.status} • Symbols: {ingestResult.symbols_attempted ?? 0} • Candles saved: {ingestResult.candles_saved ?? 0} • Failed: {ingestResult.failed_count ?? 0} {ingestResult.message ? `• ${ingestResult.message}` : ''}</div> : null}
+        {liveData?.message ? <div className="mt-5 rounded-2xl border border-yellow-900 bg-yellow-950/20 p-4 text-sm text-yellow-200">Live feed: {liveData.message}</div> : null}
         {data?.note ? <div className="mt-5 rounded-2xl border border-blue-900 bg-blue-950/20 p-4 text-sm text-blue-200">{data.note}</div> : null}
 
-        <div className="mt-6 grid gap-4 md:grid-cols-5">
+        <div className="mt-6 grid gap-4 md:grid-cols-6">
           <Metric label="Universe" value={data?.universe || 'NIFTY50'} hint="Start small, then expand" />
           <Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} />
           <Metric label="Data Source" value={data?.source || 'checking'} hint="Historical daily candles" />
+          <Metric label="Live Feed" value={liveOk ? 'Connected' : 'Checking'} hint={`${liveData?.count || 0} LTP snapshots`} tone={liveOk ? 'win' : undefined} />
           <Metric label="Watchlist Candidates" value={String(watchlistCount)} hint="Score 70+" tone="win" />
           <Metric label="Execution" value="Locked" hint="Research only" tone="loss" />
         </div>
@@ -164,7 +217,7 @@ export default function StocksResearchPage() {
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
               <div>
                 <h2 className="text-2xl font-bold text-white">{filter === 'All' ? 'Top Quant Picks' : filter}</h2>
-                <p className="mt-1 text-sm text-slate-400">Score combines 20-day momentum, volume expansion, and breakout position.</p>
+                <p className="mt-1 text-sm text-slate-400">Historical score + live LTP snapshot. Live data updates every 15 seconds.</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {RESEARCH_FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-xl border px-3 py-2 text-xs ${filter === item ? 'border-emerald-400 bg-emerald-500/15 text-emerald-200' : 'border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{item}</button>)}
@@ -174,12 +227,14 @@ export default function StocksResearchPage() {
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search symbol, company, or sector" className="mt-5 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500" />
 
             <div className="mt-5 overflow-x-auto">
-              <table className="w-full min-w-[1080px] text-left text-sm">
+              <table className="w-full min-w-[1240px] text-left text-sm">
                 <thead className="text-xs uppercase tracking-[0.16em] text-slate-500">
                   <tr className="border-b border-slate-800">
                     <th className="py-3">Symbol</th>
                     <th>Sector</th>
                     <th>Close</th>
+                    <th>Live LTP</th>
+                    <th>Live %</th>
                     <th>1D</th>
                     <th>5D</th>
                     <th>20D</th>
@@ -191,7 +246,7 @@ export default function StocksResearchPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? <tr><td colSpan={11} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={11} className="py-10 text-center text-slate-500">No stocks found for this filter.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} />)}
+                  {loading ? <tr><td colSpan={13} className="py-10 text-center text-slate-500">Loading research data...</td></tr> : rows.length === 0 ? <tr><td colSpan={13} className="py-10 text-center text-slate-500">No stocks found for this filter.</td></tr> : rows.map((row) => <StockTableRow key={row.symbol} row={row} quote={liveBySymbol.get(row.symbol)} />)}
                 </tbody>
               </table>
             </div>
@@ -202,7 +257,7 @@ export default function StocksResearchPage() {
               <h2 className="text-xl font-bold text-white">Research Reasons</h2>
               <p className="mt-1 text-sm text-slate-400">Why the stock is showing up. Research only, not a buy signal.</p>
               <div className="mt-4 space-y-3">
-                {leaders.map((row) => <ReasonCard key={row.symbol} row={row} />)}
+                {leaders.map((row) => <ReasonCard key={row.symbol} row={row} quote={liveBySymbol.get(row.symbol)} />)}
               </div>
             </div>
 
@@ -218,13 +273,15 @@ export default function StocksResearchPage() {
   );
 }
 
-function StockTableRow({ row }: { row: StockRow }) {
+function StockTableRow({ row, quote }: { row: StockRow; quote?: LiveQuote }) {
   const reason = getResearchReason(row);
   return (
     <tr className="border-b border-slate-800/80 text-slate-300 hover:bg-slate-800/40">
       <td className="py-4"><div className="font-bold text-white">{row.symbol}</div><div className="text-xs text-slate-500">{row.name}</div></td>
       <td>{row.sector}</td>
       <td>{money(row.close)}</td>
+      <td className="font-bold text-white">{quote?.ltp ? money(quote.ltp) : '—'}</td>
+      <td className={Number(quote?.change_pct || 0) >= 0 ? 'text-emerald-300' : 'text-red-300'}>{quote?.change_pct !== null && quote?.change_pct !== undefined ? `${quote.change_pct}%` : '—'}</td>
       <td className={row.change_1d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.change_1d_pct}%</td>
       <td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td>
       <td className={row.return_20d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_20d_pct}%</td>
@@ -237,11 +294,13 @@ function StockTableRow({ row }: { row: StockRow }) {
   );
 }
 
-function ReasonCard({ row }: { row: StockRow }) {
+function ReasonCard({ row, quote }: { row: StockRow; quote?: LiveQuote }) {
   const reason = getResearchReason(row);
+  const liveText = quote?.ltp ? `Live LTP ${money(quote.ltp)} (${quote.change_pct ?? 0}%)` : 'Live LTP waiting';
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
       <div className="flex items-center justify-between"><div className="font-bold text-white">{row.symbol}</div><div className="text-lg font-bold text-emerald-300">{row.quant_score}</div></div>
+      <div className="mt-2 text-xs text-blue-300">{liveText}</div>
       <div className="mt-2 text-sm text-slate-300">{reason.reason}</div>
       <div className="mt-2 rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs text-slate-400">Action: Add to research watchlist only. Wait for chart confirmation. No auto execution.</div>
     </div>
