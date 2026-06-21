@@ -1,3 +1,4 @@
+import { AutoChecklistEngine } from '@/components/AutoChecklistEngine';
 import { RiskRewardRule } from '@/components/RiskRewardRule';
 import { RiskRewardValidator } from '@/components/RiskRewardValidator';
 import { SetupConfirmationChecklist } from '@/components/SetupConfirmationChecklist';
@@ -10,6 +11,7 @@ export default function StockSymbolLayout({ children, params }: { children: Reac
     <>
       {children}
       <StockSetupClassifier symbol={symbol} />
+      <AutoChecklistEngine symbol={symbol} />
       <RiskRewardRule />
       <RiskRewardValidator symbol={symbol} />
       <SetupConfirmationChecklist symbol={symbol} />
