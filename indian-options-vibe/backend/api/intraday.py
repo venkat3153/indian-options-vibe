@@ -27,11 +27,7 @@ def number(value: Any) -> float:
 
 
 def recent_trading_dates(max_days: int = 5) -> list[str]:
-    """Return recent possible NSE trading dates, skipping Saturday/Sunday.
-
-    This is a calendar fallback, not a holiday calendar. If the latest weekday was an
-    exchange holiday, the endpoint keeps trying earlier weekdays.
-    """
+    """Return recent possible NSE trading dates, skipping Saturday/Sunday."""
     today = datetime.now(IST).date()
     dates: list[str] = []
     cursor = today
@@ -266,6 +262,30 @@ async def fetch_intraday_for_dates(clean: str, security_id: str, dates_to_try: l
     }
 
 
+async def get_real_intraday_bundle(symbol: str, interval: int = 5, days: int = 1) -> dict[str, Any]:
+    clean = symbol.upper().strip()
+    meta = get_symbol_meta(clean)
+    if not meta or not meta.get("security_id"):
+        return {"status": "unknown_symbol", "symbol": clean, "message": "Symbol security_id is missing.", "minute_rows": [], "candles": []}
+
+    dates_to_try = recent_trading_dates(max_days=max(days, 5))
+    result = await fetch_intraday_for_dates(clean, str(meta.get("security_id")), dates_to_try, interval)
+    minute_rows = result["minute_rows"]
+    candles = result["candles"]
+    return {
+        "status": "success" if candles else "empty",
+        "symbol": clean,
+        "security_id": str(meta.get("security_id")),
+        "from_date": result["used_from_date"],
+        "to_date": result["used_to_date"],
+        "attempted_dates": result["attempted_dates"],
+        "minute_rows": minute_rows,
+        "candles": candles,
+        "vwap": compute_vwap_from_intraday(minute_rows),
+        "latest": candles[-1] if candles else None,
+    }
+
+
 async def get_live_ltp(symbol: str) -> float | None:
     quote_payload = await live_quotes(limit=100)
     quotes = quote_payload.get("quotes", []) if isinstance(quote_payload, dict) else []
@@ -396,13 +416,69 @@ async def vwap_status(symbol: str) -> dict[str, Any]:
     clean = symbol.upper().strip()
     ltp = await get_live_ltp(clean)
 
+    try:
+        bundle = await get_real_intraday_bundle(clean, interval=5, days=1)
+        real_vwap = bundle.get("vwap")
+        latest = bundle.get("latest")
+        compare_price = ltp or number(latest.get("close") if latest else 0) or None
+
+        if bundle.get("status") == "success" and real_vwap and compare_price:
+            distance_pct = round(((compare_price / real_vwap) - 1) * 100, 2)
+            above = compare_price >= real_vwap
+            return {
+                "status": "success",
+                "symbol": clean,
+                "ltp": round(compare_price, 2),
+                "vwap": round(real_vwap, 2),
+                "above_vwap": above,
+                "distance_pct": distance_pct,
+                "source": "real_dhan_intraday_vwap",
+                "from_date": bundle.get("from_date"),
+                "to_date": bundle.get("to_date"),
+                "minute_candles": len(bundle.get("minute_rows", [])),
+                "candles_count": len(bundle.get("candles", [])),
+                "latest_candle": latest,
+                "attempted_dates": bundle.get("attempted_dates", []),
+                "message": f"Price is {'above' if above else 'below'} real intraday VWAP by {distance_pct}%.",
+                "note": "VWAP Engine v2 uses real Dhan intraday candles when available. Research only; no live orders.",
+                "live_orders_enabled": False,
+            }
+    except Exception as exc:
+        intraday_error = str(exc)
+    else:
+        intraday_error = "Real intraday VWAP unavailable."
+
     vwap, source = estimate_vwap_from_daily(clean, ltp)
     if not vwap or not ltp:
-        return {"status": "unknown", "symbol": clean, "ltp": ltp, "vwap": vwap, "above_vwap": False, "distance_pct": None, "source": source, "message": "VWAP status unknown because live price or history is missing.", "note": "Research only. True intraday VWAP will replace this estimate later."}
+        return {
+            "status": "unknown",
+            "symbol": clean,
+            "ltp": ltp,
+            "vwap": vwap,
+            "above_vwap": False,
+            "distance_pct": None,
+            "source": source,
+            "intraday_error": intraday_error,
+            "message": "VWAP status unknown because live price or history is missing.",
+            "note": "Research only. Real intraday VWAP was unavailable and estimated fallback could not be calculated.",
+            "live_orders_enabled": False,
+        }
 
     distance_pct = round(((ltp / vwap) - 1) * 100, 2)
     above = ltp >= vwap
-    return {"status": "success", "symbol": clean, "ltp": round(ltp, 2), "vwap": round(vwap, 2), "above_vwap": above, "distance_pct": distance_pct, "source": source, "message": f"Price is {'above' if above else 'below'} estimated VWAP by {distance_pct}%.", "note": "VWAP Engine v1 uses an estimated VWAP proxy until intraday candles are connected. Research only; no live orders."}
+    return {
+        "status": "fallback",
+        "symbol": clean,
+        "ltp": round(ltp, 2),
+        "vwap": round(vwap, 2),
+        "above_vwap": above,
+        "distance_pct": distance_pct,
+        "source": source,
+        "intraday_error": intraday_error,
+        "message": f"Price is {'above' if above else 'below'} estimated VWAP by {distance_pct}% because real intraday VWAP was unavailable.",
+        "note": "VWAP Engine v2 falls back to estimated VWAP only when real intraday candles are unavailable. Research only; no live orders.",
+        "live_orders_enabled": False,
+    }
 
 
 @router.get("/retest/{symbol}")
