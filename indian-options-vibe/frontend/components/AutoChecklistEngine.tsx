@@ -18,10 +18,11 @@ type LiveQuoteResponse = { quotes: LiveQuote[] };
 type RRPlan = { side: 'Long' | 'Short'; entry: number; stop: number; target: number; risk: number; reward: number; rr: number; isReady: boolean; saved_at: string };
 type DisciplineStatus = { status: 'clear' | 'locked'; locked: boolean; trades_today: number; pnl_today: number; loss_count: number; reason: string; mode: string };
 type VwapStatus = { status: 'success' | 'unknown'; ltp: number | null; vwap: number | null; above_vwap: boolean; distance_pct: number | null; source: string; message: string };
+type RetestStatus = { status: 'success' | 'failed' | 'waiting' | 'unknown'; result: string; retest_held: boolean; ltp?: number; breakout_floor?: number; retest_low?: number; retest_high?: number; source: string; message: string };
 
 type AutoCheck = {
   label: string;
-  status: 'pass' | 'fail' | 'manual' | 'unknown';
+  status: 'pass' | 'fail' | 'manual' | 'unknown' | 'waiting';
   detail: string;
   auto: boolean;
 };
@@ -32,6 +33,7 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
   const [rrPlan, setRrPlan] = useState<RRPlan | null>(null);
   const [discipline, setDiscipline] = useState<DisciplineStatus | null>(null);
   const [vwap, setVwap] = useState<VwapStatus | null>(null);
+  const [retest, setRetest] = useState<RetestStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   function rrStorageKey() {
@@ -51,21 +53,24 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
   async function load() {
     try {
       setLoading(true);
-      const [stocksRes, liveRes, disciplineRes, vwapRes] = await Promise.all([
+      const [stocksRes, liveRes, disciplineRes, vwapRes, retestRes] = await Promise.all([
         fetch('http://localhost:8000/api/research/stocks'),
         fetch('http://localhost:8000/api/live/quotes?limit=50'),
         fetch('http://localhost:8000/api/discipline/status'),
         fetch(`http://localhost:8000/api/intraday/vwap/${encodeURIComponent(symbol)}`),
+        fetch(`http://localhost:8000/api/intraday/retest/${encodeURIComponent(symbol)}`),
       ]);
       const stocksJson: ApiResponse = await stocksRes.json();
       const liveJson: LiveQuoteResponse = await liveRes.json();
       const disciplineJson: DisciplineStatus = await disciplineRes.json();
       const vwapJson: VwapStatus = await vwapRes.json();
+      const retestJson: RetestStatus = await retestRes.json();
       const clean = symbol.toUpperCase();
       setStock((stocksJson.stocks || []).find((row) => row.symbol.toUpperCase() === clean) || null);
       setQuote((liveJson.quotes || []).find((row) => row.symbol.toUpperCase() === clean) || null);
       setDiscipline(disciplineJson);
       setVwap(vwapJson);
+      setRetest(retestJson);
       loadRrPlan();
     } finally {
       setLoading(false);
@@ -92,27 +97,28 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
     };
   }, [symbol]);
 
-  const checks = useMemo(() => buildChecks(stock, quote, rrPlan, discipline, vwap), [stock, quote, rrPlan, discipline, vwap]);
+  const checks = useMemo(() => buildChecks(stock, quote, rrPlan, discipline, vwap, retest), [stock, quote, rrPlan, discipline, vwap, retest]);
   const autoChecks = checks.filter((x) => x.auto);
   const autoPassed = autoChecks.filter((x) => x.status === 'pass').length;
   const autoFailed = autoChecks.filter((x) => x.status === 'fail').length;
   const manualCount = checks.filter((x) => x.status === 'manual').length;
-  const readiness = autoFailed === 0 && autoPassed >= 6 ? 'Auto checks OK' : 'Auto checks not ready';
+  const waitingCount = checks.filter((x) => x.status === 'waiting').length;
+  const readiness = autoFailed === 0 && waitingCount === 0 && autoPassed >= 7 ? 'Auto checks OK' : 'Auto checks not ready';
 
   return <section className="px-8 pb-6 md:px-12">
     <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v4</div>
+          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v5</div>
           <h2 className="mt-2 text-2xl font-bold text-white">System checks what it can verify</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-            RR, discipline, and VWAP status are now connected. Retest and market breadth still need separate engines before they become automatic.
+            RR, discipline, VWAP, and estimated retest status are now connected. Market breadth is the only remaining manual gate.
           </p>
         </div>
-        <div className={`rounded-2xl border px-6 py-4 text-center ${autoFailed === 0 && autoPassed >= 6 ? 'border-emerald-700 bg-emerald-500/10' : 'border-yellow-800 bg-yellow-500/10'}`}>
+        <div className={`rounded-2xl border px-6 py-4 text-center ${autoFailed === 0 && waitingCount === 0 && autoPassed >= 7 ? 'border-emerald-700 bg-emerald-500/10' : 'border-yellow-800 bg-yellow-500/10'}`}>
           <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Auto Status</div>
-          <div className={`mt-1 text-xl font-bold ${autoFailed === 0 && autoPassed >= 6 ? 'text-emerald-300' : 'text-yellow-300'}`}>{loading ? 'Checking...' : readiness}</div>
-          <div className="mt-1 text-xs text-slate-400">{autoPassed}/{autoChecks.length} auto passed • {manualCount} manual</div>
+          <div className={`mt-1 text-xl font-bold ${autoFailed === 0 && waitingCount === 0 && autoPassed >= 7 ? 'text-emerald-300' : 'text-yellow-300'}`}>{loading ? 'Checking...' : readiness}</div>
+          <div className="mt-1 text-xs text-slate-400">{autoPassed}/{autoChecks.length} auto passed • {manualCount} manual • {waitingCount} waiting</div>
         </div>
       </div>
 
@@ -121,18 +127,25 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
       </div>
 
       <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
-        <span className="font-bold text-cyan-300">Teacher rule:</span> VWAP Engine v1 uses an estimated VWAP proxy until true intraday candles are connected. Treat it as a filter, not final permission to enter.
+        <span className="font-bold text-cyan-300">Teacher rule:</span> Retest Engine v1 is estimated from daily range + LTP. If it says Waiting, do not chase. True confirmation still needs 5-min/15-min candles.
       </div>
     </div>
   </section>;
 }
 
-function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RRPlan | null, discipline: DisciplineStatus | null, vwap: VwapStatus | null): AutoCheck[] {
+function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RRPlan | null, discipline: DisciplineStatus | null, vwap: VwapStatus | null, retest: RetestStatus | null): AutoCheck[] {
   const vwapCheck: AutoCheck = {
     label: 'Price above VWAP',
     status: vwap ? (vwap.above_vwap ? 'pass' : 'fail') : 'unknown',
     detail: vwap ? `${vwap.message} LTP: ${vwap.ltp ?? '-'}, VWAP: ${vwap.vwap ?? '-'} (${vwap.source}).` : 'Waiting for VWAP status.',
     auto: Boolean(vwap),
+  };
+
+  const retestCheck: AutoCheck = {
+    label: 'Retest held',
+    status: retest ? (retest.retest_held ? 'pass' : retest.status === 'failed' ? 'fail' : retest.status === 'waiting' ? 'waiting' : 'unknown') : 'unknown',
+    detail: retest ? `${retest.result}: ${retest.message} Zone: ${retest.retest_low ?? '-'}–${retest.retest_high ?? '-'} (${retest.source}).` : 'Waiting for retest status.',
+    auto: Boolean(retest),
   };
 
   if (!stock) {
@@ -142,7 +155,7 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RR
       { label: 'RR minimum 1:2', status: rrPlan?.isReady ? 'pass' : 'manual', detail: rrPlan?.isReady ? `Saved RR plan is 1:${rrPlan.rr}.` : 'RR Validator must be checked after selecting entry/stop/target.', auto: Boolean(rrPlan?.isReady) },
       { label: 'Discipline lock clear', status: discipline && !discipline.locked ? 'pass' : discipline?.locked ? 'fail' : 'unknown', detail: discipline?.reason || 'Waiting for discipline status.', auto: Boolean(discipline) },
       vwapCheck,
-      { label: 'Retest held', status: 'manual', detail: 'Needs intraday structure detection.', auto: false },
+      retestCheck,
       { label: 'Market breadth', status: 'manual', detail: 'Needs index and sector breadth feed.', auto: false },
     ];
   }
@@ -193,12 +206,7 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RR
       auto: Boolean(discipline),
     },
     vwapCheck,
-    {
-      label: 'Retest held',
-      status: 'manual',
-      detail: 'Manual for now. Needs breakout/retest structure detection from intraday candles.',
-      auto: false,
-    },
+    retestCheck,
     {
       label: 'Market breadth supportive',
       status: 'manual',
@@ -213,17 +221,21 @@ function AutoCheckCard({ check }: { check: AutoCheck }) {
     ? 'border-emerald-800 bg-emerald-500/10'
     : check.status === 'fail'
       ? 'border-red-900 bg-red-950/20'
-      : check.status === 'manual'
-        ? 'border-blue-900 bg-blue-950/20'
-        : 'border-slate-800 bg-slate-950';
+      : check.status === 'waiting'
+        ? 'border-yellow-800 bg-yellow-950/20'
+        : check.status === 'manual'
+          ? 'border-blue-900 bg-blue-950/20'
+          : 'border-slate-800 bg-slate-950';
   const labelCls = check.status === 'pass'
     ? 'text-emerald-300'
     : check.status === 'fail'
       ? 'text-red-300'
-      : check.status === 'manual'
-        ? 'text-blue-300'
-        : 'text-slate-300';
-  const badge = check.status === 'pass' ? 'Auto Pass' : check.status === 'fail' ? 'Auto Fail' : check.status === 'manual' ? 'Manual' : 'Unknown';
+      : check.status === 'waiting'
+        ? 'text-yellow-300'
+        : check.status === 'manual'
+          ? 'text-blue-300'
+          : 'text-slate-300';
+  const badge = check.status === 'pass' ? 'Auto Pass' : check.status === 'fail' ? 'Auto Fail' : check.status === 'waiting' ? 'Waiting' : check.status === 'manual' ? 'Manual' : 'Unknown';
 
   return <div className={`rounded-2xl border p-4 ${cls}`}>
     <div className="flex items-start justify-between gap-3">
