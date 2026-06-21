@@ -34,8 +34,6 @@ export function MainBreadthSummary() {
   useEffect(() => {
     if (pathname !== '/stocks') return;
     load();
-    const timer = window.setInterval(load, 15000);
-    return () => window.clearInterval(timer);
   }, [pathname]);
 
   if (pathname !== '/stocks') return null;
@@ -63,9 +61,14 @@ export function MainBreadthSummary() {
             Use this as the first filter. If breadth is weak, strong stocks should remain Watch only.
           </p>
         </div>
-        <div className={`rounded-2xl border px-5 py-3 text-center ${badgeClass}`}>
-          <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Breadth Status</div>
-          <div className="mt-1 text-lg font-bold">{loading ? 'Checking...' : ok ? 'Supportive' : 'Weak / Wait'}</div>
+        <div className="flex flex-col items-end gap-2">
+          <button onClick={load} disabled={loading} className="rounded-xl border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50">
+            {loading ? 'Checking...' : 'Refresh Breadth'}
+          </button>
+          <div className={`rounded-2xl border px-5 py-3 text-center ${badgeClass}`}>
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Breadth Status</div>
+            <div className="mt-1 text-lg font-bold">{loading ? 'Checking...' : ok ? 'Supportive' : 'Weak / Wait'}</div>
+          </div>
         </div>
       </div>
 
