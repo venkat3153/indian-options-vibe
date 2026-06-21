@@ -294,7 +294,7 @@ export default function StocksResearchPage() {
         <Metric label="Stocks Loaded" value={loading ? '...' : String(data?.count || 0)} hint={`Mode: ${data?.mode || 'checking'}`} />
         <Metric label="Live Feed" value={liveOk ? 'Connected' : 'Checking'} hint={`${liveData?.count || 0} LTP snapshots`} tone={liveOk ? 'win' : undefined} />
         <Metric label="Live Strength" value={String(liveStrongCount)} hint="Score 70+" tone="win" />
-        <Metric label="Ready / Wait" value={`${finalCounts.ready}/${finalCounts.wait}`} hint="Final status" tone={finalCounts.ready > 0 ? 'win' : undefined} />
+        <Metric label="Final Ready / Wait" value={`${finalCounts.ready}/${finalCounts.wait}`} hint="Final status labels" tone={finalCounts.ready > 0 ? 'win' : undefined} />
         <Metric label="Execution" value="Locked" hint="Research only" tone="loss" />
       </div>
 
