@@ -29,15 +29,8 @@ def get_ist_today() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
-def get_previous_close_by_symbol(limit: int = 5000) -> dict[str, float]:
-    """Return previous completed daily close for each symbol.
-
-    Dhan historical daily data can include the current trading day while the market is open.
-    If we use that latest row as prev_close, live % becomes 0 because latest daily close
-    can match/track LTP. So we prefer the latest candle strictly before today's IST date.
-    If older data is not available, we fall back to the latest available close.
-    """
-    today_ist = get_ist_today()
+def get_close_history_by_symbol(limit: int = 5000) -> dict[str, list[tuple[str, float]]]:
+    """Return sorted daily close history per symbol, latest first."""
     by_symbol: dict[str, list[tuple[str, float]]] = {}
 
     try:
@@ -52,14 +45,40 @@ def get_previous_close_by_symbol(limit: int = 5000) -> dict[str, float]:
         if symbol and candle_date and close:
             by_symbol.setdefault(symbol, []).append((candle_date, close))
 
-    prev_close: dict[str, float] = {}
-    for symbol, rows in by_symbol.items():
-        rows_sorted = sorted(rows, key=lambda item: item[0], reverse=True)
-        completed = [row for row in rows_sorted if row[0] < today_ist]
-        chosen = completed[0] if completed else rows_sorted[0]
-        prev_close[symbol] = chosen[1]
+    return {
+        symbol: sorted(rows, key=lambda item: item[0], reverse=True)
+        for symbol, rows in by_symbol.items()
+    }
 
-    return prev_close
+
+def choose_reference_close(symbol: str, last_price: float | None, close_history: dict[str, list[tuple[str, float]]]) -> tuple[float | None, str | None, str]:
+    """Choose reference close for live %.
+
+    During market hours, LTP differs from the latest completed daily candle, so latest completed
+    close is the correct previous close. When the market is closed, Dhan LTP often equals the
+    latest saved daily close. In that case, use the candle before the latest close so the dashboard
+    shows the previous session move instead of 0%.
+    """
+    rows = close_history.get(symbol.upper(), [])
+    if not rows:
+        return None, None, "missing_history"
+
+    latest_date, latest_close = rows[0]
+    second = rows[1] if len(rows) > 1 else None
+
+    if last_price is not None and second is not None:
+        # If LTP is exactly/near latest saved close, market is likely closed or the daily candle
+        # already captured the same last price. Use prior trading close for meaningful daily %.
+        if abs(float(last_price) - float(latest_close)) <= max(0.05, float(latest_close) * 0.00005):
+            return second[1], second[0], "prior_trading_close_ltp_equals_latest"
+
+    today_ist = get_ist_today()
+    completed_before_today = [row for row in rows if row[0] < today_ist]
+    if completed_before_today:
+        chosen = completed_before_today[0]
+        return chosen[1], chosen[0], "latest_completed_before_today"
+
+    return latest_close, latest_date, "latest_available_close"
 
 
 @router.get("/quotes")
@@ -116,7 +135,7 @@ async def live_quotes(limit: int = 50) -> dict[str, Any]:
             "live_orders_enabled": False,
         }
 
-    previous_close = get_previous_close_by_symbol()
+    close_history = get_close_history_by_symbol()
     data = raw.get("data", {}) if isinstance(raw, dict) else {}
     nse_eq = data.get("NSE_EQ", {}) if isinstance(data, dict) else {}
     symbol_by_id = {str(item.get("security_id")): item for item in selected}
@@ -126,20 +145,23 @@ async def live_quotes(limit: int = 50) -> dict[str, Any]:
         quote = nse_eq.get(security_id) or nse_eq.get(int(security_id)) or {}
         last_price = quote.get("last_price") if isinstance(quote, dict) else None
         symbol = item["symbol"]
-        prev_close = previous_close.get(symbol)
+        ltp = float(last_price) if last_price is not None else None
+        prev_close, prev_close_date, reference_mode = choose_reference_close(symbol, ltp, close_history)
         change_pct = None
         change_value = None
-        if last_price is not None and prev_close:
-            change_value = round(float(last_price) - prev_close, 2)
-            change_pct = round(((float(last_price) / prev_close) - 1) * 100, 2)
+        if ltp is not None and prev_close:
+            change_value = round(ltp - prev_close, 2)
+            change_pct = round(((ltp / prev_close) - 1) * 100, 2)
 
         quotes.append({
             "symbol": symbol,
             "name": item.get("name", symbol),
             "sector": item.get("sector", "Unknown"),
             "security_id": security_id,
-            "ltp": float(last_price) if last_price is not None else None,
+            "ltp": ltp,
             "prev_close": prev_close,
+            "prev_close_date": prev_close_date,
+            "reference_mode": reference_mode,
             "change": change_value,
             "change_pct": change_pct,
         })
@@ -152,7 +174,7 @@ async def live_quotes(limit: int = 50) -> dict[str, Any]:
         "count": len(quotes),
         "quotes": quotes,
         "live_orders_enabled": False,
-        "note": "Real-time snapshot from Dhan marketfeed LTP. Live % is calculated from previous completed daily close. This is polling, not WebSocket streaming yet.",
+        "note": "Real-time snapshot from Dhan marketfeed LTP. Live % uses prior trading close when LTP equals latest saved close. This is polling, not WebSocket streaming yet.",
     }
     _live_cache["timestamp"] = now
     _live_cache["payload"] = payload
