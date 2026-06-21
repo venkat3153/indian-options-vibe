@@ -34,6 +34,26 @@ export function RiskRewardValidator({ symbol }: { symbol?: string }) {
 
   useEffect(() => { loadSuggestionData(); }, [symbol]);
 
+  function storageKey() {
+    return `iov_rr_plan_${(symbol || 'unknown').toUpperCase()}`;
+  }
+
+  function savePlan(payload: unknown) {
+    if (typeof window === 'undefined' || !symbol) return;
+    window.localStorage.setItem(storageKey(), JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent('iov-rr-plan-updated', { detail: { symbol: symbol.toUpperCase() } }));
+  }
+
+  function clearPlan() {
+    setEntry('');
+    setStop('');
+    setTarget('');
+    if (typeof window !== 'undefined' && symbol) {
+      window.localStorage.removeItem(storageKey());
+      window.dispatchEvent(new CustomEvent('iov-rr-plan-updated', { detail: { symbol: symbol.toUpperCase() } }));
+    }
+  }
+
   function useSuggestedPlan() {
     const base = Number(quote?.ltp || stock?.close || 0);
     if (!base) return;
@@ -60,11 +80,16 @@ export function RiskRewardValidator({ symbol }: { symbol?: string }) {
     const isReady = validStructure && rr >= 2;
 
     return {
+      side,
+      entry: e,
+      stop: s,
+      target: t,
       risk: Number(risk.toFixed(2)),
       reward: Number(reward.toFixed(2)),
       rr: Number(rr.toFixed(2)),
       validStructure,
       isReady,
+      saved_at: new Date().toISOString(),
       message: !validStructure
         ? 'Invalid plan: stop/target are not placed correctly for this direction.'
         : rr >= 2
@@ -73,14 +98,20 @@ export function RiskRewardValidator({ symbol }: { symbol?: string }) {
     };
   }, [entry, stop, target, side]);
 
+  useEffect(() => {
+    if (!symbol) return;
+    if (result) savePlan(result);
+    else if (!entry && !stop && !target && typeof window !== 'undefined') window.localStorage.removeItem(storageKey());
+  }, [result, symbol]);
+
   return <section className="px-8 pb-6 md:px-12">
     <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.22em] text-blue-300">RR Validator v2</div>
+          <div className="text-xs font-bold uppercase tracking-[0.22em] text-blue-300">RR Validator v3</div>
           <h2 className="mt-2 text-2xl font-bold text-white">Check if the trade is really 1:2</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-            Use this before marking an idea Ready. Auto-fill is only a rough 2R planning helper; you must still confirm the real stop, target, and market structure.
+            Use this before marking an idea Ready. Valid RR is saved locally so the Auto Checklist can verify the RR gate automatically.
           </p>
         </div>
         <div className={`rounded-2xl border px-6 py-4 text-center ${result?.isReady ? 'border-emerald-700 bg-emerald-500/10' : result ? 'border-red-800 bg-red-500/10' : 'border-slate-700 bg-slate-950'}`}>
@@ -91,7 +122,7 @@ export function RiskRewardValidator({ symbol }: { symbol?: string }) {
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button onClick={useSuggestedPlan} disabled={!stock && !quote} className="rounded-xl border border-blue-700 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-200 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50">Use Suggested 2R Plan</button>
-        <button onClick={() => { setEntry(''); setStop(''); setTarget(''); }} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Clear</button>
+        <button onClick={clearPlan} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Clear</button>
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-4">
@@ -114,7 +145,7 @@ export function RiskRewardValidator({ symbol }: { symbol?: string }) {
       </div>
 
       {result ? <div className={`mt-5 rounded-2xl border p-4 text-sm ${result.isReady ? 'border-emerald-800 bg-emerald-950/20 text-emerald-100' : 'border-red-900 bg-red-950/20 text-red-100'}`}>
-        {result.message}
+        {result.message} {result.isReady ? 'Auto Checklist RR gate will now turn Auto Pass.' : ''}
       </div> : <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-400">
         Enter planned entry, stop, and target to calculate RR. Suggested plan uses LTP/close and a small buffer; do not treat it as an actual trade signal.
       </div>}
