@@ -15,6 +15,7 @@ type StockRow = {
 type LiveQuote = { symbol: string; ltp: number | null; change_pct: number | null };
 type ApiResponse = { stocks: StockRow[] };
 type LiveQuoteResponse = { quotes: LiveQuote[] };
+type RRPlan = { side: 'Long' | 'Short'; entry: number; stop: number; target: number; risk: number; reward: number; rr: number; isReady: boolean; saved_at: string };
 
 type AutoCheck = {
   label: string;
@@ -26,7 +27,22 @@ type AutoCheck = {
 export function AutoChecklistEngine({ symbol }: { symbol: string }) {
   const [stock, setStock] = useState<StockRow | null>(null);
   const [quote, setQuote] = useState<LiveQuote | null>(null);
+  const [rrPlan, setRrPlan] = useState<RRPlan | null>(null);
   const [loading, setLoading] = useState(true);
+
+  function rrStorageKey() {
+    return `iov_rr_plan_${symbol.toUpperCase()}`;
+  }
+
+  function loadRrPlan() {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(rrStorageKey());
+      setRrPlan(raw ? JSON.parse(raw) : null);
+    } catch {
+      setRrPlan(null);
+    }
+  }
 
   async function load() {
     try {
@@ -40,6 +56,7 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
       const clean = symbol.toUpperCase();
       setStock((stocksJson.stocks || []).find((row) => row.symbol.toUpperCase() === clean) || null);
       setQuote((liveJson.quotes || []).find((row) => row.symbol.toUpperCase() === clean) || null);
+      loadRrPlan();
     } finally {
       setLoading(false);
     }
@@ -47,26 +64,44 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
 
   useEffect(() => { load(); }, [symbol]);
 
-  const checks = useMemo(() => buildChecks(stock, quote), [stock, quote]);
+  useEffect(() => {
+    function onPlanUpdated(event: Event) {
+      const detail = (event as CustomEvent).detail as { symbol?: string } | undefined;
+      if (!detail?.symbol || detail.symbol === symbol.toUpperCase()) loadRrPlan();
+    }
+    if (typeof window !== 'undefined') {
+      loadRrPlan();
+      window.addEventListener('iov-rr-plan-updated', onPlanUpdated);
+      window.addEventListener('storage', onPlanUpdated);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('iov-rr-plan-updated', onPlanUpdated);
+        window.removeEventListener('storage', onPlanUpdated);
+      }
+    };
+  }, [symbol]);
+
+  const checks = useMemo(() => buildChecks(stock, quote, rrPlan), [stock, quote, rrPlan]);
   const autoChecks = checks.filter((x) => x.auto);
   const autoPassed = autoChecks.filter((x) => x.status === 'pass').length;
   const autoFailed = autoChecks.filter((x) => x.status === 'fail').length;
   const manualCount = checks.filter((x) => x.status === 'manual').length;
-  const readiness = autoFailed === 0 && autoPassed >= 3 ? 'Auto checks OK' : 'Auto checks not ready';
+  const readiness = autoFailed === 0 && autoPassed >= 4 ? 'Auto checks OK' : 'Auto checks not ready';
 
   return <section className="px-8 pb-6 md:px-12">
     <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v1</div>
+          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v2</div>
           <h2 className="mt-2 text-2xl font-bold text-white">System checks what it can verify</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-            This is the first step toward the terminal marking stocks automatically. It auto-checks only objective data we already have. VWAP, retest, and breadth remain manual until intraday structure data is connected.
+            RR Validator is now connected. When the saved RR plan is 1:2 or better, the RR gate becomes Auto Pass. VWAP, retest, breadth, and discipline stay manual until those data engines are connected.
           </p>
         </div>
-        <div className={`rounded-2xl border px-6 py-4 text-center ${autoFailed === 0 && autoPassed >= 3 ? 'border-emerald-700 bg-emerald-500/10' : 'border-yellow-800 bg-yellow-500/10'}`}>
+        <div className={`rounded-2xl border px-6 py-4 text-center ${autoFailed === 0 && autoPassed >= 4 ? 'border-emerald-700 bg-emerald-500/10' : 'border-yellow-800 bg-yellow-500/10'}`}>
           <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Auto Status</div>
-          <div className={`mt-1 text-xl font-bold ${autoFailed === 0 && autoPassed >= 3 ? 'text-emerald-300' : 'text-yellow-300'}`}>{loading ? 'Checking...' : readiness}</div>
+          <div className={`mt-1 text-xl font-bold ${autoFailed === 0 && autoPassed >= 4 ? 'text-emerald-300' : 'text-yellow-300'}`}>{loading ? 'Checking...' : readiness}</div>
           <div className="mt-1 text-xs text-slate-400">{autoPassed}/{autoChecks.length} auto passed • {manualCount} manual</div>
         </div>
       </div>
@@ -76,18 +111,18 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
       </div>
 
       <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
-        <span className="font-bold text-cyan-300">Teacher rule:</span> Auto checks can upgrade a stock from Avoid to Watch, but not directly to execution. Final Ready still needs setup confirmation and chart structure.
+        <span className="font-bold text-cyan-300">Teacher rule:</span> RR Auto Pass means the math is acceptable. It still does not confirm VWAP, retest, breadth, or discipline. No automatic execution.
       </div>
     </div>
   </section>;
 }
 
-function buildChecks(stock: StockRow | null, quote: LiveQuote | null): AutoCheck[] {
+function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RRPlan | null): AutoCheck[] {
   if (!stock) {
     return [
       { label: 'Stock data', status: 'unknown', detail: 'Stock research data not loaded yet.', auto: true },
       { label: 'Volume confirmation', status: 'unknown', detail: 'Waiting for volume ratio.', auto: true },
-      { label: 'RR minimum 1:2', status: 'manual', detail: 'RR Validator must be checked after selecting entry/stop/target.', auto: false },
+      { label: 'RR minimum 1:2', status: rrPlan?.isReady ? 'pass' : 'manual', detail: rrPlan?.isReady ? `Saved RR plan is 1:${rrPlan.rr}.` : 'RR Validator must be checked after selecting entry/stop/target.', auto: Boolean(rrPlan?.isReady) },
       { label: 'Price above VWAP', status: 'manual', detail: 'Needs intraday VWAP data.', auto: false },
       { label: 'Retest held', status: 'manual', detail: 'Needs intraday structure detection.', auto: false },
       { label: 'Market breadth', status: 'manual', detail: 'Needs index and sector breadth feed.', auto: false },
@@ -99,6 +134,7 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null): AutoCheck
   const setupPass = stock.quant_score >= 65 && stock.position_20d_pct >= 70;
   const livePass = quote?.ltp != null && livePct >= 0;
   const notExtended = !(stock.position_20d_pct >= 95 && livePct >= 1);
+  const rrReady = Boolean(rrPlan?.isReady && rrPlan.rr >= 2);
 
   return [
     {
@@ -127,9 +163,9 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null): AutoCheck
     },
     {
       label: 'RR minimum 1:2',
-      status: 'manual',
-      detail: 'Use RR Validator. This becomes automatic later when entry/stop/target are saved.',
-      auto: false,
+      status: rrReady ? 'pass' : 'manual',
+      detail: rrReady ? `Saved ${rrPlan?.side} plan: entry ${rrPlan?.entry}, stop ${rrPlan?.stop}, target ${rrPlan?.target}, RR 1:${rrPlan?.rr}.` : 'Use RR Validator. When RR is 1:2 or better, this will become Auto Pass.',
+      auto: rrReady,
     },
     {
       label: 'Price above VWAP',
