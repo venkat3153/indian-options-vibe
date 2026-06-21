@@ -10,6 +10,11 @@ type LiveQuoteResponse = { status: string; count: number; quotes: LiveQuote[] };
 type SetupName = 'Breakout Retest' | 'Momentum Continuation' | 'Volume Expansion' | 'Extended / Avoid' | 'Weak / Ignore';
 type ClassifiedSetup = { setup: SetupName; score: number; reason: string; action: string; tone: 'win' | 'warn' | 'loss' | 'neutral' };
 
+async function safeJson<T>(res: Response): Promise<T> {
+  if (!res.ok) throw new Error(`API returned ${res.status}`);
+  return await res.json();
+}
+
 export function classifySetup(row: StockRow, quote?: LiveQuote): ClassifiedSetup {
   const livePct = Number(quote?.change_pct ?? 0);
   const isNearHigh = row.position_20d_pct >= 85;
@@ -18,26 +23,11 @@ export function classifySetup(row: StockRow, quote?: LiveQuote): ClassifiedSetup
   const hasMomentum = row.return_5d_pct >= 2 && row.change_1d_pct >= 0;
   const isWeak = row.quant_score < 45 || row.return_5d_pct < -1 || livePct <= -0.75;
 
-  if (isWeak) {
-    return { setup: 'Weak / Ignore', score: 25, tone: 'loss', action: 'Avoid fresh long plans', reason: 'Momentum or live movement is weak. Keep this away from active watchlist unless structure recovers.' };
-  }
-
-  if (isExtended) {
-    return { setup: 'Extended / Avoid', score: 45, tone: 'warn', action: 'Do not chase', reason: `Price is high in the 20D range at ${row.position_20d_pct}% and may be stretched. Wait for pullback or breakout retest.` };
-  }
-
-  if (isNearHigh && hasVolume) {
-    return { setup: 'Breakout Retest', score: 85, tone: 'win', action: 'Wait for retest confirmation', reason: `Price is near the 20D high zone at ${row.position_20d_pct}% with ${row.volume_ratio}x volume. Best plan is breakout retest, not chase.` };
-  }
-
-  if (hasMomentum && row.quant_score >= 65) {
-    return { setup: 'Momentum Continuation', score: 78, tone: 'win', action: 'Watch VWAP continuation', reason: `5D momentum is ${row.return_5d_pct}% and quant score is ${row.quant_score}. Look for controlled continuation with valid RR.` };
-  }
-
-  if (hasVolume) {
-    return { setup: 'Volume Expansion', score: 70, tone: 'win', action: 'Watch for structure confirmation', reason: `Volume is expanding at ${row.volume_ratio}x. Need price structure confirmation before planning entry.` };
-  }
-
+  if (isWeak) return { setup: 'Weak / Ignore', score: 25, tone: 'loss', action: 'Avoid fresh long plans', reason: 'Momentum or live movement is weak. Keep this away from active watchlist unless structure recovers.' };
+  if (isExtended) return { setup: 'Extended / Avoid', score: 45, tone: 'warn', action: 'Do not chase', reason: `Price is high in the 20D range at ${row.position_20d_pct}% and may be stretched. Wait for pullback or breakout retest.` };
+  if (isNearHigh && hasVolume) return { setup: 'Breakout Retest', score: 85, tone: 'win', action: 'Wait for retest confirmation', reason: `Price is near the 20D high zone at ${row.position_20d_pct}% with ${row.volume_ratio}x volume. Best plan is breakout retest, not chase.` };
+  if (hasMomentum && row.quant_score >= 65) return { setup: 'Momentum Continuation', score: 78, tone: 'win', action: 'Watch VWAP continuation', reason: `5D momentum is ${row.return_5d_pct}% and quant score is ${row.quant_score}. Look for controlled continuation with valid RR.` };
+  if (hasVolume) return { setup: 'Volume Expansion', score: 70, tone: 'win', action: 'Watch for structure confirmation', reason: `Volume is expanding at ${row.volume_ratio}x. Need price structure confirmation before planning entry.` };
   return { setup: 'Momentum Continuation', score: 55, tone: 'neutral', action: 'Wait', reason: 'Some strength is present, but setup is not clean enough. Keep as research only until confirmation appears.' };
 }
 
@@ -46,18 +36,24 @@ export function SetupClassifierPanel() {
   const [stocks, setStocks] = useState<StockRow[]>([]);
   const [quotes, setQuotes] = useState<LiveQuote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     try {
       setLoading(true);
+      setError(null);
       const [stocksRes, liveRes] = await Promise.all([
         fetch('http://localhost:8000/api/research/stocks'),
         fetch('http://localhost:8000/api/live/quotes?limit=50'),
       ]);
-      const stocksJson: ApiResponse = await stocksRes.json();
-      const liveJson: LiveQuoteResponse = await liveRes.json();
+      const stocksJson: ApiResponse = await safeJson<ApiResponse>(stocksRes);
+      const liveJson: LiveQuoteResponse = await safeJson<LiveQuoteResponse>(liveRes);
       setStocks(stocksJson.stocks || []);
       setQuotes(liveJson.quotes || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Backend unavailable. Start backend on port 8000.');
+      setStocks([]);
+      setQuotes([]);
     } finally {
       setLoading(false);
     }
@@ -69,10 +65,7 @@ export function SetupClassifierPanel() {
   const liveBySymbol = new Map(quotes.map((q) => [q.symbol, q]));
   const classified = stocks.map((row) => ({ row, result: classifySetup(row, liveBySymbol.get(row.symbol)) }));
   const counts = getCounts(classified.map((x) => x.result));
-  const top = classified
-    .filter((x) => x.result.setup !== 'Weak / Ignore')
-    .sort((a, b) => b.result.score - a.result.score || b.row.quant_score - a.row.quant_score)
-    .slice(0, 6);
+  const top = classified.filter((x) => x.result.setup !== 'Weak / Ignore').sort((a, b) => b.result.score - a.result.score || b.row.quant_score - a.row.quant_score).slice(0, 6);
 
   return <section className="px-8 pb-12 md:px-12">
     <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
@@ -84,6 +77,8 @@ export function SetupClassifierPanel() {
         <button onClick={load} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Refresh Classifier</button>
       </div>
 
+      {error ? <div className="mt-5 rounded-2xl border border-yellow-900 bg-yellow-950/20 p-4 text-sm text-yellow-100">Classifier paused: backend is unavailable. Start backend on localhost:8000, then click Refresh Classifier.</div> : null}
+
       <div className="mt-5 grid gap-3 md:grid-cols-5">
         <ClassMetric label="Breakout Retest" value={counts['Breakout Retest']} tone="win" />
         <ClassMetric label="Momentum Continuation" value={counts['Momentum Continuation']} tone="win" />
@@ -93,7 +88,7 @@ export function SetupClassifierPanel() {
       </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {loading ? <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">Loading classifier...</div> : top.map(({ row, result }) => <SetupCard key={row.symbol} symbol={row.symbol} name={row.name} result={result} />)}
+        {loading ? <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">Loading classifier...</div> : error ? <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm text-slate-400">No classifier data while backend is stopped.</div> : top.map(({ row, result }) => <SetupCard key={row.symbol} symbol={row.symbol} name={row.name} result={result} />)}
       </div>
     </div>
   </section>;
@@ -111,11 +106,14 @@ export function StockSetupClassifier({ symbol }: { symbol: string }) {
         fetch('http://localhost:8000/api/research/stocks'),
         fetch('http://localhost:8000/api/live/quotes?limit=50'),
       ]);
-      const stocksJson: ApiResponse = await stocksRes.json();
-      const liveJson: LiveQuoteResponse = await liveRes.json();
+      const stocksJson: ApiResponse = await safeJson<ApiResponse>(stocksRes);
+      const liveJson: LiveQuoteResponse = await safeJson<LiveQuoteResponse>(liveRes);
       const clean = symbol.toUpperCase();
       setStock((stocksJson.stocks || []).find((x) => x.symbol.toUpperCase() === clean) || null);
       setQuote((liveJson.quotes || []).find((x) => x.symbol.toUpperCase() === clean));
+    } catch {
+      setStock(null);
+      setQuote(undefined);
     } finally {
       setLoading(false);
     }
