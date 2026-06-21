@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -26,6 +26,12 @@ def number(value: Any) -> float:
         return 0.0
 
 
+def default_intraday_dates(days: int = 1) -> tuple[str, str]:
+    today = datetime.now(IST).date()
+    from_day = today - timedelta(days=max(0, days - 1))
+    return from_day.isoformat(), today.isoformat()
+
+
 def latest_candles(symbol: str, limit: int = 20) -> list[dict[str, Any]]:
     try:
         rows = list_daily_candles_from_supabase(limit=10000)
@@ -44,7 +50,13 @@ def get_symbol_meta(symbol: str) -> dict[str, Any] | None:
     return next((row for row in rows if str(row.get("symbol", "")).upper() == clean), None)
 
 
-async def post_dhan_intraday(security_id: str, exchange_segment: str = "NSE_EQ", instrument: str = "EQUITY") -> Any:
+async def post_dhan_intraday(
+    security_id: str,
+    from_date: str,
+    to_date: str,
+    exchange_segment: str = "NSE_EQ",
+    instrument: str = "EQUITY",
+) -> Any:
     client_id = os.getenv("DHAN_CLIENT_ID")
     access_token = os.getenv("DHAN_ACCESS_TOKEN")
     if not client_id or not access_token:
@@ -60,6 +72,8 @@ async def post_dhan_intraday(security_id: str, exchange_segment: str = "NSE_EQ",
         "securityId": str(security_id),
         "exchangeSegment": exchange_segment,
         "instrument": instrument,
+        "fromDate": from_date,
+        "toDate": to_date,
     }
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -276,14 +290,24 @@ def estimate_retest_from_daily(symbol: str, ltp: float | None) -> dict[str, Any]
 
 
 @router.get("/candles/{symbol}")
-async def intraday_candles(symbol: str, interval: int = Query(5, ge=1, le=60)) -> dict[str, Any]:
+async def intraday_candles(
+    symbol: str,
+    interval: int = Query(5, ge=1, le=60),
+    days: int = Query(1, ge=1, le=5),
+    from_date: str | None = Query(None),
+    to_date: str | None = Query(None),
+) -> dict[str, Any]:
     clean = symbol.upper().strip()
     meta = get_symbol_meta(clean)
     if not meta or not meta.get("security_id"):
         return {"status": "unknown_symbol", "symbol": clean, "candles": [], "message": "Symbol security_id is missing. Refresh symbols/security master before using intraday candles.", "live_orders_enabled": False}
 
+    auto_from, auto_to = default_intraday_dates(days)
+    resolved_from = from_date or auto_from
+    resolved_to = to_date or auto_to
+
     try:
-        raw = await post_dhan_intraday(str(meta.get("security_id")))
+        raw = await post_dhan_intraday(str(meta.get("security_id")), resolved_from, resolved_to)
         minute_rows = normalize_intraday_response(clean, raw)
         candles = aggregate_candles(minute_rows, interval)
         vwap = compute_vwap_from_intraday(minute_rows)
@@ -292,6 +316,8 @@ async def intraday_candles(symbol: str, interval: int = Query(5, ge=1, le=60)) -
             "status": "success" if candles else "empty",
             "symbol": clean,
             "security_id": str(meta.get("security_id")),
+            "from_date": resolved_from,
+            "to_date": resolved_to,
             "interval_minutes": interval,
             "minute_candles": len(minute_rows),
             "candles_count": len(candles),
@@ -299,7 +325,7 @@ async def intraday_candles(symbol: str, interval: int = Query(5, ge=1, le=60)) -
             "vwap": vwap,
             "candles": candles[-120:],
             "source": "dhan_intraday",
-            "note": "Read-only intraday candle engine v1. This powers future real VWAP and retest detection. No live orders.",
+            "note": "Read-only intraday candle engine v2. Uses Dhan intraday fromDate/toDate, aggregates to requested interval, and calculates VWAP. No live orders.",
             "live_orders_enabled": False,
         }
     except DhanConfigError as exc:
