@@ -10,7 +10,7 @@ export default function StockSymbolLayout({ children, params }: { children: Reac
       {children}
       <StockSetupClassifier symbol={symbol} />
       <RiskRewardRule />
-      <RiskRewardValidator />
+      <RiskRewardValidator symbol={symbol} />
       <StockMiniHistory symbol={symbol} />
     </>
   );
