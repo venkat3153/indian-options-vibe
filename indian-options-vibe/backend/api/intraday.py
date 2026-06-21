@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -26,10 +26,22 @@ def number(value: Any) -> float:
         return 0.0
 
 
-def default_intraday_dates(days: int = 1) -> tuple[str, str]:
+def recent_trading_dates(max_days: int = 5) -> list[str]:
+    """Return recent possible NSE trading dates, skipping Saturday/Sunday.
+
+    This is a calendar fallback, not a holiday calendar. If the latest weekday was an
+    exchange holiday, the endpoint keeps trying earlier weekdays.
+    """
     today = datetime.now(IST).date()
-    from_day = today - timedelta(days=max(0, days - 1))
-    return from_day.isoformat(), today.isoformat()
+    dates: list[str] = []
+    cursor = today
+    lookback = 0
+    while len(dates) < max_days and lookback < 10:
+        if cursor.weekday() < 5:
+            dates.append(cursor.isoformat())
+        cursor = cursor - timedelta(days=1)
+        lookback += 1
+    return dates
 
 
 def latest_candles(symbol: str, limit: int = 20) -> list[dict[str, Any]]:
@@ -221,6 +233,39 @@ def compute_vwap_from_intraday(rows: list[dict[str, Any]]) -> float | None:
     return round(pv / volume_sum, 2)
 
 
+async def fetch_intraday_for_dates(clean: str, security_id: str, dates_to_try: list[str], interval: int) -> dict[str, Any]:
+    attempts: list[dict[str, Any]] = []
+    last_raw: Any = None
+
+    for day in dates_to_try:
+        raw = await post_dhan_intraday(security_id, day, day)
+        last_raw = raw
+        minute_rows = normalize_intraday_response(clean, raw)
+        candles = aggregate_candles(minute_rows, interval)
+        attempts.append({"from_date": day, "to_date": day, "minute_candles": len(minute_rows), "candles_count": len(candles)})
+
+        if candles:
+            return {
+                "status": "success",
+                "used_from_date": day,
+                "used_to_date": day,
+                "attempted_dates": attempts,
+                "minute_rows": minute_rows,
+                "candles": candles,
+                "raw": raw,
+            }
+
+    return {
+        "status": "empty",
+        "used_from_date": dates_to_try[0] if dates_to_try else None,
+        "used_to_date": dates_to_try[0] if dates_to_try else None,
+        "attempted_dates": attempts,
+        "minute_rows": [],
+        "candles": [],
+        "raw": last_raw,
+    }
+
+
 async def get_live_ltp(symbol: str) -> float | None:
     quote_payload = await live_quotes(limit=100)
     quotes = quote_payload.get("quotes", []) if isinstance(quote_payload, dict) else []
@@ -302,30 +347,40 @@ async def intraday_candles(
     if not meta or not meta.get("security_id"):
         return {"status": "unknown_symbol", "symbol": clean, "candles": [], "message": "Symbol security_id is missing. Refresh symbols/security master before using intraday candles.", "live_orders_enabled": False}
 
-    auto_from, auto_to = default_intraday_dates(days)
-    resolved_from = from_date or auto_from
-    resolved_to = to_date or auto_to
-
     try:
-        raw = await post_dhan_intraday(str(meta.get("security_id")), resolved_from, resolved_to)
-        minute_rows = normalize_intraday_response(clean, raw)
-        candles = aggregate_candles(minute_rows, interval)
+        if from_date and to_date:
+            raw = await post_dhan_intraday(str(meta.get("security_id")), from_date, to_date)
+            minute_rows = normalize_intraday_response(clean, raw)
+            candles = aggregate_candles(minute_rows, interval)
+            used_from = from_date
+            used_to = to_date
+            attempted_dates = [{"from_date": from_date, "to_date": to_date, "minute_candles": len(minute_rows), "candles_count": len(candles)}]
+        else:
+            dates_to_try = recent_trading_dates(max_days=max(days, 5))
+            result = await fetch_intraday_for_dates(clean, str(meta.get("security_id")), dates_to_try, interval)
+            minute_rows = result["minute_rows"]
+            candles = result["candles"]
+            used_from = result["used_from_date"]
+            used_to = result["used_to_date"]
+            attempted_dates = result["attempted_dates"]
+
         vwap = compute_vwap_from_intraday(minute_rows)
         latest = candles[-1] if candles else None
         return {
             "status": "success" if candles else "empty",
             "symbol": clean,
             "security_id": str(meta.get("security_id")),
-            "from_date": resolved_from,
-            "to_date": resolved_to,
+            "from_date": used_from,
+            "to_date": used_to,
             "interval_minutes": interval,
             "minute_candles": len(minute_rows),
             "candles_count": len(candles),
             "latest": latest,
             "vwap": vwap,
+            "attempted_dates": attempted_dates,
             "candles": candles[-120:],
             "source": "dhan_intraday",
-            "note": "Read-only intraday candle engine v2. Uses Dhan intraday fromDate/toDate, aggregates to requested interval, and calculates VWAP. No live orders.",
+            "note": "Read-only intraday candle engine v3. Falls back to latest weekday when today has no candles, aggregates to requested interval, and calculates VWAP. No live orders.",
             "live_orders_enabled": False,
         }
     except DhanConfigError as exc:
