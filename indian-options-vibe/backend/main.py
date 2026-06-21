@@ -13,6 +13,7 @@ from api.daily_research import router as daily_research_router
 from api.discipline import router as discipline_router
 from api.intraday import router as intraday_router
 from api.retest_v2 import router as retest_v2_router
+from api.final_status import router as final_status_router
 from api.stock_history import router as stock_history_router
 from api.live import router as quotes_router
 from api.watchlist import router as watchlist_router
@@ -45,6 +46,7 @@ app.include_router(daily_research_router, prefix="/api/research/daily-plan", tag
 app.include_router(discipline_router, prefix="/api/discipline", tags=["discipline"])
 app.include_router(intraday_router, prefix="/api/intraday", tags=["intraday"])
 app.include_router(retest_v2_router, prefix="/api/intraday", tags=["retest-v2"])
+app.include_router(final_status_router, prefix="/api/final-status", tags=["final-status"])
 app.include_router(stock_history_router, prefix="/api/stocks/history", tags=["stock-history"])
 app.include_router(quotes_router, prefix="/api/live", tags=["live"])
 app.include_router(watchlist_router, prefix="/api/watchlist", tags=["watchlist"])
