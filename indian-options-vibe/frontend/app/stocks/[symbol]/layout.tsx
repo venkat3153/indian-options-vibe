@@ -1,4 +1,5 @@
 import { RiskRewardRule } from '@/components/RiskRewardRule';
+import { RiskRewardValidator } from '@/components/RiskRewardValidator';
 import { StockMiniHistory } from '@/components/StockMiniHistory';
 import { StockSetupClassifier } from '@/components/SetupClassifier';
 
@@ -9,6 +10,7 @@ export default function StockSymbolLayout({ children, params }: { children: Reac
       {children}
       <StockSetupClassifier symbol={symbol} />
       <RiskRewardRule />
+      <RiskRewardValidator />
       <StockMiniHistory symbol={symbol} />
     </>
   );
