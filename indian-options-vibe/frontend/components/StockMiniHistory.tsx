@@ -79,20 +79,16 @@ export function StockMiniHistory({ symbol }: { symbol: string }) {
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
             <div className="flex items-center justify-between gap-3"><h3 className="font-bold text-white">Close Trend</h3><div className="text-xs text-slate-500">{data.source}</div></div>
-            <div className="mt-5 flex h-40 items-end gap-2 border-b border-slate-800 pb-2">
-              {candles.map((c) => <div key={c.date} className="flex flex-1 flex-col items-center justify-end gap-2">
-                <div title={`${c.date}: ${money(c.close)}`} className="w-full rounded-t bg-emerald-400/80" style={{ height: `${barHeight(c.close, closeStats.min, closeStats.max)}%` }} />
-              </div>)}
+            <div className="mt-5 h-44 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+              <CloseSvg candles={candles} min={closeStats.min} max={closeStats.max} />
             </div>
             <div className="mt-3 flex justify-between text-xs text-slate-500"><span>{candles[0]?.date}</span><span>{candles[candles.length - 1]?.date}</span></div>
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
             <div className="flex items-center justify-between gap-3"><h3 className="font-bold text-white">Volume Trend</h3><div className="text-xs text-slate-500">Latest {formatNumber(data.summary?.latest_volume || 0)}</div></div>
-            <div className="mt-5 flex h-40 items-end gap-2 border-b border-slate-800 pb-2">
-              {candles.map((c) => <div key={c.date} className="flex flex-1 flex-col items-center justify-end gap-2">
-                <div title={`${c.date}: ${formatNumber(c.volume)}`} className="w-full rounded-t bg-blue-400/70" style={{ height: `${barHeight(c.volume, 0, maxVolume)}%` }} />
-              </div>)}
+            <div className="mt-5 h-44 rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+              <VolumeSvg candles={candles} maxVolume={maxVolume} />
             </div>
             <div className="mt-3 flex justify-between text-xs text-slate-500"><span>Avg {formatNumber(data.summary?.avg_volume || 0)}</span><span>Ratio {data.summary?.volume_ratio}x</span></div>
           </div>
@@ -107,7 +103,50 @@ export function StockMiniHistory({ symbol }: { symbol: string }) {
   </section>;
 }
 
+function CloseSvg({ candles, min, max }: { candles: Candle[]; min: number; max: number }) {
+  const width = 760;
+  const height = 150;
+  const pad = 12;
+  const points = candles.map((c, idx) => {
+    const x = pad + (idx / Math.max(1, candles.length - 1)) * (width - pad * 2);
+    const pct = max === min ? 0.5 : (c.close - min) / (max - min);
+    const y = height - pad - pct * (height - pad * 2);
+    return { x, y, candle: c };
+  });
+  const path = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const area = points.length ? `${path} L ${points[points.length - 1].x} ${height - pad} L ${points[0].x} ${height - pad} Z` : '';
+
+  return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
+    <path d={`M ${pad} ${pad} H ${width - pad}`} stroke="rgb(51 65 85)" strokeWidth="1" opacity="0.5" />
+    <path d={`M ${pad} ${height / 2} H ${width - pad}`} stroke="rgb(51 65 85)" strokeWidth="1" opacity="0.45" />
+    <path d={`M ${pad} ${height - pad} H ${width - pad}`} stroke="rgb(51 65 85)" strokeWidth="1" opacity="0.5" />
+    {area ? <path d={area} fill="rgb(16 185 129)" opacity="0.12" /> : null}
+    {path ? <path d={path} fill="none" stroke="rgb(52 211 153)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /> : null}
+    {points.map((p, idx) => <circle key={`${p.candle.date}-${idx}`} cx={p.x} cy={p.y} r="4" fill="rgb(52 211 153)"><title>{`${p.candle.date}: ${money(p.candle.close)}`}</title></circle>)}
+  </svg>;
+}
+
+function VolumeSvg({ candles, maxVolume }: { candles: Candle[]; maxVolume: number }) {
+  const width = 760;
+  const height = 150;
+  const pad = 12;
+  const gap = 5;
+  const barW = (width - pad * 2 - gap * Math.max(0, candles.length - 1)) / Math.max(1, candles.length);
+
+  return <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible">
+    <path d={`M ${pad} ${pad} H ${width - pad}`} stroke="rgb(51 65 85)" strokeWidth="1" opacity="0.45" />
+    <path d={`M ${pad} ${height / 2} H ${width - pad}`} stroke="rgb(51 65 85)" strokeWidth="1" opacity="0.4" />
+    <path d={`M ${pad} ${height - pad} H ${width - pad}`} stroke="rgb(51 65 85)" strokeWidth="1" opacity="0.55" />
+    {candles.map((c, idx) => {
+      const pct = maxVolume ? c.volume / maxVolume : 0.3;
+      const h = Math.max(6, pct * (height - pad * 2));
+      const x = pad + idx * (barW + gap);
+      const y = height - pad - h;
+      return <rect key={`${c.date}-${idx}`} x={x} y={y} width={barW} height={h} rx="3" fill="rgb(96 165 250)" opacity="0.85"><title>{`${c.date}: ${formatNumber(c.volume)}`}</title></rect>;
+    })}
+  </svg>;
+}
+
 function MiniMetric({ label, value, tone }: { label: string; value: string; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</div><div className={`mt-2 text-lg font-bold ${cls}`}>{value}</div></div>; }
-function barHeight(value: number, min: number, max: number) { if (!max || max === min) return 45; return Math.max(8, Math.min(100, ((value - min) / (max - min)) * 92 + 8)); }
 function money(value: number) { return `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`; }
 function formatNumber(value: number) { return Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
