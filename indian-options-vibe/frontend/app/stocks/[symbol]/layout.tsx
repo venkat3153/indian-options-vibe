@@ -1,6 +1,5 @@
 import { AutoChecklistEngine } from '@/components/AutoChecklistEngine';
 import { FinalResearchGate } from '@/components/FinalResearchGate';
-import { MarketBreadthCheck } from '@/components/MarketBreadthCheck';
 import { RiskRewardRule } from '@/components/RiskRewardRule';
 import { RiskRewardValidator } from '@/components/RiskRewardValidator';
 import { SetupConfirmationChecklist } from '@/components/SetupConfirmationChecklist';
@@ -14,7 +13,6 @@ export default function StockSymbolLayout({ children, params }: { children: Reac
       {children}
       <StockSetupClassifier symbol={symbol} />
       <AutoChecklistEngine symbol={symbol} />
-      <MarketBreadthCheck symbol={symbol} />
       <FinalResearchGate symbol={symbol} />
       <RiskRewardRule />
       <RiskRewardValidator symbol={symbol} />
