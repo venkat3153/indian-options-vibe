@@ -17,17 +17,41 @@ def to_float(value: Any) -> float:
         return 0.0
 
 
+def derived_change_pct(quote: dict[str, Any]) -> float | None:
+    raw_change = quote.get("change_pct")
+    if raw_change is not None and raw_change != "":
+        return round(to_float(raw_change), 2)
+
+    ltp = to_float(quote.get("ltp"))
+    prev_close = to_float(quote.get("prev_close"))
+    if ltp and prev_close:
+        return round(((ltp - prev_close) / prev_close) * 100, 2)
+
+    change = quote.get("change")
+    if change is not None and change != "" and prev_close:
+        return round((to_float(change) / prev_close) * 100, 2)
+
+    return None
+
+
+def normalize_quote(quote: dict[str, Any]) -> dict[str, Any] | None:
+    change_pct = derived_change_pct(quote)
+    if change_pct is None:
+        return None
+    return {**quote, "change_pct": change_pct, "change_pct_source": "api" if quote.get("change_pct") is not None else "derived"}
+
+
 @router.get("/breadth")
 async def get_market_breadth(symbol: str | None = None, sector: str | None = None) -> dict[str, Any]:
     payload = await live_quotes(limit=100)
     quotes = payload.get("quotes", []) if isinstance(payload, dict) else []
-    valid = [q for q in quotes if q.get("change_pct") is not None]
+    valid = [normalized for q in quotes if (normalized := normalize_quote(q)) is not None]
 
     if not valid:
         return {
             "status": "unknown",
             "supportive": False,
-            "message": "Market breadth unavailable because live quote changes are missing.",
+            "message": "Market breadth unavailable because live quote change data could not be derived from LTP and previous close.",
             "note": "Research only. No live orders.",
         }
 
@@ -59,9 +83,12 @@ async def get_market_breadth(symbol: str | None = None, sector: str | None = Non
 
     supportive = market_supportive and sector_supportive
 
+    derived_count = len([q for q in valid if q.get("change_pct_source") == "derived"])
     reasons = [
         f"NIFTY50 breadth: {len(positive)} positive, {len(negative)} negative, {flat} flat; average change {avg_change}%.",
     ]
+    if derived_count:
+        reasons.append(f"Derived live % for {derived_count} symbols from LTP and previous close.")
     if sector_quotes:
         reasons.append(f"Sector breadth: {len(sector_positive)}/{len(sector_quotes)} positive; average change {sector_avg}%.")
     if selected_quote:
@@ -78,6 +105,7 @@ async def get_market_breadth(symbol: str | None = None, sector: str | None = Non
         "flat": flat,
         "positive_pct": positive_pct,
         "avg_change_pct": avg_change,
+        "derived_count": derived_count,
         "symbol": clean_symbol or None,
         "sector": clean_sector or None,
         "sector_count": len(sector_quotes),
@@ -85,5 +113,5 @@ async def get_market_breadth(symbol: str | None = None, sector: str | None = Non
         "sector_positive_pct": sector_positive_pct,
         "sector_avg_change_pct": sector_avg,
         "message": " | ".join(reasons),
-        "note": "Market Breadth Engine v1 uses available live NIFTY50 quote snapshots. Research only; no live orders.",
+        "note": "Market Breadth Engine v2 derives live percentage from LTP and previous close if the feed does not provide change_pct. Research only; no live orders.",
     }
