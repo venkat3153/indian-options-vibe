@@ -17,7 +17,19 @@ type ApiResponse = { stocks: StockRow[] };
 type LiveQuoteResponse = { quotes: LiveQuote[] };
 type RRPlan = { side: 'Long' | 'Short'; entry: number; stop: number; target: number; risk: number; reward: number; rr: number; isReady: boolean; saved_at: string };
 type DisciplineStatus = { status: 'clear' | 'locked'; locked: boolean; trades_today: number; pnl_today: number; loss_count: number; reason: string; mode: string };
-type VwapStatus = { status: 'success' | 'unknown'; ltp: number | null; vwap: number | null; above_vwap: boolean; distance_pct: number | null; source: string; message: string };
+type VwapStatus = {
+  status: 'success' | 'fallback' | 'unknown' | 'error';
+  ltp: number | null;
+  vwap: number | null;
+  above_vwap: boolean;
+  distance_pct: number | null;
+  source: string;
+  message: string;
+  from_date?: string;
+  minute_candles?: number;
+  candles_count?: number;
+  intraday_error?: string;
+};
 type RetestStatus = { status: 'success' | 'failed' | 'waiting' | 'unknown'; result: string; retest_held: boolean; ltp?: number; breakout_floor?: number; retest_low?: number; retest_high?: number; source: string; message: string };
 
 type AutoCheck = {
@@ -109,10 +121,10 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
     <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v5</div>
+          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v6</div>
           <h2 className="mt-2 text-2xl font-bold text-white">System checks what it can verify</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-            RR, discipline, VWAP, and estimated retest status are now connected. Market breadth is the only remaining manual gate.
+            RR, discipline, real intraday VWAP, and estimated retest status are connected. Retest is the next hard upgrade.
           </p>
         </div>
         <div className={`rounded-2xl border px-6 py-4 text-center ${autoFailed === 0 && waitingCount === 0 && autoPassed >= 7 ? 'border-emerald-700 bg-emerald-500/10' : 'border-yellow-800 bg-yellow-500/10'}`}>
@@ -127,17 +139,22 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
       </div>
 
       <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
-        <span className="font-bold text-cyan-300">Teacher rule:</span> Retest Engine v1 is estimated from daily range + LTP. If it says Waiting, do not chase. True confirmation still needs 5-min/15-min candles.
+        <span className="font-bold text-cyan-300">Teacher rule:</span> VWAP is now real intraday when Dhan candles are available. Retest is still estimated, so do not enter only because VWAP passes. True confirmation still needs 5-min/15-min candle structure.
       </div>
     </div>
   </section>;
 }
 
 function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RRPlan | null, discipline: DisciplineStatus | null, vwap: VwapStatus | null, retest: RetestStatus | null): AutoCheck[] {
+  const realVwap = vwap?.source === 'real_dhan_intraday_vwap';
   const vwapCheck: AutoCheck = {
-    label: 'Price above VWAP',
+    label: realVwap ? 'Real intraday VWAP' : 'Price above VWAP',
     status: vwap ? (vwap.above_vwap ? 'pass' : 'fail') : 'unknown',
-    detail: vwap ? `${vwap.message} LTP: ${vwap.ltp ?? '-'}, VWAP: ${vwap.vwap ?? '-'} (${vwap.source}).` : 'Waiting for VWAP status.',
+    detail: vwap
+      ? realVwap
+        ? `${vwap.message} LTP/latest: ${vwap.ltp ?? '-'}, real VWAP: ${vwap.vwap ?? '-'}, date: ${vwap.from_date ?? '-'}, 1m candles: ${vwap.minute_candles ?? '-'}, 5m candles: ${vwap.candles_count ?? '-'}.`
+        : `${vwap.message} LTP: ${vwap.ltp ?? '-'}, VWAP: ${vwap.vwap ?? '-'} (${vwap.source}). ${vwap.intraday_error ? `Intraday note: ${vwap.intraday_error}` : ''}`
+      : 'Waiting for VWAP status.',
     auto: Boolean(vwap),
   };
 
@@ -156,7 +173,7 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RR
       { label: 'Discipline lock clear', status: discipline && !discipline.locked ? 'pass' : discipline?.locked ? 'fail' : 'unknown', detail: discipline?.reason || 'Waiting for discipline status.', auto: Boolean(discipline) },
       vwapCheck,
       retestCheck,
-      { label: 'Market breadth', status: 'manual', detail: 'Needs index and sector breadth feed.', auto: false },
+      { label: 'Market breadth', status: 'manual', detail: 'Handled by the Final Research Gate.', auto: false },
     ];
   }
 
@@ -210,7 +227,7 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RR
     {
       label: 'Market breadth supportive',
       status: 'manual',
-      detail: 'Manual for now. Needs NIFTY/sector breadth engine.',
+      detail: 'Handled by Final Research Gate and main table Final Status. Weak breadth overrides checklist optimism.',
       auto: false,
     },
   ];
@@ -240,8 +257,8 @@ function AutoCheckCard({ check }: { check: AutoCheck }) {
   return <div className={`rounded-2xl border p-4 ${cls}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="font-bold text-white">{check.label}</div>
-      <div className={`rounded-full border border-current px-2 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${labelCls}`}>{badge}</div>
+      <div className={`rounded-full border border-current px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] ${labelCls}`}>{badge}</div>
     </div>
-    <p className="mt-3 text-xs leading-5 text-slate-400">{check.detail}</p>
+    <p className="mt-3 text-sm leading-6 text-slate-400">{check.detail}</p>
   </div>;
 }
