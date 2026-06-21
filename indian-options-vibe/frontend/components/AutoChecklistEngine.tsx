@@ -30,7 +30,20 @@ type VwapStatus = {
   candles_count?: number;
   intraday_error?: string;
 };
-type RetestStatus = { status: 'success' | 'failed' | 'waiting' | 'unknown'; result: string; retest_held: boolean; ltp?: number; breakout_floor?: number; retest_low?: number; retest_high?: number; source: string; message: string };
+type RetestStatus = {
+  status: 'success' | 'failed' | 'waiting' | 'unknown';
+  result: string;
+  retest_held: boolean;
+  ltp?: number;
+  breakout_floor?: number;
+  retest_low?: number;
+  retest_high?: number;
+  source: string;
+  message: string;
+  from_date?: string;
+  candles_count?: number;
+  volume_ratio?: number | null;
+};
 
 type AutoCheck = {
   label: string;
@@ -70,7 +83,7 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
         fetch('http://localhost:8000/api/live/quotes?limit=50'),
         fetch('http://localhost:8000/api/discipline/status'),
         fetch(`http://localhost:8000/api/intraday/vwap/${encodeURIComponent(symbol)}`),
-        fetch(`http://localhost:8000/api/intraday/retest/${encodeURIComponent(symbol)}`),
+        fetch(`http://localhost:8000/api/intraday/retest-v2/${encodeURIComponent(symbol)}`),
       ]);
       const stocksJson: ApiResponse = await stocksRes.json();
       const liveJson: LiveQuoteResponse = await liveRes.json();
@@ -121,10 +134,10 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
     <div className="mx-auto max-w-7xl rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v6</div>
+          <div className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">Auto Checklist Engine v7</div>
           <h2 className="mt-2 text-2xl font-bold text-white">System checks what it can verify</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-            RR, discipline, real intraday VWAP, and estimated retest status are connected. Retest is the next hard upgrade.
+            RR, discipline, real intraday VWAP, and real 5-minute retest structure are connected. Market breadth still controls the final decision.
           </p>
         </div>
         <div className={`rounded-2xl border px-6 py-4 text-center ${autoFailed === 0 && waitingCount === 0 && autoPassed >= 7 ? 'border-emerald-700 bg-emerald-500/10' : 'border-yellow-800 bg-yellow-500/10'}`}>
@@ -139,7 +152,7 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
       </div>
 
       <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
-        <span className="font-bold text-cyan-300">Teacher rule:</span> VWAP is now real intraday when Dhan candles are available. Retest is still estimated, so do not enter only because VWAP passes. True confirmation still needs 5-min/15-min candle structure.
+        <span className="font-bold text-cyan-300">Teacher rule:</span> Real retest v2 is structure-based, but it is still a research gate, not an order trigger. Final Ready also needs market breadth, RR, discipline, and chart confirmation.
       </div>
     </div>
   </section>;
@@ -147,6 +160,7 @@ export function AutoChecklistEngine({ symbol }: { symbol: string }) {
 
 function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RRPlan | null, discipline: DisciplineStatus | null, vwap: VwapStatus | null, retest: RetestStatus | null): AutoCheck[] {
   const realVwap = vwap?.source === 'real_dhan_intraday_vwap';
+  const realRetest = retest?.source === 'real_dhan_5m_retest_v2';
   const vwapCheck: AutoCheck = {
     label: realVwap ? 'Real intraday VWAP' : 'Price above VWAP',
     status: vwap ? (vwap.above_vwap ? 'pass' : 'fail') : 'unknown',
@@ -159,9 +173,13 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RR
   };
 
   const retestCheck: AutoCheck = {
-    label: 'Retest held',
+    label: realRetest ? 'Real 5m retest held' : 'Retest held',
     status: retest ? (retest.retest_held ? 'pass' : retest.status === 'failed' ? 'fail' : retest.status === 'waiting' ? 'waiting' : 'unknown') : 'unknown',
-    detail: retest ? `${retest.result}: ${retest.message} Zone: ${retest.retest_low ?? '-'}–${retest.retest_high ?? '-'} (${retest.source}).` : 'Waiting for retest status.',
+    detail: retest
+      ? realRetest
+        ? `${retest.result}: ${retest.message} Zone: ${retest.retest_low ?? '-'}–${retest.retest_high ?? '-'}, candles: ${retest.candles_count ?? '-'}, volume ratio: ${retest.volume_ratio ?? '-'} (${retest.source}).`
+        : `${retest.result}: ${retest.message} Zone: ${retest.retest_low ?? '-'}–${retest.retest_high ?? '-'} (${retest.source}).`
+      : 'Waiting for retest status.',
     auto: Boolean(retest),
   };
 
@@ -186,50 +204,15 @@ function buildChecks(stock: StockRow | null, quote: LiveQuote | null, rrPlan: RR
   const disciplineClear = Boolean(discipline && !discipline.locked);
 
   return [
-    {
-      label: 'Volume confirmation',
-      status: volumePass ? 'pass' : 'fail',
-      detail: volumePass ? `Volume ratio ${stock.volume_ratio}x is acceptable.` : `Volume ratio ${stock.volume_ratio}x is weak. Do not force the setup.`,
-      auto: true,
-    },
-    {
-      label: 'Historical setup quality',
-      status: setupPass ? 'pass' : 'fail',
-      detail: setupPass ? `Quant score ${stock.quant_score} and 20D position ${stock.position_20d_pct}% support watchlist research.` : `Quant score/20D position are not strong enough yet.`,
-      auto: true,
-    },
-    {
-      label: 'Live direction',
-      status: livePass ? 'pass' : 'fail',
-      detail: livePass ? `Live move is ${livePct}%, not against the long idea.` : `Live move is ${livePct}%. Avoid fresh long planning unless it recovers.`,
-      auto: true,
-    },
-    {
-      label: 'Extension risk',
-      status: notExtended ? 'pass' : 'fail',
-      detail: notExtended ? 'No major auto extension block detected.' : 'Price is extended near upper range. Wait for retest; do not chase.',
-      auto: true,
-    },
-    {
-      label: 'RR minimum 1:2',
-      status: rrReady ? 'pass' : 'manual',
-      detail: rrReady ? `Saved ${rrPlan?.side} plan: entry ${rrPlan?.entry}, stop ${rrPlan?.stop}, target ${rrPlan?.target}, RR 1:${rrPlan?.rr}.` : 'Use RR Validator. When RR is 1:2 or better, this will become Auto Pass.',
-      auto: rrReady,
-    },
-    {
-      label: 'Discipline lock clear',
-      status: discipline ? (disciplineClear ? 'pass' : 'fail') : 'unknown',
-      detail: discipline ? `${discipline.reason} Trades today: ${discipline.trades_today}, P&L: ${discipline.pnl_today}, losses: ${discipline.loss_count}.` : 'Waiting for discipline status from journal/paper trades.',
-      auto: Boolean(discipline),
-    },
+    { label: 'Volume confirmation', status: volumePass ? 'pass' : 'fail', detail: volumePass ? `Volume ratio ${stock.volume_ratio}x is acceptable.` : `Volume ratio ${stock.volume_ratio}x is weak. Do not force the setup.`, auto: true },
+    { label: 'Historical setup quality', status: setupPass ? 'pass' : 'fail', detail: setupPass ? `Quant score ${stock.quant_score} and 20D position ${stock.position_20d_pct}% support watchlist research.` : `Quant score/20D position are not strong enough yet.`, auto: true },
+    { label: 'Live direction', status: livePass ? 'pass' : 'fail', detail: livePass ? `Live move is ${livePct}%, not against the long idea.` : `Live move is ${livePct}%. Avoid fresh long planning unless it recovers.`, auto: true },
+    { label: 'Extension risk', status: notExtended ? 'pass' : 'fail', detail: notExtended ? 'No major auto extension block detected.' : 'Price is extended near upper range. Wait for retest; do not chase.', auto: true },
+    { label: 'RR minimum 1:2', status: rrReady ? 'pass' : 'manual', detail: rrReady ? `Saved ${rrPlan?.side} plan: entry ${rrPlan?.entry}, stop ${rrPlan?.stop}, target ${rrPlan?.target}, RR 1:${rrPlan?.rr}.` : 'Use RR Validator. When RR is 1:2 or better, this will become Auto Pass.', auto: rrReady },
+    { label: 'Discipline lock clear', status: discipline ? (disciplineClear ? 'pass' : 'fail') : 'unknown', detail: discipline ? `${discipline.reason} Trades today: ${discipline.trades_today}, P&L: ${discipline.pnl_today}, losses: ${discipline.loss_count}.` : 'Waiting for discipline status from journal/paper trades.', auto: Boolean(discipline) },
     vwapCheck,
     retestCheck,
-    {
-      label: 'Market breadth supportive',
-      status: 'manual',
-      detail: 'Handled by Final Research Gate and main table Final Status. Weak breadth overrides checklist optimism.',
-      auto: false,
-    },
+    { label: 'Market breadth supportive', status: 'manual', detail: 'Handled by Final Research Gate and main table Final Status. Weak breadth overrides checklist optimism.', auto: false },
   ];
 }
 
