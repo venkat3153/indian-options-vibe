@@ -1,4 +1,3 @@
-import { AppClientMount } from '@/components/AppClientMount';
 import { StockLinkHydrator } from '@/components/StockLinkHydrator';
 import { SetupClassifierPanel } from '@/components/SetupClassifier';
 
@@ -6,7 +5,6 @@ export default function StocksLayout({ children }: { children: React.ReactNode }
   return (
     <>
       <StockLinkHydrator />
-      <AppClientMount />
       {children}
       <SetupClassifierPanel />
     </>
