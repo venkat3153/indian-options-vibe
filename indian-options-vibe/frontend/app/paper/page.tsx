@@ -227,7 +227,16 @@ export default function PaperPage() {
                     <p className="mt-2 text-sm text-slate-400">Added: {trade.createdAt}{trade.updatedAt ? ` • Updated: ${trade.updatedAt}` : ''}</p>
                     <p className="mt-3 text-slate-300">{trade.setup}</p>
                   </div>
-                  {(trade as any).source === 'stock_detail_rr_plan' ? <RRPlanDetails trade={trade} /> : null}<div className="flex flex-wrap gap-2">
+                  {(trade as any).source === 'stock_detail_rr_plan' ? <RRPlanDetails trade={trade} /> : null}
+            {(trade as any).symbol ? (
+              <a
+                href={`/stocks/${(trade as any).symbol}`}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700"
+              >
+                Open Stock Detail
+              </a>
+            ) : null}
+<div className="flex flex-wrap gap-2">
                     <ActionButton label="Mark Entered" disabled={trade.status !== 'Planned'} onClick={() => updateStatus(trade.id, 'Entered')} />
                     <ActionButton label="Target Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'Target Hit')} />
                     <ActionButton label="SL Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'SL Hit')} />
