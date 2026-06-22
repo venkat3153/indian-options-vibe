@@ -252,7 +252,34 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
       : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
 
-  return (
+    const copyPaperPlan = async () => {
+    const lines = [
+      `PAPER TRADE PLAN — ${stock.symbol}`,
+      `Name: ${stock.name}`,
+      `Sector: ${stock.sector}`,
+      ``,
+      `Entry Ref: ${rr.entry ? money(rr.entry) : '-'}`,
+      `Stop Ref: ${rr.stop ? money(rr.stop) : '-'}`,
+      `Risk: ${rr.risk > 0 ? money(rr.risk) : '-'}`,
+      `1R Target: ${rr.oneR ? money(rr.oneR) : '-'}`,
+      `2R Target: ${rr.twoR ? money(rr.twoR) : '-'}`,
+      `RR Status: ${rr.status}`,
+      ``,
+      `Entry Idea: ${getEntryIdea(stock)}`,
+      `Invalidation: ${getInvalidation(stock)}`,
+      `Target Logic: ${getTargetIdea(stock)}`,
+      `No-Trade Warning: ${getNoTradeWarning(stock, quote, retest, vwap)}`,
+      `Buyer Zone: ${getBuyerZone(stock, quote, retest, vwap)}`,
+      `Seller Zone: ${getSellerZone(stock, quote, retest, vwap)}`,
+      ``,
+      `Mode: Research only / Paper trade only / No live order`,
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    alert('Paper trade plan copied');
+  };
+
+return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
@@ -293,6 +320,10 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
         Rule: only consider paper-watch when entry is clear, stop is below entry, setup is not below VWAP,
         retest has not failed, and the chart has enough room to reach the 2R target.
       </div>
+      <button onClick={copyPaperPlan} className="mt-4 rounded-2xl border border-emerald-800 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
+        Copy Plan
+      </button>
+
     </div>
   );
 }
