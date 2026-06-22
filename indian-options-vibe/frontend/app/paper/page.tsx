@@ -139,6 +139,12 @@ export default function PaperPage() {
     window.localStorage.setItem('paperTrades', JSON.stringify(nextTrades));
   }
 
+  async function copyTradeJson(trade: PaperTrade) {
+    const json = JSON.stringify(trade, null, 2);
+    await navigator.clipboard.writeText(json);
+    alert(`${trade.symbol || 'Paper plan'} JSON copied`);
+  }
+
   function updateStatus(id: string, status: TradeStatus) {
     const result = resultForStatus(status);
     const nextTrades = trades.map((trade) =>
@@ -244,7 +250,13 @@ export default function PaperPage() {
                     <ActionButton label="Target Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'Target Hit')} />
                     <ActionButton label="SL Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'SL Hit')} />
                     <ActionButton label="Cancel" disabled={trade.status === 'Target Hit' || trade.status === 'SL Hit' || trade.status === 'Cancelled'} onClick={() => updateStatus(trade.id, 'Cancelled')} />
-                    <button onClick={() => deleteTrade(trade.id)} className="rounded-xl border border-red-900 px-3 py-2 text-xs text-red-300 hover:bg-red-950/30">Delete</button>
+                    <button
+                  onClick={() => copyTradeJson(trade)}
+                  className="rounded-xl border border-purple-800 bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-300 hover:bg-purple-500/20"
+                >
+                  Copy JSON
+                </button>
+                <button onClick={() => deleteTrade(trade.id)} className="rounded-xl border border-red-900 px-3 py-2 text-xs text-red-300 hover:bg-red-950/30">Delete</button>
                   </div>
                 </div>
 
