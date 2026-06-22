@@ -281,6 +281,10 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
 
   const round2 = (value: number) => Math.round(Number(value || 0) * 100) / 100;
 
+  const openPaperPage = () => {
+    window.location.href = '/paper';
+  };
+
   const savePaperPlan = () => {
     const existing = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
 
@@ -374,6 +378,9 @@ return (
       </button>
       <button onClick={savePaperPlan} className="ml-2 mt-4 rounded-2xl border border-blue-800 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
         Save Paper Plan
+      </button>
+      <button onClick={openPaperPage} className="ml-2 mt-4 rounded-2xl border border-slate-700 bg-slate-800/70 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
+        Open Paper Trading
       </button>
 
 
