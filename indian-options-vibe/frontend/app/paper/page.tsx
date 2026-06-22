@@ -209,6 +209,21 @@ export default function PaperPage() {
     alert(`${trade.symbol || 'Paper plan'} JSON copied`);
   }
 
+  function updateTradeMeta(id: string, patch: Record<string, any>) {
+    const nextTrades = trades.map((trade) =>
+      trade.id === id
+        ? {
+            ...trade,
+            ...patch,
+            updatedAt: new Date().toISOString(),
+          }
+        : trade
+    );
+
+    setTrades(nextTrades);
+    window.localStorage.setItem('paperTrades', JSON.stringify(nextTrades));
+  }
+
   function updateStatus(id: string, status: TradeStatus) {
     const result = resultForStatus(status);
     const nextTrades = trades.map((trade) =>
@@ -314,7 +329,57 @@ export default function PaperPage() {
               </a>
             ) : null}
 <div className="flex flex-wrap gap-2">
-                    <ActionButton label="Mark Entered" disabled={trade.status !== 'Planned'} onClick={() => updateStatus(trade.id, 'Entered')} />
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <label className="block rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Emotion</span>
+                  <select
+                    value={String((trade as any).emotion || '')}
+                    onChange={(event) => updateTradeMeta(trade.id, { emotion: event.target.value })}
+                    className="mt-3 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-emerald-700"
+                  >
+                    <option value="">Select emotion</option>
+                    <option value="Calm">Calm</option>
+                    <option value="Confident">Confident</option>
+                    <option value="FOMO">FOMO</option>
+                    <option value="Fear">Fear</option>
+                    <option value="Revenge">Revenge</option>
+                    <option value="Greedy">Greedy</option>
+                    <option value="Confused">Confused</option>
+                  </select>
+                </label>
+
+                <label className="block rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Mistake</span>
+                  <select
+                    value={String((trade as any).mistake || '')}
+                    onChange={(event) => updateTradeMeta(trade.id, { mistake: event.target.value })}
+                    className="mt-3 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-emerald-700"
+                  >
+                    <option value="">No mistake selected</option>
+                    <option value="No mistake">No mistake</option>
+                    <option value="Entered early">Entered early</option>
+                    <option value="Chased entry">Chased entry</option>
+                    <option value="Ignored VWAP">Ignored VWAP</option>
+                    <option value="Ignored rules">Ignored rules</option>
+                    <option value="Oversized">Oversized</option>
+                    <option value="Moved stop">Moved stop</option>
+                    <option value="Exited early">Exited early</option>
+                    <option value="Revenge trade">Revenge trade</option>
+                  </select>
+                </label>
+
+                <label className="block rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Review Note</span>
+                  <textarea
+                    value={String((trade as any).reviewNote || '')}
+                    onChange={(event) => updateTradeMeta(trade.id, { reviewNote: event.target.value })}
+                    placeholder="What did I follow or break?"
+                    className="mt-3 min-h-20 w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-emerald-700"
+                  />
+                </label>
+              </div>
+
+                <ActionButton label="Mark Entered" disabled={trade.status !== 'Planned'} onClick={() => updateStatus(trade.id, 'Entered')} />
                     <ActionButton label="Target Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'Target Hit')} />
                     <ActionButton label="SL Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'SL Hit')} />
                     <ActionButton label="Cancel" disabled={trade.status === 'Target Hit' || trade.status === 'SL Hit' || trade.status === 'Cancelled'} onClick={() => updateStatus(trade.id, 'Cancelled')} />
