@@ -121,7 +121,14 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 function getFinalDecision(signal: LiveSignal, vwap: VwapStatus | null, retest: RetestStatus | null, breadth: BreadthStatus | null): FinalDecision {
   if (retest?.status === 'failed') return { label: 'Wait: Retest Failed', tone: 'loss', reason: `${retest.message} Do not mark Ready until 5-minute structure reclaims the retest zone.` };
   if (vwap && vwap.above_vwap === false) return { label: 'Wait: Below VWAP', tone: 'warn', reason: `${vwap.message || 'Price is below VWAP.'} Wait for reclaim before planning a long entry.` };
-  if (breadth && !breadth.supportive) return { label: 'Wait: Breadth Weak', tone: 'warn', reason: `Market breadth is weak: ${breadth.positive ?? '-'} positive, ${breadth.negative ?? '-'} negative, avg ${breadth.avg_change_pct ?? '-'}%. Strong stock remains watch only.` };
+  const breadthOk = !breadth
+    ? true
+    : Boolean(
+        breadth.supportive ??
+        (breadth.market_supportive !== false && breadth.sector_supportive !== false)
+      );
+
+  if (breadth && !breadthOk) return { label: 'Wait: Breadth Weak', tone: 'warn', reason: `Market breadth is weak: ${breadth.positive ?? '-'} positive, ${breadth.negative ?? '-'} negative, avg ${breadth.avg_change_pct ?? '-'}%. Strong stock remains watch only.` };
   if (retest?.status === 'waiting') return { label: 'Wait for Retest', tone: 'warn', reason: `${retest.message} Do not chase; wait for a clean 5-minute hold.` };
   if (signal.label === 'Weak Live') return { label: 'Avoid: Weak Live', tone: 'loss', reason: signal.reason };
   if (signal.label === 'Extended / Avoid') return { label: 'Wait: Extended', tone: 'warn', reason: signal.reason };
