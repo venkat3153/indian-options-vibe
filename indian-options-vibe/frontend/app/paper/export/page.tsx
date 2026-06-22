@@ -130,12 +130,20 @@ export default function PaperExportPage() {
             </p>
           </div>
 
-          <a
-            href="/paper"
-            className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
-          >
-            Open Paper Trading
-          </a>
+          <div className="flex flex-wrap gap-3">
+            <a
+              href="/paper"
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
+            >
+              Open Paper Trading
+            </a>
+            <a
+              href="/paper/analytics"
+              className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
+            >
+              Analytics
+            </a>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-5">

@@ -100,6 +100,12 @@ export default function PaperAnalyticsPage() {
             >
               Export / Backup
             </a>
+            <a
+              href="/stocks"
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
+            >
+              Stocks Research
+            </a>
           </div>
         </div>
 
