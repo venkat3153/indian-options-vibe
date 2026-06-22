@@ -41,6 +41,45 @@ function isTodayTrade(trade: PaperTrade) {
   return trade.createdAt.startsWith(todayInIndia());
 }
 
+
+function formatPlanValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '-';
+  }
+  return String(value);
+}
+
+function RRPlanDetails({ trade }: { trade: any }) {
+  const snapshot = trade.marketSnapshot || {};
+  const details = [
+    { label: 'Risk', value: trade.risk ?? snapshot.risk },
+    { label: '1R Target', value: trade.target1R ?? snapshot.target1R },
+    { label: '2R Target', value: trade.target2R ?? snapshot.target2R },
+    { label: 'RR Status', value: trade.rrStatus ?? snapshot.rrStatus },
+    { label: 'No-trade Warning', value: snapshot.noTradeWarning },
+    { label: 'Buyer Zone', value: snapshot.buyerZone },
+    { label: 'Seller Zone', value: snapshot.sellerZone },
+  ];
+
+  if (trade.source !== 'stock_detail_rr_plan' && !trade.rrStatus && !snapshot.rrStatus) return null;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+      <div className="text-xs uppercase tracking-[0.2em] text-slate-500">RR Plan Details</div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        {details.map((item) => (
+          <div key={item.label} className="rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+            <div className="mt-2 text-sm font-semibold leading-6 text-slate-200">{formatPlanValue(item.value)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 export default function PaperPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
 
@@ -188,7 +227,7 @@ export default function PaperPage() {
                     <p className="mt-2 text-sm text-slate-400">Added: {trade.createdAt}{trade.updatedAt ? ` • Updated: ${trade.updatedAt}` : ''}</p>
                     <p className="mt-3 text-slate-300">{trade.setup}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  {(trade as any).source === 'stock_detail_rr_plan' ? <RRPlanDetails trade={trade} /> : null}<div className="flex flex-wrap gap-2">
                     <ActionButton label="Mark Entered" disabled={trade.status !== 'Planned'} onClick={() => updateStatus(trade.id, 'Entered')} />
                     <ActionButton label="Target Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'Target Hit')} />
                     <ActionButton label="SL Hit" disabled={trade.status !== 'Entered'} onClick={() => updateStatus(trade.id, 'SL Hit')} />
