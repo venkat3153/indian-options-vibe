@@ -80,6 +80,70 @@ function RRPlanDetails({ trade }: { trade: any }) {
 }
 
 
+
+const PAPER_RULE_IDS = [
+  'market-breadth',
+  'vwap',
+  'retest',
+  'rr',
+  'news',
+  'no-chase',
+  'limit',
+  'execution',
+];
+
+const HARD_RULE_IDS = ['market-breadth', 'vwap', 'retest', 'rr', 'execution'];
+
+function RulesGateStatus() {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+      setChecked(saved && typeof saved === 'object' ? saved : {});
+    } catch {
+      setChecked({});
+    }
+  }, []);
+
+  const completed = PAPER_RULE_IDS.filter((id) => checked[id]).length;
+  const hardPassed = HARD_RULE_IDS.every((id) => checked[id]);
+  const allPassed = completed === PAPER_RULE_IDS.length;
+  const score = Math.round((completed / PAPER_RULE_IDS.length) * 100);
+
+  return (
+    <div className={`rounded-3xl border p-5 ${
+      allPassed
+        ? 'border-emerald-800 bg-emerald-500/10'
+        : hardPassed
+          ? 'border-yellow-800 bg-yellow-500/10'
+          : 'border-red-900 bg-red-950/20'
+    }`}>
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+        <div>
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Rules Gate</div>
+          <div className={`mt-2 text-2xl font-black ${
+            allPassed ? 'text-emerald-300' : hardPassed ? 'text-yellow-300' : 'text-red-300'
+          }`}>
+            {allPassed ? 'Paper OK' : hardPassed ? 'Hard Blocks Passed' : 'Blocked'}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Checklist score: {completed}/{PAPER_RULE_IDS.length} = {score}%. Hard-block rules must pass before any serious paper plan.
+          </p>
+        </div>
+
+        <a
+          href="/paper/rules"
+          className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+        >
+          Open Rules
+        </a>
+      </div>
+    </div>
+  );
+}
+
+
 export default function PaperPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
 
@@ -201,6 +265,8 @@ export default function PaperPage() {
             <SummaryCard label="Open Trades" value={`${stats.openEntered}`} hint={stats.openEntered > 1 ? 'Too many active' : 'Controlled'} tone={stats.openEntered > 1 ? 'loss' : 'win'} />
           </div>
         </div>
+
+        <RulesGateStatus />
 
         <div className="mt-6 grid gap-4 md:grid-cols-5">
           <SummaryCard label="Total R" value={`${stats.totalR > 0 ? '+' : ''}${stats.totalR}R`} hint="+2R win / -1R loss" tone={stats.totalR >= 0 ? 'win' : 'loss'} />
