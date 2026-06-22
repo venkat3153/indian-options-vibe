@@ -123,7 +123,9 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
     <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><h2 className="text-2xl font-bold text-white">Research Breakdown</h2><p className="mt-1 text-sm text-slate-400">Transparent score components. Final decision now reads VWAP, retest, and breadth gates.</p></div>{finalDecision ? <FinalDecisionBadge decision={finalDecision} /> : null}</div><div className="mt-5 grid gap-4 md:grid-cols-5">{breakdown.map((row) => <BreakdownCard key={row.label} row={row} />)}</div></div>
 
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><RRPlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} /></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><DisciplineStatusCard />
+
+        <RRPlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} /></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
 
     <div className="mt-6 grid gap-6 lg:grid-cols-3"><TeacherTradePlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} finalDecision={finalDecision} /><ResearchBox title="Why selected" text={getResearchReason(stock)} /><ResearchBox title="News layer" text="Company news connector is not added yet. Before live trading, check corporate news, results date, and any sector event." /><ResearchBox title="Financial layer" text="Financial snapshot comes next: revenue growth, profit trend, debt, ROE, and valuation risk. Current version is price-volume based." /></div>
     <div className="mt-6 rounded-3xl border border-yellow-900 bg-yellow-950/20 p-5 text-sm text-yellow-100"><span className="font-bold">Safety rule:</span> Final Decision can block Live Watch when retest, VWAP, breadth, RR, or discipline is not clean. This page is still research only.</div>
@@ -256,6 +258,112 @@ function getRRPlan(stock: StockRow, quote?: LiveQuote, retest?: RetestStatus | n
     tone,
   };
 }
+
+
+function DisciplineStatusCard() {
+  const [status, setStatus] = useState({
+    locked: false,
+    reason: 'Checking discipline rules...',
+    tone: 'warn',
+  });
+
+  useEffect(() => {
+    try {
+      const trades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      const maxPlans = Number(window.localStorage.getItem('disciplineMaxPlans') || 3);
+      const maxSl = Number(window.localStorage.getItem('disciplineMaxSl') || 1);
+      const cooldownOn = window.localStorage.getItem('disciplineCooldown') === 'true';
+
+      const getIstDateKey = (value: unknown) => {
+        const date = value ? new Date(String(value)) : new Date();
+
+        if (Number.isNaN(date.getTime())) {
+          return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        }
+
+        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      };
+
+      const todayKey = getIstDateKey(new Date().toISOString());
+      const todayTrades = Array.isArray(trades)
+        ? trades.filter((item: any) => {
+            const stamp = item.createdAt || item.updatedAt || item.marketSnapshot?.savedAt;
+            return getIstDateKey(stamp) === todayKey;
+          })
+        : [];
+
+      const todaySlHits = todayTrades.filter((item: any) =>
+        String(item.result || item.status || '').toLowerCase().includes('sl')
+      ).length;
+
+      if (cooldownOn) {
+        setStatus({
+          locked: true,
+          reason: 'Cooldown is ON. New paper plans are blocked.',
+          tone: 'loss',
+        });
+        return;
+      }
+
+      if (todayTrades.length >= maxPlans) {
+        setStatus({
+          locked: true,
+          reason: `Daily plan limit reached: ${todayTrades.length}/${maxPlans}.`,
+          tone: 'loss',
+        });
+        return;
+      }
+
+      if (todaySlHits >= maxSl) {
+        setStatus({
+          locked: true,
+          reason: `Daily SL limit reached: ${todaySlHits}/${maxSl}.`,
+          tone: 'loss',
+        });
+        return;
+      }
+
+      setStatus({
+        locked: false,
+        reason: `Allowed. Today plans: ${todayTrades.length}/${maxPlans}. SL hits: ${todaySlHits}/${maxSl}.`,
+        tone: 'win',
+      });
+    } catch {
+      setStatus({
+        locked: false,
+        reason: 'Allowed. Discipline data not found yet.',
+        tone: 'warn',
+      });
+    }
+  }, []);
+
+  const cls =
+    status.tone === 'win'
+      ? 'border-emerald-800 bg-emerald-500/10 text-emerald-300'
+      : status.tone === 'loss'
+        ? 'border-red-900 bg-red-950/20 text-red-300'
+        : 'border-yellow-800 bg-yellow-500/10 text-yellow-300';
+
+  return (
+    <div className={`mt-6 rounded-3xl border p-5 ${cls}`}>
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+        <div>
+          <div className="text-xs uppercase tracking-[0.22em] opacity-70">Discipline Lock</div>
+          <div className="mt-2 text-2xl font-black">{status.locked ? 'LOCKED' : 'ALLOWED'}</div>
+          <p className="mt-2 text-sm leading-6 opacity-90">{status.reason}</p>
+        </div>
+
+        <a
+          href="/paper/discipline"
+          className="rounded-2xl border border-slate-700 bg-slate-950/50 px-5 py-3 text-sm font-bold text-slate-100 hover:bg-slate-900"
+        >
+          Open Discipline
+        </a>
+      </div>
+    </div>
+  );
+}
+
 
 function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: LiveQuote; retest?: RetestStatus | null; vwap?: VwapStatus | null }) {
   const rr = getRRPlan(stock, quote, retest, vwap);
