@@ -245,11 +245,11 @@ export default function StocksResearchPage() {
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search symbol, company, or sector" className="mt-5 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500" />
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[1800px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-[0.16em] text-slate-500"><tr className="border-b border-slate-800"><th className="py-3">Symbol</th><th>Sector</th><th>Close</th><th>Live LTP</th><th>Live %</th><th>Strength</th><th>Signal</th><th>Final Status</th><th>VWAP</th><th>Retest</th><th>5D</th><th>Vol x</th><th>20D Pos</th><th>Score</th><th>Watchlist</th><th>Reason</th></tr></thead>
+          <table className="w-full min-w-[2200px] text-left text-sm">
+            <thead className="text-xs uppercase tracking-[0.16em] text-slate-500"><tr className="border-b border-slate-800"><th className="py-3">Symbol</th><th>Sector</th><th>Close</th><th>Live LTP</th><th>Live %</th><th>Strength</th><th>Signal</th><th className="min-w-[150px]">Final Status</th><th className="min-w-[220px] px-3">Next Action</th><th className="min-w-[110px]">VWAP</th><th>Retest</th><th>5D</th><th>Vol x</th><th>20D Pos</th><th>Score</th><th>Watchlist</th><th>Reason</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={16} className="py-10 text-center text-slate-500">Loading stock table...</td></tr> : null}
-              {!loading && rows.length === 0 ? <tr><td colSpan={16} className="py-10 text-center text-slate-500">No stocks found.</td></tr> : null}
+              {loading ? <tr><td colSpan={17} className="py-10 text-center text-slate-500">Loading stock table...</td></tr> : null}
+              {!loading && rows.length === 0 ? <tr><td colSpan={17} className="py-10 text-center text-slate-500">No stocks found.</td></tr> : null}
               {!loading && rows.map((row) => <Row key={row.symbol} row={row} quote={liveMap.get(row.symbol)} finalItem={finalMap.get(row.symbol)} isSaved={watchlistSet.has(row.symbol)} saving={savingSymbol === row.symbol} onAdd={saveWatchlist} onRemove={removeWatchlist} />)}
             </tbody>
           </table>
@@ -269,6 +269,7 @@ function Row({ row, quote, finalItem, isSaved, saving, onAdd, onRemove }: { row:
     <td><Pill text={finalItem?.live_strength ? String(finalItem.live_strength) : '-'} tone={finalItem?.live_strength && finalItem.live_strength >= 70 ? 'win' : 'neutral'} /></td>
     <td><Pill text={finalItem?.signal || 'Not scanned'} tone={finalItem?.signal === 'Live Watch' ? 'win' : 'neutral'} /></td>
     <td><Pill text={finalItem?.final_status || 'Not scanned'} tone={finalItem?.tone || 'neutral'} /></td>
+      <td className="min-w-[260px] px-3 text-xs font-semibold text-slate-200 whitespace-normal">{getNextAction(row, quote, finalItem)}</td>
     <td>{finalItem?.vwap ? money(finalItem.vwap) : '-'}</td>
     <td>{finalItem?.retest_low && finalItem?.retest_high ? `${money(finalItem.retest_low)}–${money(finalItem.retest_high)}` : finalItem?.retest_result || '-'}</td>
     <td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td>
@@ -278,6 +279,33 @@ function Row({ row, quote, finalItem, isSaved, saving, onAdd, onRemove }: { row:
     <td>{isSaved ? <button disabled={saving} onClick={() => onRemove(row.symbol)} className="rounded-xl border border-red-800 px-3 py-2 text-xs text-red-200 hover:bg-red-950 disabled:opacity-60">{saving ? 'Removing...' : 'Remove'}</button> : <button disabled={saving} onClick={() => onAdd(row, finalItem)} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950 disabled:opacity-60">{saving ? 'Saving...' : 'Add'}</button>}</td>
     <td className="max-w-[360px] text-xs text-slate-400">{finalItem?.reason || 'Click Manual Final Scan to calculate final gates.'}</td>
   </tr>;
+}
+
+function getNextAction(row: StockRow, quote?: LiveQuote, finalItem?: FinalItem): string {
+  const status = finalItem?.final_status || '';
+  const signal = finalItem?.signal || row.tag || '';
+  const ltp = Number(quote?.ltp || 0);
+  const vwap = Number(finalItem?.vwap || 0);
+  const pos20 = Number(row.position_20d_pct || 0);
+
+  if (!finalItem) return 'Run Manual Final Scan';
+
+  if (status === 'Ready to Watch') return 'Wait trigger + valid 1:2 RR';
+  if (status.includes('Below VWAP')) {
+    if (vwap > 0) return `Reclaim VWAP above ${money(vwap)}`;
+    return 'Wait for VWAP reclaim';
+  }
+  if (status.includes('Retest Failed')) return 'Avoid until retest resets';
+  if (status.includes('Breadth Weak')) return 'Watch only; wait breadth';
+  if (status.includes('Extended') || pos20 >= 90) return 'Do not chase; wait pullback';
+  if (status.startsWith('Avoid')) return 'Skip for now';
+  if (signal === 'Live Watch') {
+    if (vwap > 0 && ltp > vwap) return 'Watch retest hold above VWAP';
+    return 'Watch for confirmation';
+  }
+  if (status.startsWith('Wait')) return 'Wait for cleaner setup';
+
+  return 'Research only';
 }
 
 function Pill({ text, tone }: { text: string; tone: 'win' | 'warn' | 'loss' | 'neutral' }) {
