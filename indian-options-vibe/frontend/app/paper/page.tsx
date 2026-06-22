@@ -170,6 +170,7 @@ export default function PaperPage() {
           <div className="flex flex-wrap gap-3">
             <DownloadCsvButton filename="paper-trades.csv" rows={csvRows} disabledLabel="No trades to export" />
             <Link href="/scanner" className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Screener</Link>
+            <a href="/paper/analytics" className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">Analytics</a>
             <a href="/paper/export" className="rounded-xl border border-blue-800 bg-blue-500/10 px-4 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">Export / Backup</a>
             {trades.length > 0 ? <button onClick={clearTrades} className="rounded-xl border border-red-900 px-4 py-3 text-sm text-red-300 hover:bg-red-950/30">Clear All</button> : null}
           </div>
