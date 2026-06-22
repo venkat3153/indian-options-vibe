@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type Rule = {
   id: string;
@@ -59,6 +59,23 @@ const rules: Rule[] = [
 
 export default function PaperRulesPage() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [rulesLoaded, setRulesLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+      setChecked(saved && typeof saved === 'object' ? saved : {});
+    } catch {
+      setChecked({});
+    } finally {
+      setRulesLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!rulesLoaded) return;
+    window.localStorage.setItem('paperRulesChecklist', JSON.stringify(checked));
+  }, [checked, rulesLoaded]);
 
   const stats = useMemo(() => {
     const completed = rules.filter((rule) => checked[rule.id]).length;
