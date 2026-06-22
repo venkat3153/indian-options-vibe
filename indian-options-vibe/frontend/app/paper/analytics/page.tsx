@@ -119,6 +119,12 @@ export default function PaperAnalyticsPage() {
               Open Paper Trading
             </a>
             <a
+              href="/paper/discipline"
+              className="rounded-2xl border border-red-900 bg-red-950/30 px-5 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50"
+            >
+              Discipline Lock
+            </a>
+            <a
               href="/paper/rules"
               className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
             >
