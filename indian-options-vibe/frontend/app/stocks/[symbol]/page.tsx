@@ -279,6 +279,55 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
     alert('Paper trade plan copied');
   };
 
+  const round2 = (value: number) => Math.round(Number(value || 0) * 100) / 100;
+
+  const savePaperPlan = () => {
+    const existing = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+
+    const trade = {
+      id: `plan-${stock.symbol}-${Date.now()}`,
+      trade_id: `plan-${stock.symbol}-${Date.now()}`,
+      symbol: stock.symbol,
+      name: stock.name,
+      sector: stock.sector,
+      status: 'Entered',
+      source: 'stock_detail_rr_plan',
+      setup: '1:2 RR research plan',
+      entry: round2(rr.entry),
+      entryPlan: round2(rr.entry),
+      entryRef: round2(rr.entry),
+      stop: round2(rr.stop),
+      stopLoss: round2(rr.stop),
+      stopRef: round2(rr.stop),
+      risk: round2(rr.risk),
+      target1R: round2(rr.oneR),
+      target2R: round2(rr.twoR),
+      target: round2(rr.twoR),
+      bias: rr.status,
+      rrStatus: rr.status,
+      paperPnl: null,
+      rResult: null,
+      notes: `Entry: ${getEntryIdea(stock)} | Stop: ${getInvalidation(stock)} | Target: ${getTargetIdea(stock)} | No-trade: ${getNoTradeWarning(stock, quote, retest, vwap)} | Buyer: ${getBuyerZone(stock, quote, retest, vwap)} | Seller: ${getSellerZone(stock, quote, retest, vwap)}`,
+      marketSnapshot: {
+        decision: 'Research plan',
+        entry: round2(rr.entry),
+        stop: round2(rr.stop),
+        risk: round2(rr.risk),
+        target1R: round2(rr.oneR),
+        target2R: round2(rr.twoR),
+        rrStatus: rr.status,
+        noTradeWarning: getNoTradeWarning(stock, quote, retest, vwap),
+        buyerZone: getBuyerZone(stock, quote, retest, vwap),
+        sellerZone: getSellerZone(stock, quote, retest, vwap),
+        savedAt: new Date().toISOString(),
+      },
+      createdAt: new Date().toISOString(),
+    };
+
+    window.localStorage.setItem('paperTrades', JSON.stringify([trade, ...existing]));
+    alert('Paper plan saved. Open Paper Trading page.');
+  };
+
 return (
     <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
@@ -323,6 +372,10 @@ return (
       <button onClick={copyPaperPlan} className="mt-4 rounded-2xl border border-emerald-800 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
         Copy Plan
       </button>
+      <button onClick={savePaperPlan} className="ml-2 mt-4 rounded-2xl border border-blue-800 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
+        Save Paper Plan
+      </button>
+
 
     </div>
   );
