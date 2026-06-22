@@ -97,6 +97,24 @@ export default function PaperRulesPage() {
 
   const reset = () => setChecked({});
 
+  const copyRulesSummary = async () => {
+    const lines = [
+      'Paper Trading Rules Checklist',
+      `Completed: ${stats.completed}/${stats.total}`,
+      `Score: ${stats.score}%`,
+      `Hard Blocks: ${stats.hardBlocksPassed ? 'Passed' : 'Blocked'}`,
+      `Trade Permission: ${stats.allPassed ? 'Paper OK' : 'Wait'}`,
+      '',
+      'Rules:',
+      ...rules.map((rule) =>
+        `${checked[rule.id] ? '✅' : '❌'} ${rule.title}${rule.hardBlock ? ' [Hard Block]' : ''} - ${rule.text}`
+      ),
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    alert('Rules checklist summary copied ✅');
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
       <div className="mx-auto max-w-6xl">
@@ -149,12 +167,20 @@ export default function PaperRulesPage() {
               </p>
             </div>
 
-            <button
-              onClick={reset}
-              className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
-            >
-              Reset Checklist
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={copyRulesSummary}
+                className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+              >
+                Copy Summary
+              </button>
+              <button
+                onClick={reset}
+                className="rounded-2xl border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
+              >
+                Reset Checklist
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
