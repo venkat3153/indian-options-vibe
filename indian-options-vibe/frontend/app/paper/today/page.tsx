@@ -86,6 +86,23 @@ export default function TodayPaperReviewPage() {
     setMessage('Today review summary copied ✅');
   };
 
+  const badEmotionCount = todayTrades.filter((trade) =>
+    ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(trade.emotion || ''))
+  ).length;
+
+  const seriousMistakeCount = todayTrades.filter((trade) =>
+    ['Chased entry', 'Ignored VWAP', 'Ignored rules', 'Oversized', 'Moved stop', 'Revenge trade'].includes(String(trade.mistake || ''))
+  ).length;
+
+  const cleanTradeCount = todayTrades.filter((trade) =>
+    trade.mistake === 'No mistake' || (!trade.mistake && !trade.emotion)
+  ).length;
+
+  const disciplineQualityScore = Math.max(
+    0,
+    Math.min(100, 100 - badEmotionCount * 15 - seriousMistakeCount * 20 + cleanTradeCount * 5)
+  );
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
       <div className="mx-auto max-w-7xl">
@@ -153,6 +170,13 @@ export default function TodayPaperReviewPage() {
           <Stat label="Target Hit" value={stats.targetHit} tone="win" />
           <Stat label="SL Hit" value={stats.slHit} tone="loss" />
           <Stat label="Win Rate" value={`${stats.winRate}%`} />
+          <Stat
+            label="Discipline Score"
+            value={`${disciplineQualityScore}/100`}
+            tone={disciplineQualityScore >= 80 ? 'win' : 'loss'}
+          />
+          <Stat label="Bad Emotion" value={badEmotionCount} tone={badEmotionCount > 0 ? 'loss' : 'win'} />
+          <Stat label="Mistakes" value={seriousMistakeCount} tone={seriousMistakeCount > 0 ? 'loss' : 'win'} />
         </div>
 
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
