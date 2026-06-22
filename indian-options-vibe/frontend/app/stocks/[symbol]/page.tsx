@@ -301,6 +301,51 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
   const savePaperPlan = () => {
     const existing = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
 
+    const getIstDateKey = (value: unknown) => {
+      const date = value ? new Date(String(value)) : new Date();
+
+      if (Number.isNaN(date.getTime())) {
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      }
+
+      return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    };
+
+    const todayKey = getIstDateKey(new Date().toISOString());
+    const todayTrades = existing.filter((item: any) => {
+      const stamp = item.createdAt || item.updatedAt || item.marketSnapshot?.savedAt;
+      return getIstDateKey(stamp) === todayKey;
+    });
+
+    const maxPlans = Number(window.localStorage.getItem('disciplineMaxPlans') || 3);
+    const maxSl = Number(window.localStorage.getItem('disciplineMaxSl') || 1);
+    const cooldownOn = window.localStorage.getItem('disciplineCooldown') === 'true';
+
+    const todaySlHits = todayTrades.filter((item: any) =>
+      String(item.result || item.status || '').toLowerCase().includes('sl')
+    ).length;
+
+    const openExistingPlanForSameStock = existing.some((item: any) =>
+      item.symbol === stock.symbol &&
+      item.source === 'stock_detail_rr_plan' &&
+      ['Entered', 'Planned', 'Open'].includes(item.status)
+    );
+
+    let disciplineLockReason = '';
+
+    if (cooldownOn) {
+      disciplineLockReason = 'Cooldown is ON. No new paper plans allowed.';
+    } else if (!openExistingPlanForSameStock && todayTrades.length >= maxPlans) {
+      disciplineLockReason = `Daily plan limit reached: ${todayTrades.length}/${maxPlans}.`;
+    } else if (todaySlHits >= maxSl) {
+      disciplineLockReason = `Daily SL limit reached: ${todaySlHits}/${maxSl}.`;
+    }
+
+    if (disciplineLockReason) {
+      setSaveMessage(`Discipline Lock active ⚠️ ${disciplineLockReason}`);
+      return;
+    }
+
     const trade = {
       id: `plan-${stock.symbol}-${Date.now()}`,
       trade_id: `plan-${stock.symbol}-${Date.now()}`,
