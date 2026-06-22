@@ -454,6 +454,24 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       return;
     }
 
+    const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+    const hardRuleLabels: Record<string, string> = {
+      'market-breadth': 'Market Breadth',
+      vwap: 'VWAP Gate',
+      retest: 'Retest Quality',
+      rr: '1:2 RR Room',
+      execution: 'Execution Lock',
+    };
+
+    const missingHardRules = Object.entries(hardRuleLabels)
+      .filter(([id]) => !rulesChecklist?.[id])
+      .map(([, label]) => label);
+
+    if (missingHardRules.length > 0) {
+      setSaveMessage(`Rules Gate blocked ⚠️ Complete hard-block rules first: ${missingHardRules.join(', ')}`);
+      return;
+    }
+
     const trade = {
       id: `plan-${stock.symbol}-${Date.now()}`,
       trade_id: `plan-${stock.symbol}-${Date.now()}`,
