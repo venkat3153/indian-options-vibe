@@ -200,6 +200,9 @@ export default function TodayPaperReviewPage() {
                   <th className="px-3 py-3">Stop</th>
                   <th className="px-3 py-3">Target</th>
                   <th className="px-3 py-3">Risk</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Mistake</th>
+                  <th className="px-3 py-3">Review Note</th>
                   <th className="px-3 py-3">No-trade Warning</th>
                   <th className="px-3 py-3">Open</th>
                 </tr>
@@ -218,6 +221,9 @@ export default function TodayPaperReviewPage() {
                     <td className="px-3 py-4 text-red-300">{formatValue(trade.stopLoss ?? trade.stop)}</td>
                     <td className="px-3 py-4 text-emerald-300">{formatValue(trade.target ?? trade.target2R)}</td>
                     <td className="px-3 py-4 text-yellow-300">{formatValue(trade.risk)}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.mistake || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{trade.reviewNote || '-'}</td>
                     <td className="px-3 py-4 text-slate-400">
                       {trade.marketSnapshot?.noTradeWarning || '-'}
                     </td>
@@ -235,7 +241,7 @@ export default function TodayPaperReviewPage() {
 
                 {todayTrades.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
                       No paper plans saved today.
                     </td>
                   </tr>

@@ -59,6 +59,21 @@ export default function PaperAnalyticsPage() {
           trades.filter((trade) => trade.risk || trade.marketSnapshot?.risk).length
         : 0;
 
+    const emotionCounts = trades.reduce((acc: Record<string, number>, trade) => {
+      const key = String(trade.emotion || 'Not logged');
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const mistakeCounts = trades.reduce((acc: Record<string, number>, trade) => {
+      const key = String(trade.mistake || 'Not logged');
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const topEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+    const topMistake = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
+
     return {
       total,
       open,
@@ -69,6 +84,10 @@ export default function PaperAnalyticsPage() {
       completed,
       winRate,
       avgRisk,
+      emotionCounts,
+      mistakeCounts,
+      topEmotion,
+      topMistake,
     };
   }, [trades]);
 
@@ -172,6 +191,8 @@ export default function PaperAnalyticsPage() {
           <Stat label="SL Hit" value={stats.slHit} tone="loss" />
           <Stat label="Cancelled" value={stats.cancelled} tone="warn" />
           <Stat label="Avg Risk" value={stats.avgRisk ? formatValue(stats.avgRisk) : '-'} />
+          <Stat label="Top Emotion" value={stats.topEmotion} />
+          <Stat label="Top Mistake" value={stats.topMistake} tone={stats.topMistake === 'No mistake' ? 'win' : 'warn'} />
         </div>
 
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
@@ -203,6 +224,11 @@ export default function PaperAnalyticsPage() {
               }
             />
           </div>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <BreakdownCard title="Emotion Breakdown" items={stats.emotionCounts} />
+          <BreakdownCard title="Mistake Breakdown" items={stats.mistakeCounts} />
         </div>
 
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
@@ -283,6 +309,33 @@ function Insight({ title, text }: { title: string; text: string }) {
     <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
       <div className="text-sm font-bold text-white">{title}</div>
       <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
+    </div>
+  );
+}
+
+function BreakdownCard({ title, items }: { title: string; items: Record<string, number> }) {
+  const rows = Object.entries(items).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+      <h2 className="text-2xl font-bold text-white">{title}</h2>
+
+      <div className="mt-5 space-y-3">
+        {rows.map(([label, count]) => (
+          <div key={label} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="font-bold text-slate-200">{label}</div>
+            <div className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-sm font-black text-white">
+              {count}
+            </div>
+          </div>
+        ))}
+
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">
+            No data yet.
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
