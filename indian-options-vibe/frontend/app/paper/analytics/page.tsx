@@ -108,7 +108,7 @@ export default function PaperAnalyticsPage() {
       '',
       'Latest Plans:',
       ...latestPlans.map((trade) =>
-        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | RR ${trade.rrStatus || trade.marketSnapshot?.rrStatus || '-'}`
+        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | RR ${trade.rrStatus || trade.marketSnapshot?.rrStatus || '-'} | Emotion ${trade.emotion || '-'} | Mistake ${trade.mistake || '-'} | Note ${trade.reviewNote || '-'}`
       ),
     ];
 
@@ -235,7 +235,7 @@ export default function PaperAnalyticsPage() {
           <h2 className="text-2xl font-bold text-white">Latest Plans</h2>
 
           <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[1200px] text-left text-sm">
               <thead className="text-xs uppercase tracking-[0.18em] text-slate-500">
                 <tr>
                   <th className="px-3 py-3">Symbol</th>
@@ -245,6 +245,9 @@ export default function PaperAnalyticsPage() {
                   <th className="px-3 py-3">Target</th>
                   <th className="px-3 py-3">Risk</th>
                   <th className="px-3 py-3">RR Status</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Mistake</th>
+                  <th className="px-3 py-3">Review Note</th>
                   <th className="px-3 py-3">Action</th>
                 </tr>
               </thead>
@@ -258,6 +261,9 @@ export default function PaperAnalyticsPage() {
                     <td className="px-3 py-4 text-emerald-300">{formatValue(trade.target ?? trade.target2R)}</td>
                     <td className="px-3 py-4 text-yellow-300">{formatValue(trade.risk)}</td>
                     <td className="px-3 py-4 text-slate-300">{trade.rrStatus || trade.marketSnapshot?.rrStatus || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.mistake || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{trade.reviewNote || '-'}</td>
                     <td className="px-3 py-4">
                       {trade.symbol ? (
                         <a className="text-emerald-300 hover:underline" href={`/stocks/${trade.symbol}`}>
@@ -272,7 +278,7 @@ export default function PaperAnalyticsPage() {
 
                 {latestPlans.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={11} className="px-3 py-8 text-center text-slate-500">
                       No paper plans yet.
                     </td>
                   </tr>
