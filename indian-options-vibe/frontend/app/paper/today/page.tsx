@@ -32,6 +32,7 @@ function getStatusText(trade: PaperTrade) {
 
 export default function TodayPaperReviewPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -64,6 +65,26 @@ export default function TodayPaperReviewPage() {
 
     return { total, open, targetHit, slHit, cancelled, completed, winRate };
   }, [todayTrades]);
+
+  const copyDailySummary = async () => {
+    const lines = [
+      `Daily Paper Review - ${todayKey} IST`,
+      `Total Plans: ${stats.total}`,
+      `Open: ${stats.open}`,
+      `Target Hit: ${stats.targetHit}`,
+      `SL Hit: ${stats.slHit}`,
+      `Cancelled: ${stats.cancelled}`,
+      `Win Rate: ${stats.winRate}%`,
+      '',
+      'Plans:',
+      ...todayTrades.map((trade) =>
+        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | Bias ${trade.bias || trade.rrStatus || '-'}`
+      ),
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setMessage('Today review summary copied ✅');
+  };
 
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
@@ -98,8 +119,20 @@ export default function TodayPaperReviewPage() {
             >
               Stocks Research
             </a>
+            <button
+              onClick={copyDailySummary}
+              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+            >
+              Copy Summary
+            </button>
           </div>
         </div>
+
+        {message ? (
+          <div className="mt-6 rounded-2xl border border-emerald-800 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
+            {message}
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-4 md:grid-cols-6">
           <Stat label="IST Date" value={todayKey} />
