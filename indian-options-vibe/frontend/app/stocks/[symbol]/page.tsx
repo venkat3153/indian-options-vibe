@@ -113,7 +113,7 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
     <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><RRPlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} /></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
 
-    <div className="mt-6 grid gap-6 lg:grid-cols-3"><ResearchBox title="Teacher Trade Plan" text={`Decision: ${finalDecision?.label || 'Wait'}. Entry: ${getEntryIdea(stock)} Stop: ${getInvalidation(stock)} Target: ${getTargetIdea(stock)} No-trade warning: ${getNoTradeWarning(stock, quote, retest, vwap)} Buyer zone: ${getBuyerZone(stock, quote, retest, vwap)} Seller zone: ${getSellerZone(stock, quote, retest, vwap)}`} /><ResearchBox title="Why selected" text={getResearchReason(stock)} /><ResearchBox title="News layer" text="Company news connector is not added yet. Before live trading, check corporate news, results date, and any sector event." /><ResearchBox title="Financial layer" text="Financial snapshot comes next: revenue growth, profit trend, debt, ROE, and valuation risk. Current version is price-volume based." /></div>
+    <div className="mt-6 grid gap-6 lg:grid-cols-3"><TeacherTradePlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} finalDecision={finalDecision} /><ResearchBox title="Why selected" text={getResearchReason(stock)} /><ResearchBox title="News layer" text="Company news connector is not added yet. Before live trading, check corporate news, results date, and any sector event." /><ResearchBox title="Financial layer" text="Financial snapshot comes next: revenue growth, profit trend, debt, ROE, and valuation risk. Current version is price-volume based." /></div>
     <div className="mt-6 rounded-3xl border border-yellow-900 bg-yellow-950/20 p-5 text-sm text-yellow-100"><span className="font-bold">Safety rule:</span> Final Decision can block Live Watch when retest, VWAP, breadth, RR, or discipline is not clean. This page is still research only.</div>
   </div></section>;
 }
@@ -143,6 +143,57 @@ function BreakdownCard({ row }: { row: ScoreRow }) { const cls = row.tone === 'w
 function SignalBadge({ signal }: { signal: LiveSignal }) { const cls = signal.tone === 'win' ? 'border-emerald-700 bg-emerald-500/10 text-emerald-300' : signal.tone === 'warn' ? 'border-yellow-700 bg-yellow-500/10 text-yellow-300' : signal.tone === 'loss' ? 'border-red-700 bg-red-500/10 text-red-300' : 'border-slate-700 bg-slate-800 text-slate-300'; return <span className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-bold ${cls}`}>{signal.label}</span>; }
 function Box({ title, text, tone }: { title: string; text: string; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white'; return <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><div className={`text-xs font-bold uppercase tracking-[0.18em] ${cls}`}>{title}</div><div className="mt-3 text-sm leading-6 text-slate-300">{text}</div></div>; }
 function Zone({ title, text, tone }: { title: string; text: string; tone?: 'win' | 'loss' }) { const cls = tone === 'win' ? 'border-emerald-900 bg-emerald-950/20 text-emerald-200' : tone === 'loss' ? 'border-red-900 bg-red-950/20 text-red-200' : 'border-slate-800 bg-slate-950 text-slate-300'; return <div className={`rounded-2xl border p-4 ${cls}`}><div className="text-xs font-bold uppercase tracking-[0.18em] opacity-80">{title}</div><div className="mt-2 text-sm leading-6">{text}</div></div>; }
+
+function TeacherTradePlanCard({
+  stock,
+  quote,
+  retest,
+  vwap,
+  finalDecision,
+}: {
+  stock: StockRow;
+  quote?: LiveQuote;
+  retest?: RetestStatus | null;
+  vwap?: VwapStatus | null;
+  finalDecision?: FinalDecision | null;
+}) {
+  const rows = [
+    { label: 'Decision', value: finalDecision?.label || 'Wait', tone: 'warn' },
+    { label: 'Entry Trigger', value: getEntryIdea(stock), tone: 'neutral' },
+    { label: 'Stop / Invalidation', value: getInvalidation(stock), tone: 'loss' },
+    { label: 'Target / RR Logic', value: getTargetIdea(stock), tone: 'win' },
+    { label: 'No-Trade Warning', value: getNoTradeWarning(stock, quote, retest, vwap), tone: 'warn' },
+    { label: 'Buyer Zone', value: getBuyerZone(stock, quote, retest, vwap), tone: 'win' },
+    { label: 'Seller Zone', value: getSellerZone(stock, quote, retest, vwap), tone: 'loss' },
+  ];
+
+  const toneClass = (tone: string) => {
+    if (tone === 'win') return 'text-emerald-300';
+    if (tone === 'loss') return 'text-red-300';
+    if (tone === 'warn') return 'text-yellow-300';
+    return 'text-slate-200';
+  };
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+      <h3 className="text-2xl font-bold text-white">Teacher Trade Plan</h3>
+      <p className="mt-1 text-sm text-slate-400">
+        Structured research plan. No live orders. Use this only after chart confirmation.
+      </p>
+
+      <div className="mt-5 space-y-3">
+        {rows.map((row) => (
+          <div key={row.label} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{row.label}</div>
+            <div className={`mt-2 text-sm leading-6 font-semibold ${toneClass(row.tone)}`}>{row.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
 function ResearchBox({ title, text }: { title: string; text: string }) { return <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5"><h3 className="text-xl font-bold text-white">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-300">{text}</p></div>; }
 function clamp(value: number) { return Math.max(0, Math.min(100, Math.round(value))); }
 function tone(value: number): 'win' | 'warn' | 'loss' { return value >= 70 ? 'win' : value >= 45 ? 'warn' : 'loss'; }
