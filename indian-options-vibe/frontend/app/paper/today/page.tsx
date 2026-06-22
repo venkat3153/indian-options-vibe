@@ -78,7 +78,7 @@ export default function TodayPaperReviewPage() {
       '',
       'Plans:',
       ...todayTrades.map((trade) =>
-        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | Bias ${trade.bias || trade.rrStatus || '-'}`
+        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | Bias ${trade.bias || trade.rrStatus || '-'} | Emotion ${trade.emotion || '-'} | Mistake ${trade.mistake || '-'} | Note ${trade.reviewNote || '-'}`
       ),
     ];
 
