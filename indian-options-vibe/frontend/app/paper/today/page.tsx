@@ -108,6 +108,12 @@ export default function TodayPaperReviewPage() {
               Open Paper Trading
             </a>
             <a
+              href="/paper/rules"
+              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+            >
+              Rules
+            </a>
+            <a
               href="/paper/analytics"
               className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
             >
