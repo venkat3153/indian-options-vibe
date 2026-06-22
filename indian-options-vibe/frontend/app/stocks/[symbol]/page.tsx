@@ -328,6 +328,27 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       createdAt: new Date().toISOString(),
     };
 
+    const existingOpenPlanIndex = existing.findIndex((item: any) =>
+      item.symbol === stock.symbol &&
+      item.source === 'stock_detail_rr_plan' &&
+      ['Entered', 'Planned', 'Open'].includes(item.status)
+    );
+
+    if (existingOpenPlanIndex >= 0) {
+      const nextTrades = [...existing];
+      nextTrades[existingOpenPlanIndex] = {
+        ...nextTrades[existingOpenPlanIndex],
+        ...trade,
+        id: nextTrades[existingOpenPlanIndex].id,
+        trade_id: nextTrades[existingOpenPlanIndex].trade_id || nextTrades[existingOpenPlanIndex].id,
+        updatedAt: new Date().toISOString(),
+      };
+
+      window.localStorage.setItem('paperTrades', JSON.stringify(nextTrades));
+      alert('Existing open paper plan updated. Open Paper Trading page.');
+      return;
+    }
+
     window.localStorage.setItem('paperTrades', JSON.stringify([trade, ...existing]));
     alert('Paper plan saved. Open Paper Trading page.');
   };
