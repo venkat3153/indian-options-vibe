@@ -100,7 +100,17 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
   return <section className="p-8 md:p-12"><div className="mx-auto max-w-7xl">
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-      <div><Link href="/stocks" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">← Back to Stocks Research</Link><div className="mt-5 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Stock Detail Research</div><h1 className="mt-3 text-4xl font-bold text-white">{stock.symbol}</h1><p className="mt-2 text-slate-400">{stock.name} • {stock.sector} • Research only. No live orders.</p></div>
+      <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/stocks" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">← Back to Stocks Research</Link>
+            <a href="/paper" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">Paper Trading</a>
+            <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-3 py-2 text-xs font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>
+            <a href="/paper/analytics" className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20">Analytics</a>
+          </div>
+          <div className="mt-5 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Stock Detail Research</div>
+          <h1 className="mt-3 text-4xl font-bold text-white">{stock.symbol}</h1>
+          <p className="mt-2 text-slate-400">{stock.name} • {stock.sector} • Research only. No live orders.</p>
+        </div>
       <div className="flex flex-wrap gap-3"><button onClick={load} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Refresh</button><button onClick={addToWatchlist} disabled={saving} className="rounded-xl bg-emerald-500 px-5 py-3 font-bold text-slate-950 hover:bg-emerald-400 disabled:opacity-60">{saving ? 'Adding...' : 'Add to Watchlist'}</button></div>
     </div>
 
