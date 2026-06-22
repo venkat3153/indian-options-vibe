@@ -95,6 +95,12 @@ export default function PaperAnalyticsPage() {
               Open Paper Trading
             </a>
             <a
+              href="/paper/today"
+              className="rounded-2xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20"
+            >
+              Today Review
+            </a>
+            <a
               href="/paper/export"
               className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20"
             >
