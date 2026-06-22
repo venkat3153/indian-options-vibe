@@ -124,7 +124,7 @@ export default function DailyDisciplinePage() {
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">
               Daily Discipline Lock
             </p>
-            <h1 className="mt-2 text-4xl font-black text-white">July Trading Control Panel</h1>
+            <h1 className="mt-2 text-4xl font-black text-white">Daily Trading Control Panel</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
               This page controls your personal daily paper-trading discipline using IST day boundaries.
             </p>
@@ -193,7 +193,7 @@ export default function DailyDisciplinePage() {
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
             <h2 className="text-2xl font-bold text-white">Daily Limits</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Keep this strict for July. The goal is discipline first, profit second.
+              Keep this strict every trading day. The goal is discipline first, profit second.
             </p>
 
             <div className="mt-5 space-y-4">
