@@ -38,6 +38,9 @@ function buildCsv(trades: PaperTrade[]) {
     'target1R',
     'target2R',
     'rrStatus',
+      'emotion',
+      'mistake',
+      'reviewNote',
     'createdAt',
     'updatedAt',
     'notes',
@@ -50,8 +53,90 @@ function buildCsv(trades: PaperTrade[]) {
   return [headers.join(','), ...rows].join('\n');
 }
 
+function getExportFieldValue(trade: PaperTrade, header: string) {
+  if (header === 'reviewNote') {
+    return trade.reviewNote || trade.notes || trade.marketSnapshot?.reviewNote || trade.marketSnapshot?.notes || '';
+  }
+
+  if (header === 'notes') {
+    return trade.notes || trade.marketSnapshot?.teacherTradePlan || trade.marketSnapshot?.noTradeWarning || '';
+  }
+
+  return getExportFieldValue(trade, header);
+}
+
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function buildCleanReviewCsv(rows: PaperTrade[]) {
+  const headers = [
+    'symbol',
+    'status',
+    'source',
+    'bias',
+    'entryPlan',
+    'stopLoss',
+    'target',
+    'risk',
+    'rrStatus',
+    'emotion',
+    'mistake',
+    'reviewNote',
+    'createdAt',
+    'updatedAt',
+  ];
+
+  const clean = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replaceAll('\r', ' ')
+      .replaceAll('\n', ' ')
+      .replaceAll(',', ' ')
+      .replaceAll('"', '""')
+      .trim();
+  };
+
+  const field = (trade: PaperTrade, header: string) => {
+    if (header === 'reviewNote') {
+      return trade.reviewNote || trade.notes || trade.marketSnapshot?.reviewNote || trade.marketSnapshot?.notes || '';
+    }
+
+    if (header === 'rrStatus') {
+      return trade.rrStatus || trade.marketSnapshot?.rrStatus || '';
+    }
+
+    return trade[header] ?? trade.marketSnapshot?.[header] ?? '';
+  };
+
+  return [
+    headers.join(','),
+    ...rows.map((trade) => headers.map((header) => `"${clean(field(trade, header))}"`).join(',')),
+  ].join('\n');
+}
+
+
 export default function PaperExportPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+
+  const downloadCleanReviewCsv = () => {
+    const csv = buildCleanReviewCsv(trades);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`paper-review-clean-${date}.csv`, csv, 'text/csv;charset=utf-8;');
+    setMessage('Clean review CSV downloaded ✅');
+  };
+
+
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -198,6 +283,12 @@ export default function PaperExportPage() {
               className="rounded-2xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20"
             >
               Download CSV
+            </button>
+            <button
+              onClick={downloadCleanReviewCsv}
+              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+            >
+              Download Clean Review CSV
             </button>
 
             <label className="cursor-pointer rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
