@@ -111,7 +111,7 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
     <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><h2 className="text-2xl font-bold text-white">Research Breakdown</h2><p className="mt-1 text-sm text-slate-400">Transparent score components. Final decision now reads VWAP, retest, and breadth gates.</p></div>{finalDecision ? <FinalDecisionBadge decision={finalDecision} /> : null}</div><div className="mt-5 grid gap-4 md:grid-cols-5">{breakdown.map((row) => <BreakdownCard key={row.label} row={row} />)}</div></div>
 
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"></div><div className="mt-6"><RRPlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} /></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
 
     <div className="mt-6 grid gap-6 lg:grid-cols-3"><ResearchBox title="Teacher Trade Plan" text={`Decision: ${finalDecision?.label || 'Wait'}. Entry: ${getEntryIdea(stock)} Stop: ${getInvalidation(stock)} Target: ${getTargetIdea(stock)} No-trade warning: ${getNoTradeWarning(stock, quote, retest, vwap)} Buyer zone: ${getBuyerZone(stock, quote, retest, vwap)} Seller zone: ${getSellerZone(stock, quote, retest, vwap)}`} /><ResearchBox title="Why selected" text={getResearchReason(stock)} /><ResearchBox title="News layer" text="Company news connector is not added yet. Before live trading, check corporate news, results date, and any sector event." /><ResearchBox title="Financial layer" text="Financial snapshot comes next: revenue growth, profit trend, debt, ROE, and valuation risk. Current version is price-volume based." /></div>
     <div className="mt-6 rounded-3xl border border-yellow-900 bg-yellow-950/20 p-5 text-sm text-yellow-100"><span className="font-bold">Safety rule:</span> Final Decision can block Live Watch when retest, VWAP, breadth, RR, or discipline is not clean. This page is still research only.</div>
@@ -156,4 +156,95 @@ function getTargetIdea(row: StockRow) { return 'Target previous high / measured 
 function getBuyerZone(row: StockRow, quote?: LiveQuote, retest?: RetestStatus | null, vwap?: VwapStatus | null) { const price = Number(quote?.ltp || row.close || 0); if (retest?.retest_low && retest?.retest_high) { const reclaim = retest.retest_held ? 'Retest is holding now.' : retest.status === 'failed' ? 'Price must reclaim this zone before Ready.' : 'Wait for pullback/hold confirmation inside this zone.'; const realVwap = vwap?.vwap ? ` Real VWAP: ${money(vwap.vwap)}.` : ''; return `Real 5m retest zone: ${money(retest.retest_low)}–${money(retest.retest_high)}. ${reclaim}${realVwap}`; } if (!price) return 'Waiting for live price.'; return `Fallback zone near VWAP/retest area below current price around ${money(price * 0.995)}–${money(price * 0.99)}. Confirm with volume and candle hold.`; }
 function getSellerZone(row: StockRow, quote?: LiveQuote, retest?: RetestStatus | null, vwap?: VwapStatus | null) { const price = Number(quote?.ltp || row.close || 0); if (retest?.retest_high) { const supplyHigh = Math.max(retest.retest_high, price || 0); const upper = supplyHigh * 1.006; return `Supply/rejection watch above real retest zone: ${money(supplyHigh)}–${money(upper)}. If price rejects here or loses VWAP ${vwap?.vwap ? `(${money(vwap.vwap)})` : ''}, keep it Wait/Avoid.`; } if (!price) return 'Waiting for live price.'; if (row.position_20d_pct >= 90) return `Supply risk is near current/upper range. Watch rejection near ${money(price)}–${money(price * 1.01)}.`; return `First supply zone can appear near ${money(price * 1.01)}–${money(price * 1.02)} or previous high.`; }
 function getNoTradeWarning(row: StockRow, quote?: LiveQuote, retest?: RetestStatus | null, vwap?: VwapStatus | null) { const liveChange = Number(quote?.change_pct || 0); if (retest?.status === 'failed') return `No trade. Real 5m retest failed. Wait until price reclaims ${money(retest.retest_low || 0)}–${money(retest.retest_high || 0)} and holds above VWAP.`; if (vwap && vwap.above_vwap === false) return 'No trade. Price is below real VWAP. Wait for reclaim and confirmation.'; if (row.position_20d_pct >= 95 && liveChange >= 1) return 'Price is extended. Avoid chasing. Wait for retest or skip.'; if (row.volume_ratio < 0.8) return 'Volume confirmation is weak. Avoid forced trades.'; if (liveChange < 0) return 'Live move is negative. Avoid fresh long setup unless structure recovers.'; return 'No automatic trade. Wait for confirmation, valid RR, and discipline lock clearance.'; }
+
+function getRRPlan(stock: StockRow, quote?: LiveQuote, retest?: RetestStatus | null, vwap?: VwapStatus | null) {
+  const entry = Number(quote?.ltp || stock.close || 0);
+
+  let stop = 0;
+  if (retest?.retest_low) {
+    stop = Number(retest.retest_low);
+  } else if (vwap?.vwap) {
+    stop = Math.min(Number(vwap.vwap), entry * 0.99);
+  } else if (entry > 0) {
+    stop = entry * 0.99;
+  }
+
+  const risk = entry > 0 && stop > 0 ? entry - stop : 0;
+  const oneR = risk > 0 ? entry + risk : 0;
+  const twoR = risk > 0 ? entry + risk * 2 : 0;
+
+  const blocked =
+    !entry ||
+    !stop ||
+    risk <= 0 ||
+    retest?.status === 'failed' ||
+    vwap?.above_vwap === false;
+
+  const status = blocked ? 'Not valid yet' : 'Valid only if chart target supports 2R';
+  const tone = blocked ? 'warn' : 'win';
+
+  return {
+    entry,
+    stop,
+    risk,
+    oneR,
+    twoR,
+    status,
+    tone,
+  };
+}
+
+function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: LiveQuote; retest?: RetestStatus | null; vwap?: VwapStatus | null }) {
+  const rr = getRRPlan(stock, quote, retest, vwap);
+  const cls =
+    rr.tone === 'win'
+      ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
+      : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+        <div>
+          <h2 className="text-2xl font-bold text-white">1:2 RR Calculator</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Research-only risk/reward check. This does not place orders.
+          </p>
+        </div>
+        <span className={`rounded-2xl border px-4 py-2 text-sm font-bold ${cls}`}>
+          {rr.status}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-5">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Entry Ref</div>
+          <div className="mt-2 text-lg font-bold text-white">{rr.entry ? money(rr.entry) : '-'}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Stop Ref</div>
+          <div className="mt-2 text-lg font-bold text-red-300">{rr.stop ? money(rr.stop) : '-'}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Risk</div>
+          <div className="mt-2 text-lg font-bold text-yellow-300">{rr.risk > 0 ? money(rr.risk) : '-'}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">1R Target</div>
+          <div className="mt-2 text-lg font-bold text-emerald-300">{rr.oneR ? money(rr.oneR) : '-'}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">2R Target</div>
+          <div className="mt-2 text-lg font-bold text-emerald-300">{rr.twoR ? money(rr.twoR) : '-'}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm leading-6 text-slate-300">
+        Rule: only consider paper-watch when entry is clear, stop is below entry, setup is not below VWAP,
+        retest has not failed, and the chart has enough room to reach the 2R target.
+      </div>
+    </div>
+  );
+}
+
+
 function money(value: number) { return `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`; }
