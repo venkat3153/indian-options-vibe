@@ -11,7 +11,7 @@ type LiveSignal = { label: 'Live Watch' | 'Extended / Avoid' | 'Wait' | 'Weak Li
 type ScoreRow = { label: string; value: number; reason: string; tone?: 'win' | 'warn' | 'loss' };
 type VwapStatus = { status: string; source: string; above_vwap: boolean; ltp?: number | null; vwap?: number | null; distance_pct?: number | null; message?: string };
 type RetestStatus = { status: 'success' | 'failed' | 'waiting' | 'unknown'; result: string; retest_held: boolean; source: string; message: string; retest_low?: number; retest_high?: number; breakout_floor?: number; prior_high?: number; session_high?: number; session_low?: number; latest_close?: number; vwap?: number | null; volume_ratio?: number | null };
-type BreadthStatus = { status: string; supportive: boolean; positive?: number; negative?: number; avg_change_pct?: number; message?: string };
+type BreadthStatus = { status: string; supportive: boolean; sector_supportive?: boolean; positive?: number; negative?: number; avg_change_pct?: number; message?: string };
 type FinalDecision = { label: string; reason: string; tone: 'win' | 'warn' | 'loss' | 'neutral' };
 
 export default function StockDetailPage({ params }: { params: { symbol: string } }) {
@@ -125,7 +125,7 @@ function getFinalDecision(signal: LiveSignal, vwap: VwapStatus | null, retest: R
     ? true
     : Boolean(
         breadth.supportive ??
-        (breadth.market_supportive !== false && breadth.sector_supportive !== false)
+        (breadth.sector_supportive !== false)
       );
 
   if (breadth && !breadthOk) return { label: 'Wait: Breadth Weak', tone: 'warn', reason: `Market breadth is weak: ${breadth.positive ?? '-'} positive, ${breadth.negative ?? '-'} negative, avg ${breadth.avg_change_pct ?? '-'}%. Strong stock remains watch only.` };

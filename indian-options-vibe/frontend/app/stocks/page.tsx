@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 type StockRow = {
   symbol: string;
+  tag?: string;
   name: string;
   sector: string;
   close: number;
@@ -26,6 +27,7 @@ type WatchPlan = {
 };
 
 type FinalItem = {
+  watch_plan?: WatchPlan;
   symbol: string;
   signal: string;
   live_strength: number;
