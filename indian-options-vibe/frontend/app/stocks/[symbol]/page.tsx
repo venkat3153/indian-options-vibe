@@ -123,7 +123,9 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
     <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><h2 className="text-2xl font-bold text-white">Research Breakdown</h2><p className="mt-1 text-sm text-slate-400">Transparent score components. Final decision now reads VWAP, retest, and breadth gates.</p></div>{finalDecision ? <FinalDecisionBadge decision={finalDecision} /> : null}</div><div className="mt-5 grid gap-4 md:grid-cols-5">{breakdown.map((row) => <BreakdownCard key={row.label} row={row} />)}</div></div>
 
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><DisciplineStatusCard />
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><RulesGateStatusCard />
+
+        <DisciplineStatusCard />
 
         <RRPlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} /></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
 
@@ -257,6 +259,74 @@ function getRRPlan(stock: StockRow, quote?: LiveQuote, retest?: RetestStatus | n
     status,
     tone,
   };
+}
+
+
+
+function RulesGateStatusCard() {
+  const [status, setStatus] = useState({
+    passed: false,
+    missing: [] as string[],
+  });
+
+  useEffect(() => {
+    try {
+      const checklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+
+      const hardRules: Record<string, string> = {
+        'market-breadth': 'Market Breadth',
+        vwap: 'VWAP Gate',
+        retest: 'Retest Quality',
+        rr: '1:2 RR Room',
+        execution: 'Execution Lock',
+      };
+
+      const missing = Object.entries(hardRules)
+        .filter(([id]) => !checklist?.[id])
+        .map(([, label]) => label);
+
+      setStatus({
+        passed: missing.length === 0,
+        missing,
+      });
+    } catch {
+      setStatus({
+        passed: false,
+        missing: ['Rules checklist not loaded'],
+      });
+    }
+  }, []);
+
+  return (
+    <div
+      className={`mt-6 rounded-3xl border p-5 ${
+        status.passed
+          ? 'border-emerald-800 bg-emerald-500/10 text-emerald-300'
+          : 'border-yellow-800 bg-yellow-500/10 text-yellow-300'
+      }`}
+    >
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+        <div>
+          <div className="text-xs uppercase tracking-[0.22em] opacity-70">Rules Gate</div>
+          <div className="mt-2 text-2xl font-black">
+            {status.passed ? 'PASSED' : 'BLOCKED'}
+          </div>
+          <p className="mt-2 text-sm leading-6 opacity-90">
+            {status.passed
+              ? 'All hard-block rules are checked. Paper plan save is allowed if discipline lock is also clear.'
+              : `Complete hard-block rules first: ${status.missing.join(', ')}`}
+          </p>
+        </div>
+
+        <a
+          href="/paper/rules"
+          className="rounded-2xl border border-slate-700 bg-slate-950/50 px-5 py-3 text-sm font-bold text-slate-100 hover:bg-slate-900"
+        >
+          Open Rules
+        </a>
+      </div>
+    </div>
+  );
 }
 
 
