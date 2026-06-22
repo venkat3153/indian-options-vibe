@@ -658,8 +658,28 @@ return (
         Open Paper Trading
       </button>
       {saveMessage ? (
-        <div className="mt-4 rounded-2xl border border-emerald-800 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-300">
+        <div className={`mt-4 rounded-2xl border p-3 text-sm font-bold ${
+          saveMessage.includes('blocked') || saveMessage.includes('Lock active')
+            ? 'border-yellow-800 bg-yellow-500/10 text-yellow-300'
+            : 'border-emerald-800 bg-emerald-500/10 text-emerald-300'
+        }`}>
           {saveMessage}
+
+          {(saveMessage.includes('Rules Gate blocked') || saveMessage.includes('Discipline Lock active')) ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {saveMessage.includes('Rules Gate blocked') ? (
+                <a href="/paper/rules" className="rounded-xl border border-purple-800 bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-300 hover:bg-purple-500/20">
+                  Fix Rules
+                </a>
+              ) : null}
+
+              {saveMessage.includes('Discipline Lock active') ? (
+                <a href="/paper/discipline" className="rounded-xl border border-red-900 bg-red-950/30 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-950/50">
+                  Open Discipline
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
