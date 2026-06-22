@@ -247,6 +247,7 @@ function getRRPlan(stock: StockRow, quote?: LiveQuote, retest?: RetestStatus | n
 
 function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: LiveQuote; retest?: RetestStatus | null; vwap?: VwapStatus | null }) {
   const rr = getRRPlan(stock, quote, retest, vwap);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const cls =
     rr.tone === 'win'
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
@@ -345,12 +346,12 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       };
 
       window.localStorage.setItem('paperTrades', JSON.stringify(nextTrades));
-      alert('Existing open paper plan updated. Open Paper Trading page.');
+      setSaveMessage(`Updated in Paper Trading ✅ ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
       return;
     }
 
     window.localStorage.setItem('paperTrades', JSON.stringify([trade, ...existing]));
-    alert('Paper plan saved. Open Paper Trading page.');
+    setSaveMessage(`Saved to Paper Trading ✅ ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
   };
 
 return (
@@ -403,6 +404,11 @@ return (
       <button onClick={openPaperPage} className="ml-2 mt-4 rounded-2xl border border-slate-700 bg-slate-800/70 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-700">
         Open Paper Trading
       </button>
+      {saveMessage ? (
+        <div className="mt-4 rounded-2xl border border-emerald-800 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-300">
+          {saveMessage}
+        </div>
+      ) : null}
 
 
     </div>
