@@ -22,6 +22,7 @@ function getStatusText(trade: PaperTrade) {
 
 export default function PaperAnalyticsPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -73,6 +74,29 @@ export default function PaperAnalyticsPage() {
 
   const latestPlans = trades.slice(0, 8);
 
+  const copyAnalyticsSummary = async () => {
+    const lines = [
+      'Paper Trading Analytics Summary',
+      `Total Plans: ${stats.total}`,
+      `Open Plans: ${stats.open}`,
+      `RR Plans: ${stats.rrPlans}`,
+      `Target Hit: ${stats.targetHit}`,
+      `SL Hit: ${stats.slHit}`,
+      `Cancelled: ${stats.cancelled}`,
+      `Completed: ${stats.completed}`,
+      `Win Rate: ${stats.winRate}%`,
+      `Average Risk: ${stats.avgRisk ? formatValue(stats.avgRisk) : '-'}`,
+      '',
+      'Latest Plans:',
+      ...latestPlans.map((trade) =>
+        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | RR ${trade.rrStatus || trade.marketSnapshot?.rrStatus || '-'}`
+      ),
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setMessage('Analytics summary copied ✅');
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
       <div className="mx-auto max-w-7xl">
@@ -112,8 +136,20 @@ export default function PaperAnalyticsPage() {
             >
               Stocks Research
             </a>
+            <button
+              onClick={copyAnalyticsSummary}
+              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+            >
+              Copy Summary
+            </button>
           </div>
         </div>
+
+        {message ? (
+          <div className="mt-6 rounded-2xl border border-emerald-800 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
+            {message}
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <Stat label="Total Plans" value={stats.total} />
