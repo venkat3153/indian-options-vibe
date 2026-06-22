@@ -218,6 +218,10 @@ export default function StocksResearchPage() {
         <div className="flex flex-wrap gap-3">
           <button onClick={refreshTable} disabled={loading} className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50">{loading ? 'Refreshing...' : 'Refresh Table'}</button>
           <button onClick={runFinalScan} disabled={finalLoading} className="rounded-xl border border-blue-800 px-5 py-3 font-semibold text-blue-200 hover:bg-blue-950 disabled:opacity-50">{finalLoading ? 'Final Scan Running...' : 'Manual Final Scan'}</button>
+              <a href="/paper" className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">Paper Trading</a>
+              <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>
+              <a href="/paper/analytics" className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">Analytics</a>
+              <a href="/paper/export" className="rounded-xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">Export</a>
           <button onClick={fetchDhanDaily} disabled={ingesting || finalLoading} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">{ingesting ? 'Fetching Dhan...' : 'Fetch Dhan Daily'}</button>
         </div>
       </div>
