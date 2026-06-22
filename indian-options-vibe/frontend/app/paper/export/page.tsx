@@ -89,6 +89,33 @@ export default function PaperExportPage() {
     setMessage('CSV export downloaded ✅');
   };
 
+  const restoreFromJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || '[]'));
+
+        if (!Array.isArray(parsed)) {
+          setMessage('Restore failed: JSON must be an array ❌');
+          return;
+        }
+
+        window.localStorage.setItem('paperTrades', JSON.stringify(parsed));
+        setTrades(parsed);
+        setMessage(`Restored ${parsed.length} paper trades ✅`);
+      } catch {
+        setMessage('Restore failed: invalid JSON ❌');
+      }
+    };
+
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
       <div className="mx-auto max-w-6xl">
@@ -146,6 +173,11 @@ export default function PaperExportPage() {
             >
               Download CSV
             </button>
+
+            <label className="cursor-pointer rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
+              Restore JSON
+              <input type="file" accept="application/json,.json" onChange={restoreFromJson} className="hidden" />
+            </label>
           </div>
 
           {message ? (
