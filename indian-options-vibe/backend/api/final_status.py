@@ -93,6 +93,109 @@ def base_signal(row: dict[str, Any], quote: dict[str, Any] | None) -> str:
     return "Wait"
 
 
+
+def _money_inr(value: Any) -> str:
+    try:
+        return f"₹{float(value):,.2f}"
+    except Exception:
+        return "Unknown"
+
+
+def build_watch_plan(row: dict[str, Any], quote: dict[str, Any] | None, final_status: str, reason: str) -> dict[str, str]:
+    """
+    Research-only teacher plan.
+    No orders. No execution. This only explains what to wait for.
+    """
+    close = row.get("close")
+    vwap = row.get("vwap")
+    position_20d_pct = row.get("position_20d_pct")
+    volume_ratio = row.get("volume_ratio")
+
+    ltp = None
+    if quote:
+        ltp = quote.get("ltp") or quote.get("last_price")
+
+    live_price = ltp or close
+    vwap_text = _money_inr(vwap)
+    price_text = _money_inr(live_price)
+
+    status = final_status or "Wait"
+    reason_text = reason or "Manual scan not completed."
+
+    entry_trigger = "Wait for clean trigger. Do not chase."
+    invalidation = "Invalid if price fails VWAP/retest confirmation."
+    target_1_2rr = "Calculate only after entry and stop are clear."
+    reason_to_avoid = reason_text
+    teacher_action = "Paper only. Wait for A+ setup."
+
+    if "Ready to Watch" in status:
+        entry_trigger = f"Entry only after price holds above VWAP {vwap_text} and 5m retest confirms."
+        invalidation = "Invalid if retest low breaks or price closes back below VWAP."
+        target_1_2rr = "Target must be minimum 1:2 RR from entry to invalidation."
+        reason_to_avoid = "Avoid if entry is late, candle is extended, or RR is less than 1:2."
+        teacher_action = "Wait trigger + valid 1:2 RR."
+
+    elif "Below VWAP" in status:
+        entry_trigger = f"Wait for VWAP reclaim above {vwap_text}. No entry below VWAP."
+        invalidation = "Invalid if VWAP reclaim fails or next 5m candle rejects."
+        target_1_2rr = "Target after reclaim: 2R from entry risk. Do not pre-decide."
+        reason_to_avoid = f"Price is below VWAP. Current reference price: {price_text}."
+        teacher_action = "Reclaim VWAP first."
+
+    elif "Retest Failed" in status:
+        entry_trigger = "Wait for retest structure to reset. No immediate entry."
+        invalidation = "Invalid until fresh retest holds."
+        target_1_2rr = "No target now because setup is invalid."
+        reason_to_avoid = "Retest failed. Chasing after failed retest is low quality."
+        teacher_action = "Avoid until retest resets."
+
+    elif "Breadth Weak" in status:
+        entry_trigger = "Watch only. Wait for market breadth support."
+        invalidation = "Invalid if index breadth stays weak."
+        target_1_2rr = "Plan only after breadth improves and stock confirms."
+        reason_to_avoid = "Market breadth is weak, so stock breakout can fail."
+        teacher_action = "Watch only; wait breadth."
+
+    elif status.startswith("Avoid"):
+        entry_trigger = "No entry."
+        invalidation = "Setup is invalid now."
+        target_1_2rr = "No target because trade is avoided."
+        reason_to_avoid = reason_text
+        teacher_action = "Skip for now."
+
+    elif status.startswith("Wait"):
+        entry_trigger = "Wait for cleaner setup and confirmation."
+        invalidation = "Invalid if price loses VWAP or retest fails."
+        target_1_2rr = "Only accept if clean 1:2 RR is available."
+        reason_to_avoid = reason_text
+        teacher_action = "Wait for cleaner setup."
+
+    context = []
+
+    try:
+        if position_20d_pct is not None:
+            context.append(f"20D position {float(position_20d_pct):.1f}%")
+    except Exception:
+        pass
+
+    try:
+        if volume_ratio is not None:
+            context.append(f"volume {float(volume_ratio):.2f}x")
+    except Exception:
+        pass
+
+    if context:
+        reason_to_avoid = f"{reason_to_avoid} Context: {', '.join(context)}."
+
+    return {
+        "entry_trigger": entry_trigger,
+        "invalidation": invalidation,
+        "target_1_2rr": target_1_2rr,
+        "reason_to_avoid": reason_to_avoid,
+        "teacher_action": teacher_action,
+    }
+
+
 async def row_final_status(row: dict[str, Any], quote: dict[str, Any] | None, breadth_supportive: bool) -> dict[str, Any]:
     symbol = row["symbol"]
     signal = base_signal(row, quote)
@@ -145,6 +248,7 @@ async def row_final_status(row: dict[str, Any], quote: dict[str, Any] | None, br
         "signal": signal,
         "live_strength": live_strength(row, quote),
         "final_status": label,
+        "watch_plan": build_watch_plan(row, quote, label, reason),
         "tone": tone,
         "reason": reason,
         "vwap_status": vwap.get("status"),

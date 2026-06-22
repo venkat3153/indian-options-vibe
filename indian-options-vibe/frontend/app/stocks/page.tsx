@@ -17,6 +17,14 @@ type ApiResponse = { mode: string; universe?: string; count: number; stocks: Sto
 type LiveQuote = { symbol: string; ltp: number | null; change_pct: number | null };
 type LiveQuoteResponse = { status: string; count: number; quotes: LiveQuote[]; message?: string };
 type WatchlistItem = { symbol: string; name?: string; sector?: string; action_tag?: string };
+type WatchPlan = {
+  entry_trigger?: string;
+  invalidation?: string;
+  target_1_2rr?: string;
+  reason_to_avoid?: string;
+  teacher_action?: string;
+};
+
 type FinalItem = {
   symbol: string;
   signal: string;
@@ -246,7 +254,7 @@ export default function StocksResearchPage() {
 
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[2200px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-[0.16em] text-slate-500"><tr className="border-b border-slate-800"><th className="py-3">Symbol</th><th>Sector</th><th>Close</th><th>Live LTP</th><th>Live %</th><th>Strength</th><th>Signal</th><th className="min-w-[150px]">Final Status</th><th className="min-w-[220px] px-3">Next Action</th><th className="min-w-[110px]">VWAP</th><th>Retest</th><th>5D</th><th>Vol x</th><th>20D Pos</th><th>Score</th><th>Watchlist</th><th>Reason</th></tr></thead>
+            <thead className="text-xs uppercase tracking-[0.16em] text-slate-500"><tr className="border-b border-slate-800"><th className="py-3">Symbol</th><th>Sector</th><th>Close</th><th>Live LTP</th><th>Live %</th><th>Strength</th><th>Signal</th><th className="min-w-[150px]">Final Status</th><th className="min-w-[220px] px-3">Next Action</th><th className="min-w-[300px] px-3">Watch Plan</th><th className="min-w-[110px]">VWAP</th><th>Retest</th><th>5D</th><th>Vol x</th><th>20D Pos</th><th>Score</th><th>Watchlist</th><th>Reason</th></tr></thead>
             <tbody>
               {loading ? <tr><td colSpan={17} className="py-10 text-center text-slate-500">Loading stock table...</td></tr> : null}
               {!loading && rows.length === 0 ? <tr><td colSpan={17} className="py-10 text-center text-slate-500">No stocks found.</td></tr> : null}
@@ -270,6 +278,7 @@ function Row({ row, quote, finalItem, isSaved, saving, onAdd, onRemove }: { row:
     <td><Pill text={finalItem?.signal || 'Not scanned'} tone={finalItem?.signal === 'Live Watch' ? 'win' : 'neutral'} /></td>
     <td><Pill text={finalItem?.final_status || 'Not scanned'} tone={finalItem?.tone || 'neutral'} /></td>
       <td className="min-w-[260px] px-3 text-xs font-semibold text-slate-200 whitespace-normal">{getNextAction(row, quote, finalItem)}</td>
+      <td className="min-w-[300px] px-3"><WatchPlanCell plan={getWatchPlan(finalItem)} /></td>
     <td>{finalItem?.vwap ? money(finalItem.vwap) : '-'}</td>
     <td>{finalItem?.retest_low && finalItem?.retest_high ? `${money(finalItem.retest_low)}–${money(finalItem.retest_high)}` : finalItem?.retest_result || '-'}</td>
     <td className={row.return_5d_pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>{row.return_5d_pct}%</td>
@@ -307,6 +316,47 @@ function getNextAction(row: StockRow, quote?: LiveQuote, finalItem?: FinalItem):
 
   return 'Research only';
 }
+
+
+function getWatchPlan(finalItem?: FinalItem): WatchPlan {
+  return finalItem?.watch_plan || {
+    entry_trigger: 'Run Manual Final Scan first',
+    invalidation: 'Unknown until scan completes',
+    target_1_2rr: 'Unknown until setup is valid',
+    reason_to_avoid: finalItem?.reason || 'Click Manual Final Scan to calculate gates',
+    teacher_action: 'Research only',
+  };
+}
+
+function WatchPlanCell({ plan }: { plan: WatchPlan }) {
+  return (
+    <details className="min-w-[280px] max-w-[360px] rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-xs">
+      <summary className="cursor-pointer list-none font-semibold text-yellow-300">
+        Teacher: {plan.teacher_action || 'Research only'}
+      </summary>
+
+      <div className="mt-2 space-y-1 border-t border-slate-800 pt-2">
+        <div>
+          <span className="text-slate-500">Entry: </span>
+          <span className="text-slate-200">{plan.entry_trigger || '-'}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Stop: </span>
+          <span className="text-slate-300">{plan.invalidation || '-'}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Target: </span>
+          <span className="text-emerald-300">{plan.target_1_2rr || '-'}</span>
+        </div>
+        <div>
+          <span className="text-slate-500">Avoid: </span>
+          <span className="text-slate-400">{plan.reason_to_avoid || '-'}</span>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 
 function Pill({ text, tone }: { text: string; tone: 'win' | 'warn' | 'loss' | 'neutral' }) {
   const cls = tone === 'win' ? 'border-emerald-700 bg-emerald-500/10 text-emerald-300' : tone === 'loss' ? 'border-red-700 bg-red-500/10 text-red-300' : tone === 'warn' ? 'border-yellow-700 bg-yellow-500/10 text-yellow-300' : 'border-slate-700 bg-slate-800 text-slate-300';
