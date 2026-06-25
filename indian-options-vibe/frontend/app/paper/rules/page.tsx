@@ -143,6 +143,12 @@ export default function PaperRulesPage() {
               Paper Trading
             </a>
             <a
+              href="/paper/live-test"
+              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              Live Test
+            </a>
+            <a
               href="/paper/today"
               className="rounded-2xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20"
             >

@@ -255,6 +255,7 @@ export default function PaperPage() {
           <div className="flex flex-wrap gap-3">
             <DownloadCsvButton filename="paper-trades.csv" rows={csvRows} disabledLabel="No trades to export" />
             <Link href="/scanner" className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Screener</Link>
+            <a href="/paper/live-test" className="rounded-xl border border-cyan-800 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">Live Test</a>
             <a href="/paper/discipline" className="rounded-xl border border-red-900 bg-red-950/30 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50">Discipline Lock</a>
             <a href="/paper/rules" className="rounded-xl border border-purple-800 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">Rules</a>
             <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>
