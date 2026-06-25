@@ -42,6 +42,7 @@ function getStatusText(trade: PaperTrade) {
 export default function WeeklyPaperReviewPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [liveLogs, setLiveLogs] = useState<PaperTrade[]>([]);
+  const [noTradeLogs, setNoTradeLogs] = useState<PaperTrade[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,6 +52,9 @@ export default function WeeklyPaperReviewPage() {
 
       const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
+
+      const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
+      setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
     } catch {
       setTrades([]);
     }
@@ -64,6 +68,13 @@ export default function WeeklyPaperReviewPage() {
       return getIstDateKey(stamp) >= weekStartKey;
     });
   }, [trades, weekStartKey]);
+
+  const weekNoTradeLogs = useMemo(() => {
+    return noTradeLogs.filter((log) => {
+      const stamp = log.date || log.createdAt || log.updatedAt;
+      return getIstDateKey(stamp) >= weekStartKey || String(log.date || '') >= weekStartKey;
+    });
+  }, [noTradeLogs, weekStartKey]);
 
   const weekLiveLogs = useMemo(() => {
     return liveLogs.filter((log) => {
@@ -286,6 +297,63 @@ export default function WeeklyPaperReviewPage() {
             {verdict.title}
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-300">{verdict.text}</p>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-lime-800 bg-lime-500/10 p-6">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-lime-300">Weekly No-Trade Summary</div>
+              <h2 className="mt-2 text-2xl font-black text-white">Discipline Wins Without Trading</h2>
+              <p className="mt-2 text-sm leading-6 text-lime-100/80">
+                These are days where not trading protected your capital and discipline.
+              </p>
+            </div>
+
+            <a
+              href="/paper/no-trade"
+              className="rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20"
+            >
+              Open No-Trade Day
+            </a>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <Stat label="No-Trade Logs" value={weekNoTradeLogs.length} tone={weekNoTradeLogs.length > 0 ? 'win' : undefined} />
+            <Stat label="Week Start" value={weekStartKey} />
+            <Stat label="Discipline Credit" value={weekNoTradeLogs.length > 0 ? 'Yes' : 'No'} tone={weekNoTradeLogs.length > 0 ? 'win' : undefined} />
+          </div>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.18em] text-lime-200/70">
+                <tr>
+                  <th className="px-3 py-3">Date</th>
+                  <th className="px-3 py-3">Reason</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Note</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {weekNoTradeLogs.map((log) => (
+                  <tr key={log.id || `${log.date}-${log.reason}`} className="border-t border-lime-900/60">
+                    <td className="px-3 py-4 font-bold text-white">{log.date || getIstDateKey(log.createdAt)}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.reason || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
+                  </tr>
+                ))}
+
+                {weekNoTradeLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-8 text-center text-lime-100/50">
+                      No no-trade logs saved this week.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="mt-8 rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
