@@ -575,7 +575,42 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
       : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
 
-    const copyPaperPlan = async () => {
+    const copyLiveTestChecklist = async () => {
+    const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
+
+    const lines = [
+      `LIVE TEST MANUAL CHECKLIST — ${stock.symbol}`,
+      `Name: ${stock.name}`,
+      `Sector: ${stock.sector}`,
+      ``,
+      `Mode: ${liveSettings?.mode === 'stock' ? '1 quantity stock test' : '1 lot options test'}`,
+      `Max Qty/Lot: ${liveSettings?.maxQty || 1}`,
+      `Execution: Manual Dhan only. No auto order.`,
+      ``,
+      `Entry Ref: ${rr.entry ? money(rr.entry) : '-'}`,
+      `Stop Ref: ${rr.stop ? money(rr.stop) : '-'}`,
+      `Risk: ${rr.risk > 0 ? money(rr.risk) : '-'}`,
+      `1R Target: ${rr.oneR ? money(rr.oneR) : '-'}`,
+      `2R Target: ${rr.twoR ? money(rr.twoR) : '-'}`,
+      `RR Status: ${rr.status}`,
+      ``,
+      `Before execution confirm:`,
+      `1. Rules Gate PASSED`,
+      `2. Discipline Lock ALLOWED`,
+      `3. Live Test Mode READY`,
+      `4. No FOMO / Revenge / Greed emotion`,
+      `5. Entry is not chased`,
+      `6. Stop is accepted before entry`,
+      `7. Quantity is only 1 lot or 1 stock`,
+      ``,
+      `If any answer is NO: do not execute. Save as paper/no-trade only.`,
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    alert('Live test checklist copied');
+  };
+
+  const copyPaperPlan = async () => {
     const lines = [
       `PAPER TRADE PLAN — ${stock.symbol}`,
       `Name: ${stock.name}`,
@@ -782,6 +817,9 @@ return (
       </div>
       <button onClick={copyPaperPlan} className="mt-4 rounded-2xl border border-emerald-800 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
         Copy Plan
+      </button>
+      <button onClick={copyLiveTestChecklist} className="ml-2 mt-4 rounded-2xl border border-cyan-800 bg-cyan-500/10 px-4 py-2 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
+        Copy Live Test Checklist
       </button>
       <button onClick={savePaperPlan} className="ml-2 mt-4 rounded-2xl border border-blue-800 bg-blue-500/10 px-4 py-2 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
         Save Paper Plan
