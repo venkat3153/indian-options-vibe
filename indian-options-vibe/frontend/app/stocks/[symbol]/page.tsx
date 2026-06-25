@@ -760,7 +760,74 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
       : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
 
-    const copyLiveTestChecklist = async () => {
+    const buildFinalLivePermissionReasons = () => {
+    const reasons: string[] = [];
+
+    try {
+      const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
+      const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+
+      const getIstDateKeyLocal = (value: unknown) => {
+        const date = value ? new Date(String(value)) : new Date();
+
+        if (Number.isNaN(date.getTime())) {
+          return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        }
+
+        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      };
+
+      const todayKey = getIstDateKeyLocal(new Date().toISOString());
+
+      const todayLiveLogs = Array.isArray(liveLogs)
+        ? liveLogs.filter((log: any) => {
+            const stamp = log.createdAt || log.updatedAt;
+            return getIstDateKeyLocal(stamp) === todayKey;
+          })
+        : [];
+
+      const todayLiveSlHits = todayLiveLogs.filter((log: any) =>
+        String(log.status || '').toLowerCase().includes('sl')
+      ).length;
+
+      const liveEnabled = Boolean(liveSettings?.enabled);
+      const liveMaxQty = Number(liveSettings?.maxQty || 1);
+      const liveMaxTrades = Number(liveSettings?.maxTradesPerDay || 1);
+      const liveMaxSl = Number(liveSettings?.maxSlPerDay || 1);
+
+      if (!liveEnabled) reasons.push('Live Test Mode is OFF');
+      if (liveMaxQty > 1) reasons.push('Live max quantity must be 1');
+      if (todayLiveLogs.length >= liveMaxTrades) reasons.push(`Live daily limit reached: ${todayLiveLogs.length}/${liveMaxTrades}`);
+      if (todayLiveSlHits >= liveMaxSl) reasons.push(`Live SL limit reached: ${todayLiveSlHits}/${liveMaxSl}`);
+
+      const hardRules: Record<string, string> = {
+        'market-breadth': 'Market Breadth',
+        vwap: 'VWAP Gate',
+        retest: 'Retest Quality',
+        rr: '1:2 RR Room',
+        execution: 'Execution Lock',
+      };
+
+      const missingRules = Object.entries(hardRules)
+        .filter(([id]) => !rulesChecklist?.[id])
+        .map(([, label]) => label);
+
+      if (missingRules.length > 0) {
+        reasons.push(`Rules Gate blocked: ${missingRules.join(', ')}`);
+      }
+
+      if (!String(rr.status || '').toLowerCase().includes('valid')) {
+        reasons.push(`RR not valid: ${rr.status}`);
+      }
+
+      return reasons;
+    } catch {
+      return ['Could not read live permission settings'];
+    }
+  };
+
+  const copyLiveTestChecklist = async () => {
     const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
 
     const lines = [
@@ -779,6 +846,11 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       `2R Target: ${rr.twoR ? money(rr.twoR) : '-'}`,
       `RR Status: ${rr.status}`,
       ``,
+      `Final Live Permission: ${buildFinalLivePermissionReasons().length === 0 ? 'ALLOWED' : 'BLOCKED'}`,
+      ...(buildFinalLivePermissionReasons().length === 0
+        ? [`Permission Reason: All live-test gates are clear.`]
+        : buildFinalLivePermissionReasons().map((reason) => `Blocked Reason: ${reason}`)),
+      ``,
       `Before execution confirm:`,
       `1. Rules Gate PASSED`,
       `2. Discipline Lock ALLOWED`,
@@ -788,7 +860,7 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       `6. Stop is accepted before entry`,
       `7. Quantity is only 1 lot or 1 stock`,
       ``,
-      `If any answer is NO: do not execute. Save as paper/no-trade only.`,
+      `If any answer is NO: do not execute. Save as no-trade only.`,
     ];
 
     await navigator.clipboard.writeText(lines.join('\n'));
