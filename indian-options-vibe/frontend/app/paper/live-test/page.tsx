@@ -45,6 +45,53 @@ function getIstDateKey(value: unknown) {
   return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
 
+
+function buildLiveTestCsv(rows: LiveTestLog[]) {
+  const headers = [
+    'date',
+    'symbol',
+    'mode',
+    'qty',
+    'status',
+    'emotion',
+    'mistake',
+    'note',
+    'createdAt',
+    'updatedAt',
+  ];
+
+  const clean = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replaceAll('\r', ' ')
+      .replaceAll('\n', ' ')
+      .replaceAll(',', ' ')
+      .replaceAll('"', '""')
+      .trim();
+  };
+
+  return [
+    headers.join(','),
+    ...rows.map((log) =>
+      headers.map((header) => `"${clean(log[header as keyof LiveTestLog])}"`).join(',')
+    ),
+  ].join('\n');
+}
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+
 export default function LiveTestModePage() {
   const [settings, setSettings] = useState<LiveTestSettings>(DEFAULT_SETTINGS);
   const [message, setMessage] = useState<string | null>(null);
@@ -138,6 +185,13 @@ export default function LiveTestModePage() {
     setSettings(next);
     window.localStorage.setItem('liveTestSettings', JSON.stringify(next));
     setMessage('Live Test settings saved ✅');
+  };
+
+  const downloadLiveTestCsv = () => {
+    const csv = buildLiveTestCsv(logs);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`live-test-logs-${date}.csv`, csv, 'text/csv;charset=utf-8;');
+    setMessage('Live Test CSV downloaded ✅');
   };
 
   const copySummary = async () => {
@@ -385,6 +439,12 @@ export default function LiveTestModePage() {
                   className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
                 >
                   Copy Summary
+                </button>
+                <button
+                  onClick={downloadLiveTestCsv}
+                  className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20"
+                >
+                  Download Live CSV
                 </button>
               </div>
             </div>
