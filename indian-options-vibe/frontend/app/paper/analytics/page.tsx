@@ -156,6 +156,12 @@ export default function PaperAnalyticsPage() {
               Today Review
             </a>
             <a
+              href="/paper/weekly"
+              className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20"
+            >
+              Weekly Review
+            </a>
+            <a
               href="/paper/export"
               className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20"
             >

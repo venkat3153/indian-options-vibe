@@ -222,6 +222,7 @@ export default function StocksResearchPage() {
               <a href="/paper/discipline" className="rounded-xl border border-red-900 bg-red-950/30 px-5 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50">Discipline Lock</a>
               <a href="/paper/rules" className="rounded-xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">Rules</a>
               <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>
+              <a href="/paper/weekly" className="rounded-xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">Weekly Review</a>
               <a href="/paper/analytics" className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">Analytics</a>
               <a href="/paper/export" className="rounded-xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">Export</a>
           <button onClick={fetchDhanDaily} disabled={ingesting || finalLoading} className="rounded-xl bg-emerald-500 px-5 py-3 font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50">{ingesting ? 'Fetching Dhan...' : 'Fetch Dhan Daily'}</button>

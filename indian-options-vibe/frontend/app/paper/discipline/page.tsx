@@ -143,6 +143,9 @@ export default function DailyDisciplinePage() {
             <a href="/paper/today" className="rounded-2xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">
               Today Review
             </a>
+            <a href="/paper/weekly" className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">
+              Weekly Review
+            </a>
           </div>
         </div>
 
