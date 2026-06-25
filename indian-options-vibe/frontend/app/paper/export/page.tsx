@@ -236,6 +236,43 @@ export default function PaperExportPage() {
     setMessage('Live Test logs CSV downloaded ✅');
   };
 
+  const downloadLiveTestJson = () => {
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(
+      `live-test-logs-${date}.json`,
+      JSON.stringify(liveLogs, null, 2),
+      'application/json'
+    );
+    setMessage('Live Test JSON backup downloaded ✅');
+  };
+
+  const restoreLiveTestJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || '[]'));
+
+        if (!Array.isArray(parsed)) {
+          setMessage('Live Test restore failed: JSON must be an array ❌');
+          return;
+        }
+
+        window.localStorage.setItem('liveTestLogs', JSON.stringify(parsed));
+        setLiveLogs(parsed);
+        setMessage(`Restored ${parsed.length} live test logs ✅`);
+      } catch {
+        setMessage('Live Test restore failed: invalid JSON ❌');
+      }
+    };
+
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
 
 
   const downloadWeeklyReviewCsv = () => {
@@ -436,6 +473,17 @@ export default function PaperExportPage() {
             >
               Download Live Test CSV
             </button>
+            <button
+              onClick={downloadLiveTestJson}
+              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              Download Live Test JSON
+            </button>
+
+            <label className="cursor-pointer rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
+              Restore Live Test JSON
+              <input type="file" accept="application/json,.json" onChange={restoreLiveTestJson} className="hidden" />
+            </label>
 
             <label className="cursor-pointer rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
               Restore JSON
