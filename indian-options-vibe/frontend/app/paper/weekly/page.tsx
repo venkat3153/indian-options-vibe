@@ -41,12 +41,16 @@ function getStatusText(trade: PaperTrade) {
 
 export default function WeeklyPaperReviewPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [liveLogs, setLiveLogs] = useState<PaperTrade[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
       setTrades(Array.isArray(saved) ? saved : []);
+
+      const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
     } catch {
       setTrades([]);
     }
@@ -60,6 +64,43 @@ export default function WeeklyPaperReviewPage() {
       return getIstDateKey(stamp) >= weekStartKey;
     });
   }, [trades, weekStartKey]);
+
+  const weekLiveLogs = useMemo(() => {
+    return liveLogs.filter((log) => {
+      const stamp = log.createdAt || log.updatedAt;
+      return getIstDateKey(stamp) >= weekStartKey;
+    });
+  }, [liveLogs, weekStartKey]);
+
+  const liveStats = useMemo(() => {
+    const total = weekLiveLogs.length;
+    const open = weekLiveLogs.filter((log) => log.status === 'Entered').length;
+    const targetHit = weekLiveLogs.filter((log) => log.status === 'Target Hit').length;
+    const slHit = weekLiveLogs.filter((log) => log.status === 'SL Hit').length;
+    const cancelled = weekLiveLogs.filter((log) => log.status === 'Cancelled').length;
+    const completed = targetHit + slHit;
+    const winRate = completed > 0 ? Math.round((targetHit / completed) * 100) : 0;
+
+    const badEmotionCount = weekLiveLogs.filter((log) =>
+      ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(log.emotion || ''))
+    ).length;
+
+    const mistakeCount = weekLiveLogs.filter((log) =>
+      ['Chased entry', 'Ignored VWAP', 'Ignored rules', 'Oversized', 'Moved stop', 'Revenge trade'].includes(String(log.mistake || ''))
+    ).length;
+
+    return {
+      total,
+      open,
+      targetHit,
+      slHit,
+      cancelled,
+      completed,
+      winRate,
+      badEmotionCount,
+      mistakeCount,
+    };
+  }, [weekLiveLogs]);
 
   const stats = useMemo(() => {
     const total = weekTrades.length;
@@ -242,6 +283,75 @@ export default function WeeklyPaperReviewPage() {
             {verdict.title}
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-300">{verdict.text}</p>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">Weekly Live Test Summary</div>
+              <h2 className="mt-2 text-2xl font-black text-white">Real 1 Lot / 1 Quantity Testing</h2>
+              <p className="mt-2 text-sm leading-6 text-cyan-100/80">
+                This is separate from paper plans. Use this to judge real controlled testing behavior.
+              </p>
+            </div>
+
+            <a
+              href="/paper/live-test"
+              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              Open Live Test
+            </a>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-5">
+            <Stat label="Live Tests" value={liveStats.total} />
+            <Stat label="Open" value={liveStats.open} />
+            <Stat label="Target Hit" value={liveStats.targetHit} tone="win" />
+            <Stat label="SL Hit" value={liveStats.slHit} tone="loss" />
+            <Stat label="Win Rate" value={`${liveStats.winRate}%`} />
+            <Stat label="Bad Emotion" value={liveStats.badEmotionCount} tone={liveStats.badEmotionCount > 0 ? 'loss' : 'win'} />
+            <Stat label="Mistakes" value={liveStats.mistakeCount} tone={liveStats.mistakeCount > 0 ? 'loss' : 'win'} />
+            <Stat label="Cancelled" value={liveStats.cancelled} />
+          </div>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">
+                <tr>
+                  <th className="px-3 py-3">Date</th>
+                  <th className="px-3 py-3">Symbol</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Mode</th>
+                  <th className="px-3 py-3">Qty</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Mistake</th>
+                  <th className="px-3 py-3">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weekLiveLogs.map((log) => (
+                  <tr key={log.id} className="border-t border-cyan-900/60">
+                    <td className="px-3 py-4 text-slate-300">{log.date || getIstDateKey(log.createdAt)}</td>
+                    <td className="px-3 py-4 font-bold text-white">{log.symbol || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.status || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.mode || '-'}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.qty || 1}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
+                  </tr>
+                ))}
+
+                {weekLiveLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-3 py-8 text-center text-cyan-100/50">
+                      No live tests logged this week.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
