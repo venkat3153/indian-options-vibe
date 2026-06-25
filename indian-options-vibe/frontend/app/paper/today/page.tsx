@@ -103,6 +103,25 @@ export default function TodayPaperReviewPage() {
     Math.min(100, 100 - badEmotionCount * 15 - seriousMistakeCount * 20 + cleanTradeCount * 5)
   );
 
+  const disciplineVerdict =
+    disciplineQualityScore >= 85
+      ? {
+          title: 'Excellent Discipline',
+          text: 'You followed process well today. Keep size normal and do not force extra trades.',
+          tone: 'win',
+        }
+      : disciplineQualityScore >= 65
+        ? {
+            title: 'Acceptable, But Improve',
+            text: 'You had some emotional or mistake flags. Reduce trade count and focus on cleaner entries.',
+            tone: 'warn',
+          }
+        : {
+            title: 'Discipline Broken',
+            text: 'Stop new trades today. Review mistakes, protect capital, and come back fresh tomorrow.',
+            tone: 'loss',
+          };
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
       <div className="mx-auto max-w-7xl">
@@ -210,6 +229,37 @@ export default function TodayPaperReviewPage() {
           </div>
         </div>
 
+        <div
+          className={`mt-8 rounded-3xl border p-6 ${
+            disciplineVerdict.tone === 'win'
+              ? 'border-emerald-800 bg-emerald-500/10'
+              : disciplineVerdict.tone === 'warn'
+                ? 'border-yellow-800 bg-yellow-500/10'
+                : 'border-red-900 bg-red-950/20'
+          }`}
+        >
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Discipline Verdict</div>
+          <h2
+            className={`mt-2 text-3xl font-black ${
+              disciplineVerdict.tone === 'win'
+                ? 'text-emerald-300'
+                : disciplineVerdict.tone === 'warn'
+                  ? 'text-yellow-300'
+                  : 'text-red-300'
+            }`}
+          >
+            {disciplineVerdict.title}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-300">{disciplineVerdict.text}</p>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <MiniStat label="Score" value={`${disciplineQualityScore}/100`} />
+            <MiniStat label="Bad Emotion" value={badEmotionCount} />
+            <MiniStat label="Mistakes" value={seriousMistakeCount} />
+            <MiniStat label="Clean Trades" value={cleanTradeCount} />
+          </div>
+        </div>
+
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
           <h2 className="text-2xl font-bold text-white">Today&apos;s Plans</h2>
 
@@ -276,6 +326,15 @@ export default function TodayPaperReviewPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</div>
+      <div className="mt-2 text-xl font-black text-white">{value}</div>
+    </div>
   );
 }
 
