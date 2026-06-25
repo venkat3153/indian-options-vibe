@@ -225,9 +225,37 @@ function buildLiveTestLogsCsv(rows: PaperTrade[]) {
 }
 
 
+
+function buildNoTradeLogsCsv(rows: PaperTrade[]) {
+  const headers = [
+    'date',
+    'reason',
+    'emotion',
+    'note',
+    'createdAt',
+  ];
+
+  const clean = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replaceAll('\r', ' ')
+      .replaceAll('\n', ' ')
+      .replaceAll(',', ' ')
+      .replaceAll('"', '""')
+      .trim();
+  };
+
+  return [
+    headers.join(','),
+    ...rows.map((log) => headers.map((header) => `"${clean(log[header])}"`).join(',')),
+  ].join('\n');
+}
+
+
 export default function PaperExportPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [liveLogs, setLiveLogs] = useState<PaperTrade[]>([]);
+  const [noTradeLogs, setNoTradeLogs] = useState<PaperTrade[]>([]);
 
   const downloadLiveTestLogsCsv = () => {
     const csv = buildLiveTestLogsCsv(liveLogs);
@@ -244,6 +272,50 @@ export default function PaperExportPage() {
       'application/json'
     );
     setMessage('Live Test JSON backup downloaded ✅');
+  };
+
+  const downloadNoTradeLogsCsv = () => {
+    const csv = buildNoTradeLogsCsv(noTradeLogs);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`no-trade-logs-${date}.csv`, csv, 'text/csv;charset=utf-8;');
+    setMessage('No-Trade logs CSV downloaded ✅');
+  };
+
+  const downloadNoTradeLogsJson = () => {
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(
+      `no-trade-logs-${date}.json`,
+      JSON.stringify(noTradeLogs, null, 2),
+      'application/json'
+    );
+    setMessage('No-Trade JSON backup downloaded ✅');
+  };
+
+  const restoreNoTradeLogsJson = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || '[]'));
+
+        if (!Array.isArray(parsed)) {
+          setMessage('No-Trade restore failed: JSON must be an array ❌');
+          return;
+        }
+
+        window.localStorage.setItem('noTradeLogs', JSON.stringify(parsed));
+        setNoTradeLogs(parsed);
+        setMessage(`Restored ${parsed.length} no-trade logs ✅`);
+      } catch {
+        setMessage('No-Trade restore failed: invalid JSON ❌');
+      }
+    };
+
+    reader.readAsText(file);
+    event.target.value = '';
   };
 
   const restoreLiveTestJson = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -301,6 +373,9 @@ export default function PaperExportPage() {
 
       const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
+
+      const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
+      setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
     } catch {
       setTrades([]);
     }
@@ -422,6 +497,7 @@ export default function PaperExportPage() {
         <div className="mt-8 grid gap-4 md:grid-cols-5">
           <Stat label="Total Plans" value={stats.total} />
           <Stat label="Live Tests" value={liveLogs.length} />
+          <Stat label="No-Trade Logs" value={noTradeLogs.length} />
           <Stat label="Open Plans" value={stats.open} />
           <Stat label="RR Plans" value={stats.rrPlans} />
           <Stat label="Target Hit" value={stats.wins} />
@@ -483,6 +559,24 @@ export default function PaperExportPage() {
             <label className="cursor-pointer rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
               Restore Live Test JSON
               <input type="file" accept="application/json,.json" onChange={restoreLiveTestJson} className="hidden" />
+            </label>
+            <button
+              onClick={downloadNoTradeLogsCsv}
+              className="rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20"
+            >
+              Download No-Trade CSV
+            </button>
+
+            <button
+              onClick={downloadNoTradeLogsJson}
+              className="rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20"
+            >
+              Download No-Trade JSON
+            </button>
+
+            <label className="cursor-pointer rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20">
+              Restore No-Trade JSON
+              <input type="file" accept="application/json,.json" onChange={restoreNoTradeLogsJson} className="hidden" />
             </label>
 
             <label className="cursor-pointer rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
