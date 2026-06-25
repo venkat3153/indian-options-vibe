@@ -32,12 +32,16 @@ function getStatusText(trade: PaperTrade) {
 
 export default function TodayPaperReviewPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [liveLogs, setLiveLogs] = useState<PaperTrade[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
       setTrades(Array.isArray(saved) ? saved : []);
+
+      const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
     } catch {
       setTrades([]);
     }
@@ -85,6 +89,16 @@ export default function TodayPaperReviewPage() {
     await navigator.clipboard.writeText(lines.join('\n'));
     setMessage('Today review summary copied ✅');
   };
+
+  const todayLiveLogs = liveLogs.filter((log) => {
+    const stamp = log.createdAt || log.updatedAt;
+    return getIstDateKey(stamp) === todayKey;
+  });
+
+  const liveEntered = todayLiveLogs.filter((log) => log.status === 'Entered').length;
+  const liveTargetHit = todayLiveLogs.filter((log) => log.status === 'Target Hit').length;
+  const liveSlHit = todayLiveLogs.filter((log) => log.status === 'SL Hit').length;
+  const liveCancelled = todayLiveLogs.filter((log) => log.status === 'Cancelled').length;
 
   const badEmotionCount = todayTrades.filter((trade) =>
     ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(trade.emotion || ''))
@@ -269,6 +283,70 @@ export default function TodayPaperReviewPage() {
             <MiniStat label="Bad Emotion" value={badEmotionCount} />
             <MiniStat label="Mistakes" value={seriousMistakeCount} />
             <MiniStat label="Clean Trades" value={cleanTradeCount} />
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">Live Test Summary</div>
+              <h2 className="mt-2 text-2xl font-black text-white">Real 1 Lot / 1 Quantity Test Log</h2>
+              <p className="mt-2 text-sm leading-6 text-cyan-100/80">
+                These are separate from paper trades. After one live entry, Live Test Mode should block more entries for the day.
+              </p>
+            </div>
+
+            <a
+              href="/paper/live-test"
+              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              Open Live Test
+            </a>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-5">
+            <MiniStat label="Live Entries" value={todayLiveLogs.length} />
+            <MiniStat label="Open" value={liveEntered} />
+            <MiniStat label="Target Hit" value={liveTargetHit} />
+            <MiniStat label="SL Hit" value={liveSlHit} />
+            <MiniStat label="Cancelled" value={liveCancelled} />
+          </div>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[850px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.18em] text-cyan-200/70">
+                <tr>
+                  <th className="px-3 py-3">Symbol</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Mode</th>
+                  <th className="px-3 py-3">Qty</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Mistake</th>
+                  <th className="px-3 py-3">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayLiveLogs.map((log) => (
+                  <tr key={log.id} className="border-t border-cyan-900/60">
+                    <td className="px-3 py-4 font-bold text-white">{log.symbol || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.status || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.mode || '-'}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.qty || 1}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
+                  </tr>
+                ))}
+
+                {todayLiveLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-8 text-center text-cyan-100/50">
+                      No live test logged today.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
         </div>
 
