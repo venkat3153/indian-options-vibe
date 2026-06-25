@@ -132,6 +132,14 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
         <RulesGateStatusCard />
 
+        <div className="mt-6 rounded-3xl border border-cyan-800 bg-cyan-500/10 p-5 text-cyan-300">
+          <div className="text-xs uppercase tracking-[0.22em] opacity-70">Live Discipline Status</div>
+          <div className="mt-2 text-2xl font-black">LIVE TEST RULE ACTIVE</div>
+          <p className="mt-2 text-sm leading-6 opacity-90">
+            Live test uses separate liveTestLogs. Paper plan count below is only for research tracking, not live execution permission.
+          </p>
+        </div>
+
         <DisciplineStatusCard />
 
         <RRPlanCard stock={stock} quote={quote} retest={retest} vwap={vwap} /></div><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><h2 className="text-2xl font-bold text-white">Buyer / Seller Zones</h2><p className="mt-1 text-sm text-slate-400">Real retest/VWAP zones from Dhan 5-minute structure when available. Volume profile and order book depth come later.</p><div className="mt-5 grid gap-3"><Zone title="Real retest buyer zone" text={getBuyerZone(stock, quote, retest, vwap)} tone="win" /><Zone title="Seller / supply zone" text={getSellerZone(stock, quote, retest, vwap)} tone="loss" /><Zone title="No-trade warning" text={getNoTradeWarning(stock, quote, retest, vwap)} /></div></div></div>
