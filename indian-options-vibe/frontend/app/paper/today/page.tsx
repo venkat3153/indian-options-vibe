@@ -33,6 +33,7 @@ function getStatusText(trade: PaperTrade) {
 export default function TodayPaperReviewPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [liveLogs, setLiveLogs] = useState<PaperTrade[]>([]);
+  const [noTradeLogs, setNoTradeLogs] = useState<PaperTrade[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,6 +43,9 @@ export default function TodayPaperReviewPage() {
 
       const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
+
+      const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
+      setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
     } catch {
       setTrades([]);
     }
@@ -89,6 +93,11 @@ export default function TodayPaperReviewPage() {
     await navigator.clipboard.writeText(lines.join('\n'));
     setMessage('Today review summary copied ✅');
   };
+
+  const todayNoTradeLogs = noTradeLogs.filter((log) => {
+    const stamp = log.date || log.createdAt || log.updatedAt;
+    return getIstDateKey(stamp) === todayKey || log.date === todayKey;
+  });
 
   const todayLiveLogs = liveLogs.filter((log) => {
     const stamp = log.createdAt || log.updatedAt;
@@ -289,6 +298,62 @@ export default function TodayPaperReviewPage() {
             <MiniStat label="Bad Emotion" value={badEmotionCount} />
             <MiniStat label="Mistakes" value={seriousMistakeCount} />
             <MiniStat label="Clean Trades" value={cleanTradeCount} />
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-lime-800 bg-lime-500/10 p-6">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <div className="text-xs uppercase tracking-[0.22em] text-lime-300">No-Trade Day Summary</div>
+              <h2 className="mt-2 text-2xl font-black text-white">Discipline Win Log</h2>
+              <p className="mt-2 text-sm leading-6 text-lime-100/80">
+                No-trade days are counted as discipline wins when conditions are not clean.
+              </p>
+            </div>
+
+            <a
+              href="/paper/no-trade"
+              className="rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20"
+            >
+              Open No-Trade Day
+            </a>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <MiniStat label="No-Trade Logs" value={todayNoTradeLogs.length} />
+            <MiniStat label="Today Date" value={todayKey} />
+            <MiniStat label="Discipline Credit" value={todayNoTradeLogs.length > 0 ? 'Yes' : 'No'} />
+          </div>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.18em] text-lime-200/70">
+                <tr>
+                  <th className="px-3 py-3">Date</th>
+                  <th className="px-3 py-3">Reason</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayNoTradeLogs.map((log) => (
+                  <tr key={log.id || `${log.date}-${log.reason}`} className="border-t border-lime-900/60">
+                    <td className="px-3 py-4 font-bold text-white">{log.date || todayKey}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.reason || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
+                  </tr>
+                ))}
+
+                {todayNoTradeLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-8 text-center text-lime-100/50">
+                      No no-trade log saved today.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
         </div>
 
