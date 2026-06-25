@@ -830,40 +830,49 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
   const copyLiveTestChecklist = async () => {
     const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
 
-    const lines = [
-      `LIVE TEST MANUAL CHECKLIST — ${stock.symbol}`,
-      `Name: ${stock.name}`,
-      `Sector: ${stock.sector}`,
-      ``,
-      `Mode: ${liveSettings?.mode === 'stock' ? '1 quantity stock test' : '1 lot options test'}`,
-      `Max Qty/Lot: ${liveSettings?.maxQty || 1}`,
-      `Execution: Manual Dhan only. No auto order.`,
-      ``,
-      `Entry Ref: ${rr.entry ? money(rr.entry) : '-'}`,
-      `Stop Ref: ${rr.stop ? money(rr.stop) : '-'}`,
-      `Risk: ${rr.risk > 0 ? money(rr.risk) : '-'}`,
-      `1R Target: ${rr.oneR ? money(rr.oneR) : '-'}`,
-      `2R Target: ${rr.twoR ? money(rr.twoR) : '-'}`,
-      `RR Status: ${rr.status}`,
-      ``,
-      `Final Live Permission: ${buildFinalLivePermissionReasons().length === 0 ? 'ALLOWED' : 'BLOCKED'}`,
-      ...(buildFinalLivePermissionReasons().length === 0
-        ? [`Permission Reason: All live-test gates are clear.`]
-        : buildFinalLivePermissionReasons().map((reason) => `Blocked Reason: ${reason}`)),
-      ``,
-      `Before execution confirm:`,
-      `1. Rules Gate PASSED`,
-      `2. Discipline Lock ALLOWED`,
-      `3. Live Test Mode READY`,
-      `4. No FOMO / Revenge / Greed emotion`,
-      `5. Entry is not chased`,
-      `6. Stop is accepted before entry`,
-      `7. Quantity is only 1 lot or 1 stock`,
-      ``,
-      `If any answer is NO: do not execute. Save as no-trade only.`,
-    ];
+    const permissionReasons = buildFinalLivePermissionReasons();
+    const permissionStatus = permissionReasons.length === 0 ? 'ALLOWED' : 'BLOCKED';
 
-    await navigator.clipboard.writeText(lines.join('\n'));
+    const checklistText = `LIVE TEST MANUAL CHECKLIST
+==========================
+
+SYMBOL
+- Symbol: ${stock.symbol}
+- Name: ${stock.name}
+- Sector: ${stock.sector}
+
+LIVE TEST SIZE
+- Mode: ${liveSettings?.mode === 'stock' ? '1 quantity stock test' : '1 lot options test'}
+- Max Qty/Lot: ${liveSettings?.maxQty || 1}
+- Execution: Manual Dhan only
+- Auto Order: NO
+
+RR PLAN
+- Entry Ref: ${rr.entry ? money(rr.entry) : '-'}
+- Stop Ref: ${rr.stop ? money(rr.stop) : '-'}
+- Risk: ${rr.risk > 0 ? money(rr.risk) : '-'}
+- 1R Target: ${rr.oneR ? money(rr.oneR) : '-'}
+- 2R Target: ${rr.twoR ? money(rr.twoR) : '-'}
+- RR Status: ${rr.status}
+
+FINAL LIVE PERMISSION
+- Status: ${permissionStatus}
+${permissionReasons.length === 0 ? '- Reason: All live-test gates are clear.' : permissionReasons.map((reason) => `- Blocked Reason: ${reason}`).join('\n')}
+
+BEFORE EXECUTION CONFIRM
+1. Rules Gate PASSED
+2. Discipline Lock ALLOWED
+3. Live Test Mode READY
+4. No FOMO / Revenge / Greed emotion
+5. Entry is not chased
+6. Stop is accepted before entry
+7. Quantity is only 1 lot or 1 stock
+
+FINAL RULE
+If any answer is NO, do not execute. Save as no-trade only.
+`;
+
+    await navigator.clipboard.writeText(checklistText);
     alert('Live test checklist copied');
   };
 
