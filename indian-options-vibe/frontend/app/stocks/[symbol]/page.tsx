@@ -284,7 +284,7 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
       const reasons: string[] = [];
 
       const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
-      const paperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      const paperTrades = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
 
@@ -354,7 +354,7 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
 
       const todayPaperTrades = Array.isArray(paperTrades)
         ? paperTrades.filter((trade: any) => {
-            const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+            const stamp = trade.createdAt || trade.updatedAt;
             return getIstDateKey(stamp) === todayKey;
           })
         : [];
@@ -456,7 +456,7 @@ function LiveTestStatusCard() {
   useEffect(() => {
     try {
       const settings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
-      const paperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      const paperTrades = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
 
       const config = {
         enabled: Boolean(settings?.enabled),
@@ -479,7 +479,7 @@ function LiveTestStatusCard() {
       const todayKey = getIstDateKey(new Date().toISOString());
       const todayTrades = Array.isArray(paperTrades)
         ? paperTrades.filter((trade: any) => {
-            const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+            const stamp = trade.createdAt || trade.updatedAt;
             return getIstDateKey(stamp) === todayKey;
           })
         : [];
