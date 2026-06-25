@@ -126,8 +126,84 @@ function buildCleanReviewCsv(rows: PaperTrade[]) {
 }
 
 
+
+function getIstDateKey(value: unknown) {
+  const date = value ? new Date(String(value)) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  }
+
+  return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+function startOfIstWeekKey() {
+  const now = new Date();
+  const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const day = istDate.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  istDate.setDate(istDate.getDate() + diffToMonday);
+  return istDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+function buildWeeklyReviewCsv(rows: PaperTrade[]) {
+  const weekStart = startOfIstWeekKey();
+
+  const weekRows = rows.filter((trade) => {
+    const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+    return getIstDateKey(stamp) >= weekStart;
+  });
+
+  const headers = [
+    'weekStart',
+    'symbol',
+    'status',
+    'entryPlan',
+    'stopLoss',
+    'target',
+    'risk',
+    'rrStatus',
+    'emotion',
+    'mistake',
+    'reviewNote',
+    'createdAt',
+  ];
+
+  const clean = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replaceAll('\r', ' ')
+      .replaceAll('\n', ' ')
+      .replaceAll(',', ' ')
+      .replaceAll('"', '""')
+      .trim();
+  };
+
+  const field = (trade: PaperTrade, header: string) => {
+    if (header === 'weekStart') return weekStart;
+    if (header === 'reviewNote') return trade.reviewNote || trade.notes || trade.marketSnapshot?.reviewNote || '';
+    if (header === 'rrStatus') return trade.rrStatus || trade.marketSnapshot?.rrStatus || '';
+    return trade[header] ?? trade.marketSnapshot?.[header] ?? '';
+  };
+
+  return [
+    headers.join(','),
+    ...weekRows.map((trade) => headers.map((header) => `"${clean(field(trade, header))}"`).join(',')),
+  ].join('\n');
+}
+
+
 export default function PaperExportPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+
+  const downloadWeeklyReviewCsv = () => {
+    const csv = buildWeeklyReviewCsv(trades);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`weekly-review-${date}.csv`, csv, 'text/csv;charset=utf-8;');
+    setMessage('Weekly review CSV downloaded ✅');
+  };
+
+
 
   const downloadCleanReviewCsv = () => {
     const csv = buildCleanReviewCsv(trades);
@@ -295,6 +371,12 @@ export default function PaperExportPage() {
               className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
             >
               Download Clean Review CSV
+            </button>
+            <button
+              onClick={downloadWeeklyReviewCsv}
+              className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20"
+            >
+              Download Weekly Review CSV
             </button>
 
             <label className="cursor-pointer rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
