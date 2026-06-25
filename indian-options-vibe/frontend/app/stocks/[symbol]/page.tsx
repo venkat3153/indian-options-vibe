@@ -126,7 +126,9 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
     <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex flex-col justify-between gap-3 md:flex-row md:items-start"><div><h2 className="text-2xl font-bold text-white">Research Breakdown</h2><p className="mt-1 text-sm text-slate-400">Transparent score components. Final decision now reads VWAP, retest, and breadth gates.</p></div>{finalDecision ? <FinalDecisionBadge decision={finalDecision} /> : null}</div><div className="mt-5 grid gap-4 md:grid-cols-5">{breakdown.map((row) => <BreakdownCard key={row.label} row={row} />)}</div></div>
 
-    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><LiveTestStatusCard />
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6"><div className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-bold text-white">Live Decision</h2><p className="mt-1 text-sm text-slate-400">This is a research decision, not automatic execution.</p></div>{finalDecision ? <FinalDecisionSmall decision={finalDecision} /> : signal ? <SignalBadge signal={signal} /> : null}</div><p className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-sm leading-6 text-slate-300">{finalDecision?.reason || signal?.reason}</p><div className="mt-5 grid gap-3 md:grid-cols-3"><Box title="Entry Idea" text={getEntryIdea(stock)} /><Box title="Invalidation" text={getInvalidation(stock)} tone="loss" /><Box title="Target Idea" text={getTargetIdea(stock)} tone="win" /></div></div><div className="mt-6"><FinalLivePermissionCard rrStatus={getRRPlan(stock, quote, retest, vwap).status} />
+
+        <LiveTestStatusCard />
 
         <RulesGateStatusCard />
 
@@ -267,6 +269,180 @@ function getRRPlan(stock: StockRow, quote?: LiveQuote, retest?: RetestStatus | n
 }
 
 
+
+
+
+function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
+  const [state, setState] = useState({
+    allowed: false,
+    title: 'Checking...',
+    reasons: [] as string[],
+  });
+
+  useEffect(() => {
+    try {
+      const reasons: string[] = [];
+
+      const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
+      const paperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+
+      const getIstDateKey = (value: unknown) => {
+        const date = value ? new Date(String(value)) : new Date();
+
+        if (Number.isNaN(date.getTime())) {
+          return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        }
+
+        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      };
+
+      const todayKey = getIstDateKey(new Date().toISOString());
+
+      const todayLiveLogs = Array.isArray(liveLogs)
+        ? liveLogs.filter((log: any) => {
+            const stamp = log.createdAt || log.updatedAt;
+            return getIstDateKey(stamp) === todayKey;
+          })
+        : [];
+
+      const todayLiveSlHits = todayLiveLogs.filter((log: any) =>
+        String(log.status || '').toLowerCase().includes('sl')
+      ).length;
+
+      const liveEnabled = Boolean(liveSettings?.enabled);
+      const liveMaxQty = Number(liveSettings?.maxQty || 1);
+      const liveMaxTrades = Number(liveSettings?.maxTradesPerDay || 1);
+      const liveMaxSl = Number(liveSettings?.maxSlPerDay || 1);
+
+      if (!liveEnabled) {
+        reasons.push('Live Test Mode is OFF.');
+      }
+
+      if (liveMaxQty > 1) {
+        reasons.push('Live Test max quantity must be 1.');
+      }
+
+      if (todayLiveLogs.length >= liveMaxTrades) {
+        reasons.push(`Live test daily limit reached: ${todayLiveLogs.length}/${liveMaxTrades}.`);
+      }
+
+      if (todayLiveSlHits >= liveMaxSl) {
+        reasons.push(`Live test SL limit reached: ${todayLiveSlHits}/${liveMaxSl}.`);
+      }
+
+      const hardRules: Record<string, string> = {
+        'market-breadth': 'Market Breadth',
+        vwap: 'VWAP Gate',
+        retest: 'Retest Quality',
+        rr: '1:2 RR Room',
+        execution: 'Execution Lock',
+      };
+
+      const missingRules = Object.entries(hardRules)
+        .filter(([id]) => !rulesChecklist?.[id])
+        .map(([, label]) => label);
+
+      if (missingRules.length > 0) {
+        reasons.push(`Rules Gate blocked: ${missingRules.join(', ')}.`);
+      }
+
+      const maxPlans = Number(window.localStorage.getItem('disciplineMaxPlans') || 3);
+      const maxSl = Number(window.localStorage.getItem('disciplineMaxSl') || 1);
+      const cooldownOn = window.localStorage.getItem('disciplineCooldown') === 'true';
+
+      const todayPaperTrades = Array.isArray(paperTrades)
+        ? paperTrades.filter((trade: any) => {
+            const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+            return getIstDateKey(stamp) === todayKey;
+          })
+        : [];
+
+      const todayPaperSlHits = todayPaperTrades.filter((trade: any) =>
+        String(trade.result || trade.status || '').toLowerCase().includes('sl')
+      ).length;
+
+      if (cooldownOn) {
+        reasons.push('Discipline cooldown is ON.');
+      }
+
+      if (todayPaperTrades.length >= maxPlans) {
+        reasons.push(`Daily plan limit reached: ${todayPaperTrades.length}/${maxPlans}.`);
+      }
+
+      if (todayPaperSlHits >= maxSl) {
+        reasons.push(`Daily SL limit reached: ${todayPaperSlHits}/${maxSl}.`);
+      }
+
+      if (!String(rrStatus || '').toLowerCase().includes('valid')) {
+        reasons.push(`RR is not valid yet: ${rrStatus}.`);
+      }
+
+      setState({
+        allowed: reasons.length === 0,
+        title: reasons.length === 0 ? 'ALLOWED FOR MANUAL LIVE TEST' : 'BLOCKED',
+        reasons: reasons.length === 0
+          ? ['Manual Dhan execution only. Size must remain 1 lot / 1 quantity.']
+          : reasons,
+      });
+    } catch {
+      setState({
+        allowed: false,
+        title: 'BLOCKED',
+        reasons: ['Could not read safety settings. Check Live Test, Rules, and Discipline pages.'],
+      });
+    }
+  }, [rrStatus]);
+
+  return (
+    <div
+      className={`mt-6 rounded-3xl border p-5 ${
+        state.allowed
+          ? 'border-emerald-800 bg-emerald-500/10'
+          : 'border-red-900 bg-red-950/20'
+      }`}
+    >
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Final Live Permission</div>
+          <div className={`mt-2 text-3xl font-black ${state.allowed ? 'text-emerald-300' : 'text-red-300'}`}>
+            {state.title}
+          </div>
+
+          <div className="mt-3 space-y-2">
+            {state.reasons.map((reason) => (
+              <div key={reason} className="text-sm leading-6 text-slate-300">
+                {state.allowed ? '✅' : '⚠️'} {reason}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/paper/live-test"
+            className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+          >
+            Live Test
+          </a>
+          <a
+            href="/paper/rules"
+            className="rounded-2xl border border-purple-800 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+          >
+            Rules
+          </a>
+          <a
+            href="/paper/discipline"
+            className="rounded-2xl border border-red-900 bg-red-950/30 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50"
+          >
+            Discipline
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 function LiveTestStatusCard() {
