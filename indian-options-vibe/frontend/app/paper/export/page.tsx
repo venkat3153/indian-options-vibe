@@ -193,8 +193,50 @@ function buildWeeklyReviewCsv(rows: PaperTrade[]) {
 }
 
 
+
+function buildLiveTestLogsCsv(rows: PaperTrade[]) {
+  const headers = [
+    'date',
+    'symbol',
+    'mode',
+    'qty',
+    'status',
+    'emotion',
+    'mistake',
+    'note',
+    'createdAt',
+    'updatedAt',
+  ];
+
+  const clean = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replaceAll('\r', ' ')
+      .replaceAll('\n', ' ')
+      .replaceAll(',', ' ')
+      .replaceAll('"', '""')
+      .trim();
+  };
+
+  return [
+    headers.join(','),
+    ...rows.map((log) => headers.map((header) => `"${clean(log[header])}"`).join(',')),
+  ].join('\n');
+}
+
+
 export default function PaperExportPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [liveLogs, setLiveLogs] = useState<PaperTrade[]>([]);
+
+  const downloadLiveTestLogsCsv = () => {
+    const csv = buildLiveTestLogsCsv(liveLogs);
+    const date = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`live-test-logs-${date}.csv`, csv, 'text/csv;charset=utf-8;');
+    setMessage('Live Test logs CSV downloaded ✅');
+  };
+
+
 
   const downloadWeeklyReviewCsv = () => {
     const csv = buildWeeklyReviewCsv(trades);
@@ -219,6 +261,9 @@ export default function PaperExportPage() {
     try {
       const saved = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
       setTrades(Array.isArray(saved) ? saved : []);
+
+      const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
     } catch {
       setTrades([]);
     }
@@ -339,6 +384,7 @@ export default function PaperExportPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-5">
           <Stat label="Total Plans" value={stats.total} />
+          <Stat label="Live Tests" value={liveLogs.length} />
           <Stat label="Open Plans" value={stats.open} />
           <Stat label="RR Plans" value={stats.rrPlans} />
           <Stat label="Target Hit" value={stats.wins} />
@@ -383,6 +429,12 @@ export default function PaperExportPage() {
               className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20"
             >
               Download Weekly Review CSV
+            </button>
+            <button
+              onClick={downloadLiveTestLogsCsv}
+              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              Download Live Test CSV
             </button>
 
             <label className="cursor-pointer rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
