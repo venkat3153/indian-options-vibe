@@ -54,6 +54,127 @@ type Filter = 'All' | 'Saved Watchlist' | 'Ready' | 'Wait' | 'Avoid' | 'Live Wat
 
 const FILTERS: Filter[] = ['All', 'Saved Watchlist', 'Ready', 'Wait', 'Avoid', 'Live Watch', 'Retest Failed', 'Below VWAP', 'Volume Breakout', 'Near 20D High'];
 
+
+function ScannerLiveTestStatus() {
+  const [status, setStatus] = useState({
+    label: 'OFF',
+    reason: 'Live Test Mode is disabled. Paper trading only.',
+    tone: 'warn',
+  });
+
+  useEffect(() => {
+    try {
+      const settings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
+      const paperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+
+      const config = {
+        enabled: Boolean(settings?.enabled),
+        maxQty: Number(settings?.maxQty || 1),
+        maxTradesPerDay: Number(settings?.maxTradesPerDay || 1),
+        maxSlPerDay: Number(settings?.maxSlPerDay || 1),
+        mode: settings?.mode || 'options',
+      };
+
+      const getIstDateKey = (value: unknown) => {
+        const date = value ? new Date(String(value)) : new Date();
+
+        if (Number.isNaN(date.getTime())) {
+          return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        }
+
+        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      };
+
+      const todayKey = getIstDateKey(new Date().toISOString());
+      const todayTrades = Array.isArray(paperTrades)
+        ? paperTrades.filter((trade: any) => {
+            const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+            return getIstDateKey(stamp) === todayKey;
+          })
+        : [];
+
+      const todaySlHits = todayTrades.filter((trade: any) =>
+        String(trade.result || trade.status || '').toLowerCase().includes('sl')
+      ).length;
+
+      if (!config.enabled) {
+        setStatus({
+          label: 'OFF',
+          reason: 'Live Test Mode is disabled. Use paper trading only.',
+          tone: 'warn',
+        });
+        return;
+      }
+
+      if (config.maxQty > 1) {
+        setStatus({
+          label: 'BLOCKED',
+          reason: 'Max quantity must stay 1 for controlled live testing.',
+          tone: 'loss',
+        });
+        return;
+      }
+
+      if (todayTrades.length >= config.maxTradesPerDay) {
+        setStatus({
+          label: 'BLOCKED',
+          reason: `Daily live-test plan limit reached: ${todayTrades.length}/${config.maxTradesPerDay}.`,
+          tone: 'loss',
+        });
+        return;
+      }
+
+      if (todaySlHits >= config.maxSlPerDay) {
+        setStatus({
+          label: 'BLOCKED',
+          reason: `Daily SL limit reached: ${todaySlHits}/${config.maxSlPerDay}.`,
+          tone: 'loss',
+        });
+        return;
+      }
+
+      setStatus({
+        label: 'READY',
+        reason: `Controlled live test enabled: ${config.mode === 'options' ? '1 lot only' : '1 quantity only'}. Manual Dhan execution only.`,
+        tone: 'win',
+      });
+    } catch {
+      setStatus({
+        label: 'OFF',
+        reason: 'Live Test settings not found. Paper trading only.',
+        tone: 'warn',
+      });
+    }
+  }, []);
+
+  const cls =
+    status.tone === 'win'
+      ? 'border-cyan-800 bg-cyan-500/10 text-cyan-300'
+      : status.tone === 'loss'
+        ? 'border-red-900 bg-red-950/20 text-red-300'
+        : 'border-yellow-800 bg-yellow-500/10 text-yellow-300';
+
+  return (
+    <div className={`mt-6 rounded-3xl border p-5 ${cls}`}>
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+        <div>
+          <div className="text-xs uppercase tracking-[0.22em] opacity-70">Live Test Mode</div>
+          <div className="mt-2 text-2xl font-black">{status.label}</div>
+          <p className="mt-2 text-sm leading-6 opacity-90">{status.reason}</p>
+        </div>
+
+        <a
+          href="/paper/live-test"
+          className="rounded-2xl border border-slate-700 bg-slate-950/50 px-5 py-3 text-sm font-bold text-slate-100 hover:bg-slate-900"
+        >
+          Open Live Test
+        </a>
+      </div>
+    </div>
+  );
+}
+
+
 export default function StocksResearchPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [liveData, setLiveData] = useState<LiveQuoteResponse | null>(null);
@@ -220,6 +341,7 @@ export default function StocksResearchPage() {
           <button onClick={runFinalScan} disabled={finalLoading} className="rounded-xl border border-blue-800 px-5 py-3 font-semibold text-blue-200 hover:bg-blue-950 disabled:opacity-50">{finalLoading ? 'Final Scan Running...' : 'Manual Final Scan'}</button>
               <a href="/paper" className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">Paper Trading</a>
               <a href="/paper/live-test" className="rounded-xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">Live Test</a>
+              <a href="/paper/no-trade" className="rounded-xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20">No-Trade Day</a>
               <a href="/paper/discipline" className="rounded-xl border border-red-900 bg-red-950/30 px-5 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50">Discipline Lock</a>
               <a href="/paper/rules" className="rounded-xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">Rules</a>
               <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>
@@ -253,7 +375,9 @@ export default function StocksResearchPage() {
 
       <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
+          <ScannerLiveTestStatus />
+
+        <div>
             <h2 className="text-2xl font-bold text-white">{filter === 'All' ? 'Top Quant Picks' : filter}</h2>
             <p className="mt-1 text-sm text-slate-400">Final Status is manual/cached. The table will not keep resetting or spam the backend.</p>
           </div>

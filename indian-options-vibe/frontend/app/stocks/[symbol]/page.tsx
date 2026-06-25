@@ -105,6 +105,7 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
             <Link href="/stocks" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">← Back to Stocks Research</Link>
             <a href="/paper" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">Paper Trading</a>
             <a href="/paper/live-test" className="rounded-xl border border-cyan-800 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20">Live Test</a>
+            <a href="/paper/no-trade" className="rounded-xl border border-lime-800 bg-lime-500/10 px-3 py-2 text-xs font-bold text-lime-300 hover:bg-lime-500/20">No-Trade Day</a>
             <a href="/paper/discipline" className="rounded-xl border border-red-900 bg-red-950/30 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-950/50">Discipline Lock</a>
             <a href="/paper/rules" className="rounded-xl border border-purple-800 bg-purple-500/10 px-3 py-2 text-xs font-bold text-purple-300 hover:bg-purple-500/20">Rules</a>
             <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-3 py-2 text-xs font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>

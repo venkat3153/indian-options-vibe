@@ -164,6 +164,12 @@ export default function TodayPaperReviewPage() {
               Live Test
             </a>
             <a
+              href="/paper/no-trade"
+              className="rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20"
+            >
+              No-Trade Day
+            </a>
+            <a
               href="/paper/discipline"
               className="rounded-2xl border border-red-900 bg-red-950/30 px-5 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50"
             >
