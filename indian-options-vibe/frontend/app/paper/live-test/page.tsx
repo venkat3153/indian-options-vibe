@@ -12,6 +12,20 @@ type LiveTestSettings = {
   updatedAt?: string;
 };
 
+type LiveTestLog = {
+  id: string;
+  date: string;
+  symbol: string;
+  mode: 'stock' | 'options';
+  qty: number;
+  status: 'Entered' | 'Target Hit' | 'SL Hit' | 'Cancelled';
+  emotion: string;
+  mistake: string;
+  note: string;
+  createdAt: string;
+  updatedAt?: string;
+};
+
 const DEFAULT_SETTINGS: LiveTestSettings = {
   enabled: false,
   maxTradesPerDay: 1,
@@ -36,6 +50,11 @@ export default function LiveTestModePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [todayPlans, setTodayPlans] = useState(0);
   const [todaySlHits, setTodaySlHits] = useState(0);
+  const [logs, setLogs] = useState<LiveTestLog[]>([]);
+  const [symbol, setSymbol] = useState('');
+  const [emotion, setEmotion] = useState('');
+  const [mistake, setMistake] = useState('');
+  const [logNote, setLogNote] = useState('');
 
   useEffect(() => {
     try {
@@ -44,19 +63,21 @@ export default function LiveTestModePage() {
         setSettings({ ...DEFAULT_SETTINGS, ...savedSettings });
       }
 
-      const paperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      const savedLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const todayKey = getIstDateKey(new Date().toISOString());
 
-      if (Array.isArray(paperTrades)) {
-        const todayTrades = paperTrades.filter((trade: any) => {
-          const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+      if (Array.isArray(savedLogs)) {
+        setLogs(savedLogs);
+
+        const todayLogs = savedLogs.filter((trade: any) => {
+          const stamp = trade.createdAt || trade.updatedAt;
           return getIstDateKey(stamp) === todayKey;
         });
 
-        setTodayPlans(todayTrades.length);
+        setTodayPlans(todayLogs.length);
         setTodaySlHits(
-          todayTrades.filter((trade: any) =>
-            String(trade.result || trade.status || '').toLowerCase().includes('sl')
+          todayLogs.filter((trade: any) =>
+            String(trade.status || '').toLowerCase().includes('sl')
           ).length
         );
       }
@@ -138,6 +159,77 @@ export default function LiveTestModePage() {
 
     await navigator.clipboard.writeText(lines.join('\n'));
     setMessage('Live Test summary copied ✅');
+  };
+
+  const saveLogs = (nextLogs: LiveTestLog[]) => {
+    setLogs(nextLogs);
+    window.localStorage.setItem('liveTestLogs', JSON.stringify(nextLogs));
+
+    const todayKey = getIstDateKey(new Date().toISOString());
+    const todayLogs = nextLogs.filter((trade) => getIstDateKey(trade.createdAt) === todayKey);
+
+    setTodayPlans(todayLogs.length);
+    setTodaySlHits(todayLogs.filter((trade) => trade.status === 'SL Hit').length);
+  };
+
+  const addLiveTestEntry = () => {
+    if (!settings.enabled) {
+      setMessage('Live Test Mode is OFF. Enable it first ⚠️');
+      return;
+    }
+
+    if (settings.maxQty > 1) {
+      setMessage('Blocked: quantity must be 1 only ⚠️');
+      return;
+    }
+
+    if (todayPlans >= settings.maxTradesPerDay) {
+      setMessage('Blocked: daily live-test limit reached ⚠️');
+      return;
+    }
+
+    if (todaySlHits >= settings.maxSlPerDay) {
+      setMessage('Blocked: daily SL limit reached ⚠️');
+      return;
+    }
+
+    if (!symbol.trim()) {
+      setMessage('Enter symbol before logging live test ⚠️');
+      return;
+    }
+
+    if (['FOMO', 'Revenge', 'Greedy', 'Confused'].includes(emotion)) {
+      setMessage('Blocked: bad emotion selected. Do not execute live ⚠️');
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    const log: LiveTestLog = {
+      id: `live-${symbol.trim().toUpperCase()}-${Date.now()}`,
+      date: getIstDateKey(now),
+      symbol: symbol.trim().toUpperCase(),
+      mode: settings.mode,
+      qty: 1,
+      status: 'Entered',
+      emotion,
+      mistake,
+      note: logNote,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    saveLogs([log, ...logs]);
+    setMessage('Live test entry logged ✅ Manual Dhan execution only.');
+  };
+
+  const updateLiveTestStatus = (id: string, status: LiveTestLog['status']) => {
+    const nextLogs = logs.map((log) =>
+      log.id === id ? { ...log, status, updatedAt: new Date().toISOString() } : log
+    );
+
+    saveLogs(nextLogs);
+    setMessage(`Live test marked ${status} ✅`);
   };
 
   return (
@@ -298,6 +390,78 @@ export default function LiveTestModePage() {
             </div>
           </div>
 
+          <div className="rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
+            <h2 className="text-2xl font-bold text-cyan-200">Live Test Entry Log</h2>
+            <p className="mt-2 text-sm leading-6 text-cyan-100/80">
+              Use this only after you manually execute 1 lot or 1 stock quantity in Dhan.
+            </p>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Symbol</span>
+                <input
+                  value={symbol}
+                  onChange={(event) => setSymbol(event.target.value)}
+                  placeholder="Example: BAJFINANCE"
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Emotion</span>
+                <select
+                  value={emotion}
+                  onChange={(event) => setEmotion(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                >
+                  <option value="">Select emotion</option>
+                  <option value="Calm">Calm</option>
+                  <option value="Confident">Confident</option>
+                  <option value="Patient">Patient</option>
+                  <option value="FOMO">FOMO</option>
+                  <option value="Revenge">Revenge</option>
+                  <option value="Greedy">Greedy</option>
+                  <option value="Confused">Confused</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Mistake Risk</span>
+                <select
+                  value={mistake}
+                  onChange={(event) => setMistake(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                >
+                  <option value="">No mistake selected</option>
+                  <option value="No mistake">No mistake</option>
+                  <option value="Entered early">Entered early</option>
+                  <option value="Chased entry">Chased entry</option>
+                  <option value="Ignored VWAP">Ignored VWAP</option>
+                  <option value="Ignored rules">Ignored rules</option>
+                  <option value="Oversized">Oversized</option>
+                  <option value="Revenge trade">Revenge trade</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Note</span>
+                <input
+                  value={logNote}
+                  onChange={(event) => setLogNote(event.target.value)}
+                  placeholder="Why was this live test valid?"
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                />
+              </label>
+            </div>
+
+            <button
+              onClick={addLiveTestEntry}
+              className="mt-5 rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
+            >
+              Mark Live Test Entry
+            </button>
+          </div>
+
           <div className="rounded-3xl border border-yellow-900/70 bg-yellow-950/10 p-6">
             <h2 className="text-2xl font-bold text-yellow-200">Live Test Rules</h2>
 
@@ -312,6 +476,57 @@ export default function LiveTestModePage() {
             </div>
           </div>
         </div>
+        <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+          <h2 className="text-2xl font-bold text-white">Live Test Logs</h2>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-3 py-3">Date</th>
+                  <th className="px-3 py-3">Symbol</th>
+                  <th className="px-3 py-3">Mode</th>
+                  <th className="px-3 py-3">Qty</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Mistake</th>
+                  <th className="px-3 py-3">Note</th>
+                  <th className="px-3 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id} className="border-t border-slate-800">
+                    <td className="px-3 py-4 text-slate-300">{log.date}</td>
+                    <td className="px-3 py-4 font-bold text-white">{log.symbol}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.mode}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.qty}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.status}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
+                    <td className="px-3 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => updateLiveTestStatus(log.id, 'Target Hit')} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs font-bold text-emerald-300">Target</button>
+                        <button onClick={() => updateLiveTestStatus(log.id, 'SL Hit')} className="rounded-xl border border-red-900 px-3 py-2 text-xs font-bold text-red-300">SL</button>
+                        <button onClick={() => updateLiveTestStatus(log.id, 'Cancelled')} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Cancel</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                      No live test logs yet.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </main>
   );
