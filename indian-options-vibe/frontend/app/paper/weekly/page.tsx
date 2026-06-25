@@ -1,0 +1,351 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+
+type PaperTrade = Record<string, any>;
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return '-';
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value)
+      ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
+      : '-';
+  }
+
+  return String(value);
+}
+
+function getIstDateKey(value: unknown) {
+  const date = value ? new Date(String(value)) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  }
+
+  return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+function startOfIstWeekKey() {
+  const now = new Date();
+  const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const day = istDate.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  istDate.setDate(istDate.getDate() + diffToMonday);
+  return istDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+function getStatusText(trade: PaperTrade) {
+  return String(trade.result || trade.status || '').toLowerCase();
+}
+
+export default function WeeklyPaperReviewPage() {
+  const [trades, setTrades] = useState<PaperTrade[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      setTrades(Array.isArray(saved) ? saved : []);
+    } catch {
+      setTrades([]);
+    }
+  }, []);
+
+  const weekStartKey = useMemo(() => startOfIstWeekKey(), []);
+
+  const weekTrades = useMemo(() => {
+    return trades.filter((trade) => {
+      const stamp = trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt;
+      return getIstDateKey(stamp) >= weekStartKey;
+    });
+  }, [trades, weekStartKey]);
+
+  const stats = useMemo(() => {
+    const total = weekTrades.length;
+    const open = weekTrades.filter((trade) =>
+      ['entered', 'planned', 'open'].includes(String(trade.status || '').toLowerCase())
+    ).length;
+    const targetHit = weekTrades.filter((trade) => getStatusText(trade).includes('target')).length;
+    const slHit = weekTrades.filter((trade) => getStatusText(trade).includes('sl')).length;
+    const cancelled = weekTrades.filter((trade) => getStatusText(trade).includes('cancel')).length;
+    const completed = targetHit + slHit;
+    const winRate = completed > 0 ? Math.round((targetHit / completed) * 100) : 0;
+
+    const badEmotionCount = weekTrades.filter((trade) =>
+      ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(trade.emotion || ''))
+    ).length;
+
+    const seriousMistakeCount = weekTrades.filter((trade) =>
+      ['Chased entry', 'Ignored VWAP', 'Ignored rules', 'Oversized', 'Moved stop', 'Revenge trade'].includes(String(trade.mistake || ''))
+    ).length;
+
+    const cleanTradeCount = weekTrades.filter((trade) =>
+      trade.mistake === 'No mistake' || (!trade.mistake && !trade.emotion)
+    ).length;
+
+    const disciplineScore = Math.max(
+      0,
+      Math.min(100, 100 - badEmotionCount * 10 - seriousMistakeCount * 15 + cleanTradeCount * 3)
+    );
+
+    const emotionCounts = weekTrades.reduce((acc: Record<string, number>, trade) => {
+      const key = String(trade.emotion || 'Not logged');
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    const mistakeCounts = weekTrades.reduce((acc: Record<string, number>, trade) => {
+      const key = String(trade.mistake || 'Not logged');
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      total,
+      open,
+      targetHit,
+      slHit,
+      cancelled,
+      completed,
+      winRate,
+      badEmotionCount,
+      seriousMistakeCount,
+      cleanTradeCount,
+      disciplineScore,
+      emotionCounts,
+      mistakeCounts,
+    };
+  }, [weekTrades]);
+
+  const verdict =
+    stats.disciplineScore >= 85
+      ? {
+          title: 'Strong Discipline Week',
+          text: 'Your process is clean. Keep the same trade limits and do not increase aggression.',
+          tone: 'win',
+        }
+      : stats.disciplineScore >= 65
+        ? {
+            title: 'Average Discipline Week',
+            text: 'There are some emotional or mistake flags. Reduce trade count next week and focus on rules.',
+            tone: 'warn',
+          }
+        : {
+            title: 'Weak Discipline Week',
+            text: 'The week shows process damage. Next week should be lower size, fewer trades, and stricter checklist use.',
+            tone: 'loss',
+          };
+
+  const copyWeeklySummary = async () => {
+    const lines = [
+      `Weekly Paper Review - From ${weekStartKey} IST`,
+      `Total Plans: ${stats.total}`,
+      `Open: ${stats.open}`,
+      `Target Hit: ${stats.targetHit}`,
+      `SL Hit: ${stats.slHit}`,
+      `Cancelled: ${stats.cancelled}`,
+      `Completed: ${stats.completed}`,
+      `Win Rate: ${stats.winRate}%`,
+      `Bad Emotion Count: ${stats.badEmotionCount}`,
+      `Mistake Count: ${stats.seriousMistakeCount}`,
+      `Clean Trades: ${stats.cleanTradeCount}`,
+      `Discipline Score: ${stats.disciplineScore}/100`,
+      `Verdict: ${verdict.title}`,
+      '',
+      'Plans:',
+      ...weekTrades.map((trade) =>
+        `${trade.symbol || '-'} | ${trade.status || '-'} | Entry ${formatValue(trade.entryPlan ?? trade.entry)} | Stop ${formatValue(trade.stopLoss ?? trade.stop)} | Target ${formatValue(trade.target ?? trade.target2R)} | Emotion ${trade.emotion || '-'} | Mistake ${trade.mistake || '-'} | Note ${trade.reviewNote || '-'}`
+      ),
+    ];
+
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setMessage('Weekly review summary copied ✅');
+  };
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">
+              Weekly Paper Review
+            </p>
+            <h1 className="mt-2 text-4xl font-black text-white">Weekly Discipline Report</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Review this week&apos;s paper plans, emotions, mistakes, and process quality using IST dates.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <a href="/paper" className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">
+              Paper Trading
+            </a>
+            <a href="/paper/today" className="rounded-2xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">
+              Today Review
+            </a>
+            <a href="/paper/analytics" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
+              Analytics
+            </a>
+            <button
+              onClick={copyWeeklySummary}
+              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+            >
+              Copy Summary
+            </button>
+          </div>
+        </div>
+
+        {message ? (
+          <div className="mt-6 rounded-2xl border border-emerald-800 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
+            {message}
+          </div>
+        ) : null}
+
+        <div className="mt-8 grid gap-4 md:grid-cols-6">
+          <Stat label="Week Start" value={weekStartKey} />
+          <Stat label="Plans" value={stats.total} />
+          <Stat label="Target Hit" value={stats.targetHit} tone="win" />
+          <Stat label="SL Hit" value={stats.slHit} tone="loss" />
+          <Stat label="Win Rate" value={`${stats.winRate}%`} />
+          <Stat label="Score" value={`${stats.disciplineScore}/100`} tone={stats.disciplineScore >= 80 ? 'win' : 'loss'} />
+          <Stat label="Bad Emotion" value={stats.badEmotionCount} tone={stats.badEmotionCount > 0 ? 'loss' : 'win'} />
+          <Stat label="Mistakes" value={stats.seriousMistakeCount} tone={stats.seriousMistakeCount > 0 ? 'loss' : 'win'} />
+          <Stat label="Clean Trades" value={stats.cleanTradeCount} tone="win" />
+          <Stat label="Cancelled" value={stats.cancelled} />
+          <Stat label="Open" value={stats.open} />
+          <Stat label="Completed" value={stats.completed} />
+        </div>
+
+        <div
+          className={`mt-8 rounded-3xl border p-6 ${
+            verdict.tone === 'win'
+              ? 'border-emerald-800 bg-emerald-500/10'
+              : verdict.tone === 'warn'
+                ? 'border-yellow-800 bg-yellow-500/10'
+                : 'border-red-900 bg-red-950/20'
+          }`}
+        >
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Weekly Verdict</div>
+          <h2
+            className={`mt-2 text-3xl font-black ${
+              verdict.tone === 'win'
+                ? 'text-emerald-300'
+                : verdict.tone === 'warn'
+                  ? 'text-yellow-300'
+                  : 'text-red-300'
+            }`}
+          >
+            {verdict.title}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-300">{verdict.text}</p>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <BreakdownCard title="Emotion Breakdown" items={stats.emotionCounts} />
+          <BreakdownCard title="Mistake Breakdown" items={stats.mistakeCounts} />
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+          <h2 className="text-2xl font-bold text-white">This Week&apos;s Plans</h2>
+
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[1200px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                <tr>
+                  <th className="px-3 py-3">Symbol</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Entry</th>
+                  <th className="px-3 py-3">Stop</th>
+                  <th className="px-3 py-3">Target</th>
+                  <th className="px-3 py-3">Emotion</th>
+                  <th className="px-3 py-3">Mistake</th>
+                  <th className="px-3 py-3">Review Note</th>
+                  <th className="px-3 py-3">Open</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {weekTrades.map((trade) => (
+                  <tr key={trade.id || trade.trade_id || `${trade.symbol}-${trade.createdAt}`} className="border-t border-slate-800">
+                    <td className="px-3 py-4 font-bold text-white">{trade.symbol || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.status || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{formatValue(trade.entryPlan ?? trade.entry)}</td>
+                    <td className="px-3 py-4 text-red-300">{formatValue(trade.stopLoss ?? trade.stop)}</td>
+                    <td className="px-3 py-4 text-emerald-300">{formatValue(trade.target ?? trade.target2R)}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.emotion || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{trade.mistake || '-'}</td>
+                    <td className="px-3 py-4 text-slate-400">{trade.reviewNote || '-'}</td>
+                    <td className="px-3 py-4">
+                      {trade.symbol ? (
+                        <a href={`/stocks/${trade.symbol}`} className="text-emerald-300 hover:underline">
+                          Stock
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {weekTrades.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                      No paper plans saved this week.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'win' | 'loss';
+}) {
+  const color = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white';
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</div>
+      <div className={`mt-2 text-xl font-black ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+function BreakdownCard({ title, items }: { title: string; items: Record<string, number> }) {
+  const rows = Object.entries(items).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+      <h2 className="text-2xl font-bold text-white">{title}</h2>
+
+      <div className="mt-5 space-y-3">
+        {rows.map(([label, count]) => (
+          <div key={label} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <div className="font-bold text-slate-200">{label}</div>
+            <div className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-sm font-black text-white">
+              {count}
+            </div>
+          </div>
+        ))}
+
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">
+            No data yet.
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
