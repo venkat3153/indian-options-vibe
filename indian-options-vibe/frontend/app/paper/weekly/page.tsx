@@ -91,6 +91,10 @@ export default function WeeklyPaperReviewPage() {
     const cancelled = weekLiveLogs.filter((log) => log.status === 'Cancelled').length;
     const completed = targetHit + slHit;
     const winRate = completed > 0 ? Math.round((targetHit / completed) * 100) : 0;
+    const pnl = weekLiveLogs.reduce((sum, log) => {
+      const value = Number(log.pnl);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
 
     const badEmotionCount = weekLiveLogs.filter((log) =>
       ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(log.emotion || ''))
@@ -110,6 +114,7 @@ export default function WeeklyPaperReviewPage() {
       winRate,
       badEmotionCount,
       mistakeCount,
+      pnl,
     };
   }, [weekLiveLogs]);
 
@@ -389,6 +394,7 @@ export default function WeeklyPaperReviewPage() {
             <Stat label="Target Hit" value={liveStats.targetHit} tone="win" />
             <Stat label="SL Hit" value={liveStats.slHit} tone="loss" />
             <Stat label="Win Rate" value={`${liveStats.winRate}%`} />
+            <Stat label="Live P&L" value={liveStats.pnl ? liveStats.pnl.toLocaleString('en-IN') : '-'} tone={liveStats.pnl > 0 ? 'win' : liveStats.pnl < 0 ? 'loss' : undefined} />
             <Stat label="Bad Emotion" value={liveStats.badEmotionCount} tone={liveStats.badEmotionCount > 0 ? 'loss' : 'win'} />
             <Stat label="Mistakes" value={liveStats.mistakeCount} tone={liveStats.mistakeCount > 0 ? 'loss' : 'win'} />
             <Stat label="Cancelled" value={liveStats.cancelled} />
@@ -403,6 +409,9 @@ export default function WeeklyPaperReviewPage() {
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Mode</th>
                   <th className="px-3 py-3">Qty</th>
+                  <th className="px-3 py-3">Entry</th>
+                  <th className="px-3 py-3">Exit</th>
+                  <th className="px-3 py-3">P&L</th>
                   <th className="px-3 py-3">Emotion</th>
                   <th className="px-3 py-3">Mistake</th>
                   <th className="px-3 py-3">Note</th>
@@ -416,6 +425,9 @@ export default function WeeklyPaperReviewPage() {
                     <td className="px-3 py-4 text-slate-300">{log.status || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mode || '-'}</td>
                     <td className="px-3 py-4 text-yellow-300">{log.qty || 1}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.entryPrice || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.exitPrice || '-'}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.pnl || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
                     <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
@@ -424,7 +436,7 @@ export default function WeeklyPaperReviewPage() {
 
                 {weekLiveLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-8 text-center text-cyan-100/50">
+                    <td colSpan={11} className="px-3 py-8 text-center text-cyan-100/50">
                       No live tests logged this week.
                     </td>
                   </tr>
