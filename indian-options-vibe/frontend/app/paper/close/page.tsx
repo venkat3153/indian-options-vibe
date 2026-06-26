@@ -95,9 +95,15 @@ export default function DailyClosePage() {
     ['Chased entry', 'Ignored VWAP', 'Ignored rules', 'Oversized', 'Moved stop', 'Revenge trade'].includes(String(row.mistake || ''))
   ).length;
 
-  const closeReady =
-    liveOpen === 0 &&
-    (todayLive.length > 0 || todayNoTrade.length > 0 || todayPaper.length > 0);
+  const closeBlockReasons = [
+    !dhanReady ? 'Dhan readiness is not complete today' : '',
+    liveOpen > 0 ? 'Open live-test result is still pending' : '',
+    todayLive.length === 0 && todayNoTrade.length === 0 && todayPaper.length === 0
+      ? 'No live-test, no-trade, or paper review is logged today'
+      : '',
+  ].filter(Boolean);
+
+  const closeReady = closeBlockReasons.length === 0;
 
   const copyCloseSummary = async () => {
     const lines = [
@@ -123,7 +129,8 @@ export default function DailyClosePage() {
       `Paper Plans: ${todayPaper.length}`,
       '',
       'FINAL CLOSE STATUS',
-      closeReady ? 'DAY CAN BE CLOSED ✅' : 'DAY NOT CLEANLY CLOSED ⚠️',
+      closeReady ? 'DAY CAN BE CLOSED ✅' : 'DAY CLOSE BLOCKED ⚠️',
+      ...(closeBlockReasons.length > 0 ? closeBlockReasons.map((reason) => `Blocked Reason: ${reason}`) : ['Blocked Reason: None']),
       '',
       'Rule: Do not sleep with open/unreviewed live-test status.',
     ];
@@ -189,13 +196,17 @@ export default function DailyClosePage() {
         >
           <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Close Verdict</div>
           <h2 className={`mt-2 text-3xl font-black ${closeReady ? 'text-emerald-300' : 'text-red-300'}`}>
-            {closeReady ? 'DAY CAN BE CLOSED' : 'DAY NOT CLEANLY CLOSED'}
+            {closeReady ? 'DAY CAN BE CLOSED' : 'DAY CLOSE BLOCKED'}
           </h2>
-          <p className="mt-3 text-sm leading-7 text-slate-300">
-            {closeReady
-              ? 'Your day has a logged activity and no open live-test result pending.'
-              : 'Fix open live-test results or add a no-trade/paper review before closing the day.'}
-          </p>
+          <div className="mt-3 space-y-2 text-sm leading-7 text-slate-300">
+            {closeReady ? (
+              <p>Your day is cleanly reviewed. No hard close blockers remain.</p>
+            ) : (
+              closeBlockReasons.map((reason) => (
+                <p key={reason}>⚠️ {reason}</p>
+              ))
+            )}
+          </div>
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
