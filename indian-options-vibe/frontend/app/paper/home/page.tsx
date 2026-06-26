@@ -20,6 +20,7 @@ export default function TradingWorkflowHomePage() {
   const [paperTrades, setPaperTrades] = useState<Row[]>([]);
   const [noTradeLogs, setNoTradeLogs] = useState<Row[]>([]);
   const [rules, setRules] = useState<Row>({});
+  const [dhanReadiness, setDhanReadiness] = useState<Row>({});
 
   const todayKey = useMemo(() => getIstDateKey(new Date().toISOString()), []);
 
@@ -30,18 +31,21 @@ export default function TradingWorkflowHomePage() {
       const savedPaperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
       const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
       const savedRules = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+      const savedDhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
 
       setLiveSettings(savedLiveSettings);
       setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
       setPaperTrades(Array.isArray(savedPaperTrades) ? savedPaperTrades : []);
       setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
       setRules(savedRules && typeof savedRules === 'object' ? savedRules : {});
+      setDhanReadiness(savedDhanReadiness && typeof savedDhanReadiness === 'object' ? savedDhanReadiness : {});
     } catch {
       setLiveSettings(null);
       setLiveLogs([]);
       setPaperTrades([]);
       setNoTradeLogs([]);
       setRules({});
+      setDhanReadiness({});
     }
   }, []);
 
@@ -67,13 +71,30 @@ export default function TradingWorkflowHomePage() {
     return Number.isFinite(value) ? sum + value : sum;
   }, 0);
 
+  const dhanHardChecks: Record<string, string> = {
+    'dhan-token': 'Dhan token updated',
+    'backend-running': 'Backend running',
+    'frontend-running': 'Frontend running',
+    'dhan-feed': 'Dhan live feed connected',
+    'manual-only': 'Manual execution only',
+    'one-size': 'Only 1 lot / 1 quantity',
+    'risk-budget': 'Daily risk budget checked',
+    'final-permission': 'Final Live Permission required',
+  };
+
+  const missingDhanChecks = Object.entries(dhanHardChecks)
+    .filter(([id]) => !dhanReadiness?.[id])
+    .map(([, label]) => label);
+
+  const dhanReady = missingDhanChecks.length === 0;
+
   const liveEnabled = Boolean(liveSettings?.enabled);
   const maxQtyOk = Number(liveSettings?.maxQty || 1) === 1;
   const liveLimitOk = todayLiveLogs.length < Number(liveSettings?.maxTradesPerDay || 1);
   const liveSlOk = liveSlHits < Number(liveSettings?.maxSlPerDay || 1);
   const rulesOk = missingRules === 0;
 
-  const readyForScan = liveEnabled && maxQtyOk && liveLimitOk && liveSlOk && rulesOk;
+  const readyForScan = liveEnabled && maxQtyOk && liveLimitOk && liveSlOk && rulesOk && dhanReady;
 
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
@@ -125,6 +146,8 @@ export default function TradingWorkflowHomePage() {
           <Stat label="IST Date" value={todayKey} />
           <Stat label="Live Mode" value={liveEnabled ? 'ON' : 'OFF'} tone={liveEnabled ? 'win' : 'loss'} />
           <Stat label="Rules Missing" value={missingRules} tone={missingRules === 0 ? 'win' : 'loss'} />
+          <Stat label="Dhan Ready" value={dhanReady ? 'YES' : 'NO'} tone={dhanReady ? 'win' : 'loss'} />
+          <Stat label="Dhan Missing" value={missingDhanChecks.length} tone={dhanReady ? 'win' : 'loss'} />
           <Stat label="Max Qty" value={Number(liveSettings?.maxQty || 1)} tone={maxQtyOk ? 'win' : 'loss'} />
           <Stat label="Live Tests" value={`${todayLiveLogs.length}/${Number(liveSettings?.maxTradesPerDay || 1)}`} tone={liveLimitOk ? 'win' : 'loss'} />
           <Stat label="Live SL" value={`${liveSlHits}/${Number(liveSettings?.maxSlPerDay || 1)}`} tone={liveSlOk ? 'win' : 'loss'} />
@@ -143,6 +166,14 @@ export default function TradingWorkflowHomePage() {
             href="/paper/startup"
             label="Open Startup"
             tone="green"
+          />
+
+          <WorkflowCard
+            title="Dhan Readiness"
+            text="Confirm token, live feed, backend, and manual execution safety."
+            href="/broker/dhan-readiness"
+            label="Open Dhan Check"
+            tone="orange"
           />
           <WorkflowCard
             title="2. Rules Gate"
@@ -301,7 +332,7 @@ function WorkflowCard({
   text: string;
   href: string;
   label: string;
-  tone: 'green' | 'purple' | 'cyan' | 'slate' | 'lime' | 'fuchsia';
+  tone: 'green' | 'purple' | 'cyan' | 'slate' | 'lime' | 'fuchsia' | 'orange';
 }) {
   const color =
     tone === 'green'
@@ -314,7 +345,9 @@ function WorkflowCard({
             ? 'border-lime-800 bg-lime-500/10 text-lime-300'
             : tone === 'fuchsia'
               ? 'border-fuchsia-800 bg-fuchsia-500/10 text-fuchsia-300'
-              : 'border-slate-800 bg-slate-900/70 text-slate-200';
+              : tone === 'orange'
+                ? 'border-orange-800 bg-orange-500/10 text-orange-300'
+                : 'border-slate-800 bg-slate-900/70 text-slate-200';
 
   return (
     <div className={`rounded-3xl border p-6 ${color}`}>
