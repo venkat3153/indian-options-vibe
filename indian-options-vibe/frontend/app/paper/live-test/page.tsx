@@ -129,8 +129,7 @@ function DailyRiskBudgetCard({ liveLogs }: { liveLogs: Record<string, any>[] }) 
 
   const remainingRisk = maxDailyLoss + livePnl;
   const stopped = livePnl <= -maxDailyLoss;
-
-  return (
+return (
     <div
       className={`mt-8 rounded-3xl border p-6 ${
         stopped ? 'border-red-900 bg-red-950/20' : 'border-emerald-800 bg-emerald-500/10'
@@ -396,9 +395,10 @@ export default function LiveTestModePage() {
       const hasPnl = String(targetLog.pnl || '').trim().length > 0;
       const hasEmotion = String(targetLog.emotion || '').trim().length > 0;
       const hasMistake = String(targetLog.mistake || '').trim().length > 0;
+      const hasNote = String(targetLog.note || '').trim().length > 0;
 
-      if (!hasEntry || !hasExit || !hasPnl || !hasEmotion || !hasMistake) {
-        setMessage('Cannot close live test without Entry Price, Exit Price, P&L, Emotion, and Mistake ❌');
+      if (!hasEntry || !hasExit || !hasPnl || !hasEmotion || !hasMistake || !hasNote) {
+        setMessage('Cannot close live test without Entry Price, Exit Price, P&L, Emotion, Mistake, and Review Note ❌');
         return;
       }
     }
@@ -830,9 +830,15 @@ export default function LiveTestModePage() {
                     </td>
                     <td className="px-3 py-4">
                       {isLogClosed ? (
-                        <div className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-400">
-                          Locked
-                        </div>
+                        String(log.note || '').trim().length === 0 || String(log.note || '').trim() === '-' ? (
+                          <div className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-3 py-2 text-xs font-bold text-yellow-300">
+                            Review Missing
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-400">
+                            Locked
+                          </div>
+                        )
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           <button
