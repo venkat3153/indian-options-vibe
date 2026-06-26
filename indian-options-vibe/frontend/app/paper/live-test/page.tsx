@@ -341,6 +341,26 @@ export default function LiveTestModePage() {
       return;
     }
 
+    if (!String(entryPrice || '').trim()) {
+      setMessage('Entry Price is required before logging live test ⚠️');
+      return;
+    }
+
+    if (!String(emotion || '').trim()) {
+      setMessage('Emotion is required before logging live test ⚠️');
+      return;
+    }
+
+    if (!String(mistake || '').trim()) {
+      setMessage('Mistake selection is required before logging live test ⚠️');
+      return;
+    }
+
+    if (!String(logNote || '').trim()) {
+      setMessage('Review note is required before logging live test ⚠️');
+      return;
+    }
+
     if (['FOMO', 'Revenge', 'Greedy', 'Confused'].includes(emotion)) {
       setMessage('Blocked: bad emotion selected. Do not execute live ⚠️');
       return;
