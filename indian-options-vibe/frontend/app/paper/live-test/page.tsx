@@ -752,7 +752,10 @@ export default function LiveTestModePage() {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
+                {logs.map((log) => {
+                  const isLogClosed = log.status === 'Target Hit' || log.status === 'SL Hit' || log.status === 'Cancelled';
+
+                  return (
                   <tr key={log.id} className="border-t border-slate-800">
                     <td className="px-3 py-4 text-slate-300">{log.date}</td>
                     <td className="px-3 py-4 font-bold text-white">{log.symbol}</td>
@@ -826,14 +829,36 @@ export default function LiveTestModePage() {
                       />
                     </td>
                     <td className="px-3 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button onClick={() => updateLiveTestStatus(log.id, 'Target Hit')} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs font-bold text-emerald-300">Target</button>
-                        <button onClick={() => updateLiveTestStatus(log.id, 'SL Hit')} className="rounded-xl border border-red-900 px-3 py-2 text-xs font-bold text-red-300">SL</button>
-                        <button onClick={() => updateLiveTestStatus(log.id, 'Cancelled')} className="rounded-xl border border-slate-700 px-3 py-2 text-xs font-bold text-slate-300">Cancel</button>
-                      </div>
+                      {isLogClosed ? (
+                        <div className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-400">
+                          Locked
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => updateLiveTestStatus(log.id, 'Target Hit')}
+                            className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20"
+                          >
+                            Target
+                          </button>
+                          <button
+                            onClick={() => updateLiveTestStatus(log.id, 'SL Hit')}
+                            className="rounded-xl border border-red-900 bg-red-950/30 px-3 py-2 text-xs font-bold text-red-300 hover:bg-red-950/50"
+                          >
+                            SL
+                          </button>
+                          <button
+                            onClick={() => updateLiveTestStatus(log.id, 'Cancelled')}
+                            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
 
                 {logs.length === 0 ? (
                   <tr>
