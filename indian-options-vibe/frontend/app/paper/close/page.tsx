@@ -18,6 +18,8 @@ export default function DailyClosePage() {
   const [paperTrades, setPaperTrades] = useState<Row[]>([]);
   const [liveLogs, setLiveLogs] = useState<Row[]>([]);
   const [noTradeLogs, setNoTradeLogs] = useState<Row[]>([]);
+  const [dhanReadiness, setDhanReadiness] = useState<Row>({});
+  const [dhanReadinessDate, setDhanReadinessDate] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
   const todayKey = useMemo(() => getIstDateKey(new Date().toISOString()), []);
@@ -27,14 +29,20 @@ export default function DailyClosePage() {
       const savedPaper = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
       const savedLive = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const savedNoTrade = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
+      const savedDhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
+      const savedDhanReadinessDate = window.localStorage.getItem('dhanReadinessDate') || '';
 
       setPaperTrades(Array.isArray(savedPaper) ? savedPaper : []);
       setLiveLogs(Array.isArray(savedLive) ? savedLive : []);
       setNoTradeLogs(Array.isArray(savedNoTrade) ? savedNoTrade : []);
+      setDhanReadiness(savedDhanReadiness && typeof savedDhanReadiness === 'object' ? savedDhanReadiness : {});
+      setDhanReadinessDate(savedDhanReadinessDate);
     } catch {
       setPaperTrades([]);
       setLiveLogs([]);
       setNoTradeLogs([]);
+      setDhanReadiness({});
+      setDhanReadinessDate('');
     }
   }, []);
 
@@ -52,6 +60,23 @@ export default function DailyClosePage() {
     const stamp = log.date || log.createdAt || log.updatedAt;
     return getIstDateKey(stamp) === todayKey || log.date === todayKey;
   });
+
+  const dhanHardChecks: Record<string, string> = {
+    'dhan-token': 'Dhan token updated',
+    'backend-running': 'Backend running',
+    'frontend-running': 'Frontend running',
+    'dhan-feed': 'Dhan live feed connected',
+    'manual-only': 'Manual execution only',
+    'one-size': 'Only 1 lot / 1 quantity',
+    'risk-budget': 'Daily risk budget checked',
+    'final-permission': 'Final Live Permission required',
+  };
+
+  const missingDhanChecks = Object.entries(dhanHardChecks)
+    .filter(([id]) => !dhanReadiness?.[id])
+    .map(([, label]) => label);
+
+  const dhanReady = missingDhanChecks.length === 0 && dhanReadinessDate === todayKey;
 
   const liveOpen = todayLive.filter((log) => log.status === 'Entered').length;
   const liveTarget = todayLive.filter((log) => log.status === 'Target Hit').length;
@@ -85,6 +110,11 @@ export default function DailyClosePage() {
       `SL Hit: ${liveSl}`,
       `Cancelled: ${liveCancelled}`,
       `Live P&L: ${livePnl}`,
+      '',
+      'DHAN READINESS',
+      `Dhan Ready: ${dhanReady ? 'YES' : 'NO'}`,
+      `Dhan Readiness Date: ${dhanReadinessDate || '-'}`,
+      `Missing Dhan Checks: ${missingDhanChecks.length > 0 ? missingDhanChecks.join(', ') : 'None'}`,
       '',
       'DISCIPLINE',
       `Bad Emotion Count: ${badEmotion}`,
@@ -170,6 +200,8 @@ export default function DailyClosePage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <Stat label="IST Date" value={todayKey} />
+          <Stat label="Dhan Ready" value={dhanReady ? 'YES' : 'NO'} tone={dhanReady ? 'win' : 'loss'} />
+          <Stat label="Dhan Missing" value={missingDhanChecks.length} tone={dhanReady ? 'win' : 'loss'} />
           <Stat label="Live Tests" value={todayLive.length} />
           <Stat label="Open Live" value={liveOpen} tone={liveOpen > 0 ? 'loss' : 'win'} />
           <Stat label="Target Hit" value={liveTarget} tone="win" />
@@ -186,6 +218,7 @@ export default function DailyClosePage() {
           <div className="rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
             <h2 className="text-2xl font-bold text-cyan-200">Live Test Close Checklist</h2>
             <div className="mt-5 space-y-3 text-sm leading-7 text-cyan-100/80">
+              <Check ok={dhanReady} text="Dhan readiness was completed today" />
               <Check ok={todayLive.length > 0 || todayNoTrade.length > 0} text="Today has either live-test log or no-trade log" />
               <Check ok={liveOpen === 0} text="No live-test entry remains open" />
               <Check ok={badEmotion === 0} text="No dangerous emotion logged" />
