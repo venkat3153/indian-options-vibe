@@ -19,6 +19,9 @@ type LiveTestLog = {
   mode: 'stock' | 'options';
   qty: number;
   status: 'Entered' | 'Target Hit' | 'SL Hit' | 'Cancelled';
+  entryPrice?: number | string;
+  exitPrice?: number | string;
+  pnl?: number | string;
   emotion: string;
   mistake: string;
   note: string;
@@ -99,6 +102,9 @@ export default function LiveTestModePage() {
   const [todaySlHits, setTodaySlHits] = useState(0);
   const [logs, setLogs] = useState<LiveTestLog[]>([]);
   const [symbol, setSymbol] = useState('');
+  const [entryPrice, setEntryPrice] = useState('');
+  const [exitPrice, setExitPrice] = useState('');
+  const [pnl, setPnl] = useState('');
   const [emotion, setEmotion] = useState('');
   const [mistake, setMistake] = useState('');
   const [logNote, setLogNote] = useState('');
@@ -266,6 +272,9 @@ export default function LiveTestModePage() {
       mode: settings.mode,
       qty: 1,
       status: 'Entered',
+      entryPrice,
+      exitPrice,
+      pnl,
       emotion,
       mistake,
       note: logNote,
@@ -480,6 +489,36 @@ export default function LiveTestModePage() {
               </label>
 
               <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Entry Price</span>
+                <input
+                  value={entryPrice}
+                  onChange={(event) => setEntryPrice(event.target.value)}
+                  placeholder="Actual Dhan entry price"
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Exit Price</span>
+                <input
+                  value={exitPrice}
+                  onChange={(event) => setExitPrice(event.target.value)}
+                  placeholder="Fill after exit if known"
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">P&L</span>
+                <input
+                  value={pnl}
+                  onChange={(event) => setPnl(event.target.value)}
+                  placeholder="Actual profit/loss"
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-700"
+                />
+              </label>
+
+              <label className="block">
                 <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Emotion</span>
                 <select
                   value={emotion}
@@ -560,6 +599,9 @@ export default function LiveTestModePage() {
                   <th className="px-3 py-3">Mode</th>
                   <th className="px-3 py-3">Qty</th>
                   <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Entry</th>
+                  <th className="px-3 py-3">Exit</th>
+                  <th className="px-3 py-3">P&L</th>
                   <th className="px-3 py-3">Emotion</th>
                   <th className="px-3 py-3">Mistake</th>
                   <th className="px-3 py-3">Note</th>
@@ -574,6 +616,9 @@ export default function LiveTestModePage() {
                     <td className="px-3 py-4 text-slate-300">{log.mode}</td>
                     <td className="px-3 py-4 text-yellow-300">{log.qty}</td>
                     <td className="px-3 py-4 text-slate-300">{log.status}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.entryPrice || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.exitPrice || '-'}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.pnl || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
                     <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
@@ -589,7 +634,7 @@ export default function LiveTestModePage() {
 
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
                       No live test logs yet.
                     </td>
                   </tr>
