@@ -1,0 +1,246 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+
+type Row = Record<string, any>;
+
+function getIstDateKey(value: unknown) {
+  const date = value ? new Date(String(value)) : new Date();
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  }
+
+  return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+export default function TradingWorkflowHomePage() {
+  const [liveSettings, setLiveSettings] = useState<Row | null>(null);
+  const [liveLogs, setLiveLogs] = useState<Row[]>([]);
+  const [paperTrades, setPaperTrades] = useState<Row[]>([]);
+  const [noTradeLogs, setNoTradeLogs] = useState<Row[]>([]);
+  const [rules, setRules] = useState<Row>({});
+
+  const todayKey = useMemo(() => getIstDateKey(new Date().toISOString()), []);
+
+  useEffect(() => {
+    try {
+      const savedLiveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
+      const savedLiveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      const savedPaperTrades = JSON.parse(window.localStorage.getItem('paperTrades') || '[]');
+      const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
+      const savedRules = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+
+      setLiveSettings(savedLiveSettings);
+      setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
+      setPaperTrades(Array.isArray(savedPaperTrades) ? savedPaperTrades : []);
+      setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
+      setRules(savedRules && typeof savedRules === 'object' ? savedRules : {});
+    } catch {
+      setLiveSettings(null);
+      setLiveLogs([]);
+      setPaperTrades([]);
+      setNoTradeLogs([]);
+      setRules({});
+    }
+  }, []);
+
+  const todayLiveLogs = liveLogs.filter((log) => getIstDateKey(log.createdAt || log.updatedAt) === todayKey);
+  const todayPaperTrades = paperTrades.filter((trade) =>
+    getIstDateKey(trade.createdAt || trade.updatedAt || trade.marketSnapshot?.savedAt) === todayKey
+  );
+  const todayNoTradeLogs = noTradeLogs.filter((log) => {
+    const stamp = log.date || log.createdAt || log.updatedAt;
+    return getIstDateKey(stamp) === todayKey || log.date === todayKey;
+  });
+
+  const hardRules = ['market-breadth', 'vwap', 'retest', 'rr', 'execution'];
+  const missingRules = hardRules.filter((id) => !rules?.[id]).length;
+
+  const liveSlHits = todayLiveLogs.filter((log) =>
+    String(log.status || '').toLowerCase().includes('sl')
+  ).length;
+
+  const liveOpen = todayLiveLogs.filter((log) => log.status === 'Entered').length;
+
+  const liveEnabled = Boolean(liveSettings?.enabled);
+  const maxQtyOk = Number(liveSettings?.maxQty || 1) === 1;
+  const liveLimitOk = todayLiveLogs.length < Number(liveSettings?.maxTradesPerDay || 1);
+  const liveSlOk = liveSlHits < Number(liveSettings?.maxSlPerDay || 1);
+  const rulesOk = missingRules === 0;
+
+  const readyForScan = liveEnabled && maxQtyOk && liveLimitOk && liveSlOk && rulesOk;
+
+  return (
+    <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">
+              Trading Workflow Home
+            </p>
+            <h1 className="mt-2 text-4xl font-black text-white">Personal Live-Test Command Center</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+              Use this as your main dashboard. Start here, scan only when ready, and close the day after review.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <a href="/paper/startup" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
+              Daily Startup
+            </a>
+            <a href="/stocks" className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">
+              Stocks Research
+            </a>
+            <a href="/paper/close" className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20">
+              Daily Close
+            </a>
+          </div>
+        </div>
+
+        <div
+          className={`mt-8 rounded-3xl border p-6 ${
+            readyForScan ? 'border-emerald-800 bg-emerald-500/10' : 'border-red-900 bg-red-950/20'
+          }`}
+        >
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Main Verdict</div>
+          <h2 className={`mt-2 text-3xl font-black ${readyForScan ? 'text-emerald-300' : 'text-red-300'}`}>
+            {readyForScan ? 'READY TO SCAN' : 'FIX BLOCKERS FIRST'}
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-300">
+            {readyForScan
+              ? 'You may open Stocks Research. Final stock-level permission still must say ALLOWED before any manual Dhan execution.'
+              : 'Do not scan for live execution yet. Fix Live Test, Rules Gate, or daily limit blockers first.'}
+          </p>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-4">
+          <Stat label="IST Date" value={todayKey} />
+          <Stat label="Live Mode" value={liveEnabled ? 'ON' : 'OFF'} tone={liveEnabled ? 'win' : 'loss'} />
+          <Stat label="Rules Missing" value={missingRules} tone={missingRules === 0 ? 'win' : 'loss'} />
+          <Stat label="Max Qty" value={Number(liveSettings?.maxQty || 1)} tone={maxQtyOk ? 'win' : 'loss'} />
+          <Stat label="Live Tests" value={`${todayLiveLogs.length}/${Number(liveSettings?.maxTradesPerDay || 1)}`} tone={liveLimitOk ? 'win' : 'loss'} />
+          <Stat label="Live SL" value={`${liveSlHits}/${Number(liveSettings?.maxSlPerDay || 1)}`} tone={liveSlOk ? 'win' : 'loss'} />
+          <Stat label="Open Live" value={liveOpen} tone={liveOpen === 0 ? 'win' : 'loss'} />
+          <Stat label="No-Trade Logs" value={todayNoTradeLogs.length} tone={todayNoTradeLogs.length > 0 ? 'win' : undefined} />
+          <Stat label="Paper Plans" value={todayPaperTrades.length} />
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          <WorkflowCard
+            title="1. Daily Startup"
+            text="Check readiness before scanning. Fix blockers first."
+            href="/paper/startup"
+            label="Open Startup"
+            tone="green"
+          />
+          <WorkflowCard
+            title="2. Rules Gate"
+            text="Complete hard-block rules before any live test."
+            href="/paper/rules"
+            label="Open Rules"
+            tone="purple"
+          />
+          <WorkflowCard
+            title="3. Live Test Settings"
+            text="Keep one lot or one quantity only. No auto order."
+            href="/paper/live-test"
+            label="Open Live Test"
+            tone="cyan"
+          />
+          <WorkflowCard
+            title="4. Stocks Research"
+            text="Scan only after startup readiness is clear."
+            href="/stocks"
+            label="Open Stocks"
+            tone="slate"
+          />
+          <WorkflowCard
+            title="5. No-Trade Day"
+            text="Log a discipline win when no setup is clean."
+            href="/paper/no-trade"
+            label="Log No-Trade"
+            tone="lime"
+          />
+          <WorkflowCard
+            title="6. Daily Close"
+            text="End the day only after result and review are complete."
+            href="/paper/close"
+            label="Close Day"
+            tone="fuchsia"
+          />
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-yellow-900/70 bg-yellow-950/10 p-6">
+          <h2 className="text-2xl font-bold text-yellow-200">Today’s Operating Rule</h2>
+          <div className="mt-5 space-y-3 text-sm leading-7 text-yellow-100/80">
+            <p>1. Start from Daily Startup.</p>
+            <p>2. Use Stocks Research only if READY TO SCAN.</p>
+            <p>3. Execute manually in Dhan only if stock detail Final Live Permission says ALLOWED.</p>
+            <p>4. After one live test, stop and review.</p>
+            <p>5. If setup is not A+, log No-Trade Day.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'win' | 'loss';
+}) {
+  const color = tone === 'win' ? 'text-emerald-300' : tone === 'loss' ? 'text-red-300' : 'text-white';
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</div>
+      <div className={`mt-2 text-xl font-black ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+function WorkflowCard({
+  title,
+  text,
+  href,
+  label,
+  tone,
+}: {
+  title: string;
+  text: string;
+  href: string;
+  label: string;
+  tone: 'green' | 'purple' | 'cyan' | 'slate' | 'lime' | 'fuchsia';
+}) {
+  const color =
+    tone === 'green'
+      ? 'border-emerald-800 bg-emerald-500/10 text-emerald-300'
+      : tone === 'purple'
+        ? 'border-purple-800 bg-purple-500/10 text-purple-300'
+        : tone === 'cyan'
+          ? 'border-cyan-800 bg-cyan-500/10 text-cyan-300'
+          : tone === 'lime'
+            ? 'border-lime-800 bg-lime-500/10 text-lime-300'
+            : tone === 'fuchsia'
+              ? 'border-fuchsia-800 bg-fuchsia-500/10 text-fuchsia-300'
+              : 'border-slate-800 bg-slate-900/70 text-slate-200';
+
+  return (
+    <div className={`rounded-3xl border p-6 ${color}`}>
+      <h2 className="text-xl font-black text-white">{title}</h2>
+      <p className="mt-3 text-sm leading-6 opacity-90">{text}</p>
+      <a
+        href={href}
+        className="mt-5 inline-block rounded-2xl border border-slate-700 bg-slate-950/50 px-5 py-3 text-sm font-bold text-slate-100 hover:bg-slate-900"
+      >
+        {label}
+      </a>
+    </div>
+  );
+}
