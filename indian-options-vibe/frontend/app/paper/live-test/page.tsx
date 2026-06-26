@@ -388,13 +388,26 @@ export default function LiveTestModePage() {
     }
 
     const isClosingStatus = status === 'Target Hit' || status === 'SL Hit';
+    const isCancelStatus = status === 'Cancelled';
 
     if (isClosingStatus) {
+      const hasEntry = String(targetLog.entryPrice || '').trim().length > 0;
       const hasExit = String(targetLog.exitPrice || '').trim().length > 0;
       const hasPnl = String(targetLog.pnl || '').trim().length > 0;
+      const hasEmotion = String(targetLog.emotion || '').trim().length > 0;
+      const hasMistake = String(targetLog.mistake || '').trim().length > 0;
 
-      if (!hasExit || !hasPnl) {
-        setMessage('Cannot close live test without Exit Price and P&L ❌');
+      if (!hasEntry || !hasExit || !hasPnl || !hasEmotion || !hasMistake) {
+        setMessage('Cannot close live test without Entry Price, Exit Price, P&L, Emotion, and Mistake ❌');
+        return;
+      }
+    }
+
+    if (isCancelStatus) {
+      const hasNote = String(targetLog.note || '').trim().length > 0;
+
+      if (!hasNote) {
+        setMessage('Cannot cancel live test without a review note ❌');
         return;
       }
     }
@@ -770,9 +783,48 @@ export default function LiveTestModePage() {
                         className="w-24 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-yellow-300 outline-none focus:border-cyan-700"
                       />
                     </td>
-                    <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
-                    <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
-                    <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
+                    <td className="px-3 py-4">
+                      <select
+                        value={log.emotion || ''}
+                        onChange={(event) => updateLiveTestField(log.id, 'emotion', event.target.value)}
+                        className="w-32 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-cyan-700"
+                      >
+                        <option value="">Select</option>
+                        <option value="Calm">Calm</option>
+                        <option value="FOMO">FOMO</option>
+                        <option value="Fear">Fear</option>
+                        <option value="Greedy">Greedy</option>
+                        <option value="Revenge">Revenge</option>
+                        <option value="Confused">Confused</option>
+                        <option value="Patient">Patient</option>
+                      </select>
+                    </td>
+
+                    <td className="px-3 py-4">
+                      <select
+                        value={log.mistake || ''}
+                        onChange={(event) => updateLiveTestField(log.id, 'mistake', event.target.value)}
+                        className="w-36 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-cyan-700"
+                      >
+                        <option value="">Select</option>
+                        <option value="No mistake">No mistake</option>
+                        <option value="Chased entry">Chased entry</option>
+                        <option value="Ignored VWAP">Ignored VWAP</option>
+                        <option value="Ignored rules">Ignored rules</option>
+                        <option value="Oversized">Oversized</option>
+                        <option value="Moved stop">Moved stop</option>
+                        <option value="Revenge trade">Revenge trade</option>
+                      </select>
+                    </td>
+
+                    <td className="px-3 py-4">
+                      <input
+                        value={log.note || ''}
+                        onChange={(event) => updateLiveTestField(log.id, 'note', event.target.value)}
+                        placeholder="-"
+                        className="w-40 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-slate-300 outline-none focus:border-cyan-700"
+                      />
+                    </td>
                     <td className="px-3 py-4">
                       <div className="flex flex-wrap gap-2">
                         <button onClick={() => updateLiveTestStatus(log.id, 'Target Hit')} className="rounded-xl border border-emerald-800 px-3 py-2 text-xs font-bold text-emerald-300">Target</button>
