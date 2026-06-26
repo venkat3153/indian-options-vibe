@@ -794,7 +794,38 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
       : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
 
-    const buildDailyRiskBudgetSnapshot = () => {
+    const buildDhanReadinessSnapshot = () => {
+    try {
+      const dhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
+
+      const dhanHardChecks: Record<string, string> = {
+        'dhan-token': 'Dhan token updated',
+        'backend-running': 'Backend running',
+        'frontend-running': 'Frontend running',
+        'dhan-feed': 'Dhan live feed connected',
+        'manual-only': 'Manual execution only',
+        'one-size': 'Only 1 lot / 1 quantity',
+        'risk-budget': 'Daily risk budget checked',
+        'final-permission': 'Final Live Permission required',
+      };
+
+      const missingDhanChecks = Object.entries(dhanHardChecks)
+        .filter(([id]) => !dhanReadiness?.[id])
+        .map(([, label]) => label);
+
+      return {
+        ready: missingDhanChecks.length === 0,
+        missing: missingDhanChecks,
+      };
+    } catch {
+      return {
+        ready: false,
+        missing: ['Could not read Dhan readiness checklist'],
+      };
+    }
+  };
+
+  const buildDailyRiskBudgetSnapshot = () => {
     try {
       const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
       const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
@@ -937,6 +968,10 @@ RR PLAN
 - 1R Target: ${rr.oneR ? money(rr.oneR) : '-'}
 - 2R Target: ${rr.twoR ? money(rr.twoR) : '-'}
 - RR Status: ${rr.status}
+
+DHAN READINESS
+- Dhan Ready: ${buildDhanReadinessSnapshot().ready ? 'YES' : 'NO'}
+${buildDhanReadinessSnapshot().missing.length === 0 ? '- Missing Dhan Checks: None' : `- Missing Dhan Checks: ${buildDhanReadinessSnapshot().missing.join(', ')}`}
 
 DAILY RISK BUDGET
 - Today Live P&L: ₹${buildDailyRiskBudgetSnapshot().todayLivePnl}
