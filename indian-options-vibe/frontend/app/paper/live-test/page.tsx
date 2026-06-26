@@ -282,6 +282,59 @@ export default function LiveTestModePage() {
     setMessage('Live Test CSV downloaded ✅');
   };
 
+  const downloadTodayLiveCsv = () => {
+    const todayKeyForCsv = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+    const todayRows = logs.filter((log) => {
+      const stamp = log.createdAt || log.updatedAt;
+      const date = stamp ? new Date(String(stamp)) : new Date();
+
+      if (Number.isNaN(date.getTime())) {
+        return false;
+      }
+
+      return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === todayKeyForCsv;
+    });
+
+    const headers = [
+      'date',
+      'symbol',
+      'mode',
+      'qty',
+      'status',
+      'entryPrice',
+      'exitPrice',
+      'pnl',
+      'emotion',
+      'mistake',
+      'note',
+      'createdAt',
+      'updatedAt',
+    ];
+
+    const clean = (value: unknown) => {
+      const raw = String(value ?? '');
+      return `"${raw.replaceAll('"', '""')}"`;
+    };
+
+    const rows = todayRows.map((log) =>
+      headers.map((header) => clean((log as Record<string, unknown>)[header])).join(',')
+    );
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `today-live-test-${todayKeyForCsv}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+    setMessage('Today Live CSV downloaded ✅');
+  };
+
+
   const copySummary = async () => {
     const lines = [
       'Live Test Mode Settings',
@@ -688,6 +741,13 @@ export default function LiveTestModePage() {
                 >
                   Download Live CSV
                 </button>
+
+              <button
+                onClick={downloadTodayLiveCsv}
+                className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
+              >
+                Download Today Live CSV
+              </button>
               </div>
             </div>
           </div>
