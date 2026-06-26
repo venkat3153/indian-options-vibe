@@ -214,6 +214,53 @@ export default function DailyClosePage() {
           <Stat label="Paper Plans" value={todayPaper.length} />
         </div>
 
+        <div className="mt-8 rounded-3xl border border-red-900 bg-red-950/20 p-6">
+          <div className="text-xs uppercase tracking-[0.22em] text-red-300">Daily Close Blockers</div>
+          <h2 className="mt-2 text-2xl font-black text-white">Fix Before Ending the Day</h2>
+
+          <div className="mt-5 space-y-3">
+            {!dhanReady ? (
+              <div className="flex flex-col justify-between gap-3 rounded-2xl border border-red-900 bg-slate-950/50 p-4 md:flex-row md:items-center">
+                <div>
+                  <div className="text-sm font-bold text-red-300">⚠️ Dhan readiness is not complete today.</div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Missing: {missingDhanChecks.length > 0 ? missingDhanChecks.join(', ') : 'Checklist date is stale'}
+                  </div>
+                </div>
+                <a
+                  href="/broker/dhan-readiness"
+                  className="rounded-xl border border-orange-800 bg-orange-500/10 px-4 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20"
+                >
+                  Open Dhan Readiness
+                </a>
+              </div>
+            ) : null}
+
+            {liveOpen > 0 ? (
+              <div className="flex flex-col justify-between gap-3 rounded-2xl border border-red-900 bg-slate-950/50 p-4 md:flex-row md:items-center">
+                <div>
+                  <div className="text-sm font-bold text-red-300">⚠️ You still have open live-test entry.</div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Update it as Target, SL, or Cancel before closing the day.
+                  </div>
+                </div>
+                <a
+                  href="/paper/live-test"
+                  className="rounded-xl border border-cyan-800 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20"
+                >
+                  Open Live Test
+                </a>
+              </div>
+            ) : null}
+
+            {!dhanReady || liveOpen > 0 ? null : (
+              <div className="rounded-2xl border border-emerald-800 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
+                ✅ No hard close blockers.
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
             <h2 className="text-2xl font-bold text-cyan-200">Live Test Close Checklist</h2>
