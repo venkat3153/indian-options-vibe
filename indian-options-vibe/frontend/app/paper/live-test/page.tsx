@@ -7,6 +7,7 @@ type LiveTestSettings = {
   maxTradesPerDay: number;
   maxSlPerDay: number;
   maxQty: number;
+  maxDailyLoss: number;
   mode: 'stock' | 'options';
   note: string;
   updatedAt?: string;
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: LiveTestSettings = {
   maxTradesPerDay: 1,
   maxSlPerDay: 1,
   maxQty: 1,
+  maxDailyLoss: 500,
   mode: 'options',
   note: 'Manual Dhan execution only. No auto orders.',
 };
@@ -100,7 +102,16 @@ function downloadTextFile(filename: string, content: string, type: string) {
 
 
 function DailyRiskBudgetCard({ liveLogs }: { liveLogs: Record<string, any>[] }) {
-  const maxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+  const [maxDailyLoss, setMaxDailyLoss] = useState(500);
+
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+      setMaxDailyLoss(Number.isFinite(saved) && saved > 0 ? saved : 500);
+    } catch {
+      setMaxDailyLoss(500);
+    }
+  }, []);
 
   const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
@@ -182,7 +193,8 @@ export default function LiveTestModePage() {
     try {
       const savedSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
       if (savedSettings && typeof savedSettings === 'object') {
-        setSettings({ ...DEFAULT_SETTINGS, ...savedSettings });
+        const savedMaxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || savedSettings.maxDailyLoss || 500);
+        setSettings({ ...DEFAULT_SETTINGS, ...savedSettings, maxDailyLoss: savedMaxDailyLoss });
       }
 
       const savedLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
@@ -254,11 +266,13 @@ export default function LiveTestModePage() {
       maxQty: Math.max(1, Number(settings.maxQty || 1)),
       maxTradesPerDay: Math.max(1, Number(settings.maxTradesPerDay || 1)),
       maxSlPerDay: Math.max(1, Number(settings.maxSlPerDay || 1)),
+      maxDailyLoss: Math.max(1, Number(settings.maxDailyLoss || 500)),
       updatedAt: new Date().toISOString(),
     };
 
     setSettings(next);
     window.localStorage.setItem('liveTestSettings', JSON.stringify(next));
+    window.localStorage.setItem('liveTestMaxDailyLoss', String(next.maxDailyLoss));
     setMessage('Live Test settings saved ✅');
   };
 
@@ -279,6 +293,7 @@ export default function LiveTestModePage() {
       `Max Qty/Lot: ${settings.maxQty}`,
       `Max Trades Per Day: ${settings.maxTradesPerDay}`,
       `Max SL Per Day: ${settings.maxSlPerDay}`,
+      `Max Daily Loss: ₹${settings.maxDailyLoss}`,
       `Today Plans: ${todayPlans}`,
       `Today SL Hits: ${todaySlHits}`,
       `Note: ${settings.note}`,
@@ -514,6 +529,19 @@ export default function LiveTestModePage() {
                   value={settings.maxSlPerDay}
                   onChange={(event) =>
                     setSettings((prev) => ({ ...prev, maxSlPerDay: Number(event.target.value) }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-emerald-700"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Max Daily Loss ₹</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={settings.maxDailyLoss}
+                  onChange={(event) =>
+                    setSettings((prev) => ({ ...prev, maxDailyLoss: Number(event.target.value) }))
                   }
                   className="mt-2 w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-white outline-none focus:border-emerald-700"
                 />
