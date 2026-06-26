@@ -57,6 +57,10 @@ export default function DailyClosePage() {
   const liveTarget = todayLive.filter((log) => log.status === 'Target Hit').length;
   const liveSl = todayLive.filter((log) => log.status === 'SL Hit').length;
   const liveCancelled = todayLive.filter((log) => log.status === 'Cancelled').length;
+  const livePnl = todayLive.reduce((sum, log) => {
+    const value = Number(log.pnl);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
 
   const badEmotion = [...todayLive, ...todayPaper].filter((row) =>
     ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(row.emotion || ''))
@@ -80,6 +84,7 @@ export default function DailyClosePage() {
       `Target Hit: ${liveTarget}`,
       `SL Hit: ${liveSl}`,
       `Cancelled: ${liveCancelled}`,
+      `Live P&L: ${livePnl}`,
       '',
       'DISCIPLINE',
       `Bad Emotion Count: ${badEmotion}`,
@@ -167,6 +172,7 @@ export default function DailyClosePage() {
           <Stat label="Target Hit" value={liveTarget} tone="win" />
           <Stat label="SL Hit" value={liveSl} tone={liveSl > 0 ? 'loss' : undefined} />
           <Stat label="Cancelled" value={liveCancelled} />
+          <Stat label="Live P&L" value={livePnl ? livePnl.toLocaleString('en-IN') : '-'} tone={livePnl > 0 ? 'win' : livePnl < 0 ? 'loss' : undefined} />
           <Stat label="Bad Emotion" value={badEmotion} tone={badEmotion > 0 ? 'loss' : 'win'} />
           <Stat label="Mistakes" value={mistakes} tone={mistakes > 0 ? 'loss' : 'win'} />
           <Stat label="No-Trade Logs" value={todayNoTrade.length} tone={todayNoTrade.length > 0 ? 'win' : undefined} />
@@ -208,6 +214,9 @@ export default function DailyClosePage() {
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Mode</th>
                   <th className="px-3 py-3">Qty</th>
+                  <th className="px-3 py-3">Entry</th>
+                  <th className="px-3 py-3">Exit</th>
+                  <th className="px-3 py-3">P&L</th>
                   <th className="px-3 py-3">Emotion</th>
                   <th className="px-3 py-3">Mistake</th>
                   <th className="px-3 py-3">Note</th>
@@ -221,6 +230,9 @@ export default function DailyClosePage() {
                     <td className="px-3 py-4 text-slate-300">{log.status || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mode || '-'}</td>
                     <td className="px-3 py-4 text-yellow-300">{log.qty || 1}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.entryPrice || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.exitPrice || '-'}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.pnl || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
                     <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
@@ -229,7 +241,7 @@ export default function DailyClosePage() {
 
                 {todayLive.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={10} className="px-3 py-8 text-center text-slate-500">
                       No live test logged today.
                     </td>
                   </tr>
