@@ -116,16 +116,19 @@ export default function TradingWorkflowHomePage() {
 
           <div className="flex flex-wrap gap-3">
             <a href="/broker/dhan-readiness" className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">
-              Dhan Readiness
+              1. Dhan Readiness
             </a>
             <a href="/paper/startup" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
-              Daily Startup
+              2. Daily Startup
             </a>
             <a href="/stocks" className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">
-              Stocks Research
+              3. Stocks Research
+            </a>
+            <a href="/paper/live-test" className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
+              4. Live Test
             </a>
             <a href="/paper/close" className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20">
-              Daily Close
+              5. Daily Close
             </a>
           </div>
         </div>
@@ -164,58 +167,62 @@ export default function TradingWorkflowHomePage() {
 
         <DailyRiskBudgetCard liveLogs={liveLogs} />
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
-          <WorkflowCard
-            title="1. Daily Startup"
-            text="Check readiness before scanning. Fix blockers first."
-            href="/paper/startup"
-            label="Open Startup"
-            tone="green"
-          />
+        <section className="mt-8">
+          <div className="text-xs uppercase tracking-[0.22em] text-emerald-300">Primary Daily Flow</div>
+          <h2 className="mt-2 text-2xl font-black text-white">Use only these during market hours</h2>
 
-          <WorkflowCard
-            title="Dhan Readiness"
-            text="Confirm token, live feed, backend, and manual execution safety."
-            href="/broker/dhan-readiness"
-            label="Open Dhan Check"
-            tone="orange"
-          />
-          <WorkflowCard
-            title="2. Rules Gate"
-            text="Complete hard-block rules before any live test."
-            href="/paper/rules"
-            label="Open Rules"
-            tone="purple"
-          />
-          <WorkflowCard
-            title="3. Live Test Settings"
-            text="Keep one lot or one quantity only. No auto order."
-            href="/paper/live-test"
-            label="Open Live Test"
-            tone="cyan"
-          />
-          <WorkflowCard
-            title="4. Stocks Research"
-            text="Scan only after startup readiness is clear."
-            href="/stocks"
-            label="Open Stocks"
-            tone="slate"
-          />
-          <WorkflowCard
-            title="5. No-Trade Day"
-            text="Log a discipline win when no setup is clean."
-            href="/paper/no-trade"
-            label="Log No-Trade"
-            tone="lime"
-          />
-          <WorkflowCard
-            title="6. Daily Close"
-            text="End the day only after result and review are complete."
-            href="/paper/close"
-            label="Close Day"
-            tone="fuchsia"
-          />
-        </div>
+          <div className="mt-5 grid gap-6 lg:grid-cols-5">
+            <WorkflowCard
+              title="1. Dhan Ready"
+              text="Token, backend, frontend, feed, and manual-only safety."
+              href="/broker/dhan-readiness"
+              label="Open"
+              tone="orange"
+            />
+            <WorkflowCard
+              title="2. Startup"
+              text="Confirm day readiness before scanning."
+              href="/paper/startup"
+              label="Open"
+              tone="green"
+            />
+            <WorkflowCard
+              title="3. Research"
+              text="Scan only after readiness is clear."
+              href="/stocks"
+              label="Open"
+              tone="slate"
+            />
+            <WorkflowCard
+              title="4. Live Test"
+              text="Record only 1 lot or 1 quantity manual Dhan test."
+              href="/paper/live-test"
+              label="Open"
+              tone="cyan"
+            />
+            <WorkflowCard
+              title="5. Close"
+              text="End the day only after result review is complete."
+              href="/paper/close"
+              label="Open"
+              tone="fuchsia"
+            />
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Tools / Review</div>
+          <h2 className="mt-2 text-2xl font-black text-white">Use only after main flow</h2>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <a href="/paper/rules" className="rounded-xl border border-purple-800 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">Rules</a>
+            <a href="/paper/discipline" className="rounded-xl border border-red-900 bg-red-950/30 px-4 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50">Discipline</a>
+            <a href="/paper/no-trade" className="rounded-xl border border-lime-800 bg-lime-500/10 px-4 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20">No-Trade</a>
+            <a href="/paper/today" className="rounded-xl border border-yellow-800 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">Today Review</a>
+            <a href="/paper/weekly" className="rounded-xl border border-orange-800 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">Weekly Review</a>
+            <a href="/paper/export" className="rounded-xl border border-blue-800 bg-blue-500/10 px-4 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">Export / Backup</a>
+          </div>
+        </section>
 
         <div className="mt-8 rounded-3xl border border-yellow-900/70 bg-yellow-950/10 p-6">
           <h2 className="text-2xl font-bold text-yellow-200">Today’s Operating Rule</h2>
