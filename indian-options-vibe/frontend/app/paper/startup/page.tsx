@@ -139,6 +139,9 @@ export default function DailyStartupPage() {
             <a href="/paper/home" className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
               Workflow Home
             </a>
+            <a href="/broker/dhan-readiness" className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">
+              Dhan Readiness
+            </a>
             <a href="/stocks" className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">
               Stocks Research
             </a>
@@ -251,7 +254,16 @@ export default function DailyStartupPage() {
 
 
 function DailyRiskBudgetCard({ liveLogs }: { liveLogs: Record<string, any>[] }) {
-  const maxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+  const [maxDailyLoss, setMaxDailyLoss] = useState(500);
+
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+      setMaxDailyLoss(Number.isFinite(saved) && saved > 0 ? saved : 500);
+    } catch {
+      setMaxDailyLoss(500);
+    }
+  }, []);
 
   const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 

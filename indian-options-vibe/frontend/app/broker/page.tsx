@@ -225,7 +225,14 @@ export default function BrokerPage() {
                 We will add backend broker adapters for profile, funds, positions, and order book checks. Live order placement remains disabled until the discipline guard and manual approval flow are stable.
               </p>
             </div>
-            <button onClick={refreshAllStatus} className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300 hover:border-emerald-800 hover:text-emerald-300">
+            <a
+  href="/broker/dhan-readiness"
+  className="rounded-xl border border-orange-800 bg-orange-500/10 px-4 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20"
+>
+  Dhan Readiness
+</a>
+
+<button onClick={refreshAllStatus} className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-300 hover:border-emerald-800 hover:text-emerald-300">
               {loading || marketLoading ? 'Checking status...' : 'Refresh all status'}
             </button>
           </div>

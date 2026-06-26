@@ -90,6 +90,9 @@ export default function TradingWorkflowHomePage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <a href="/broker/dhan-readiness" className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">
+              Dhan Readiness
+            </a>
             <a href="/paper/startup" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
               Daily Startup
             </a>
@@ -195,7 +198,16 @@ export default function TradingWorkflowHomePage() {
 
 
 function DailyRiskBudgetCard({ liveLogs }: { liveLogs: Record<string, any>[] }) {
-  const maxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+  const [maxDailyLoss, setMaxDailyLoss] = useState(500);
+
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+      setMaxDailyLoss(Number.isFinite(saved) && saved > 0 ? saved : 500);
+    } catch {
+      setMaxDailyLoss(500);
+    }
+  }, []);
 
   const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
