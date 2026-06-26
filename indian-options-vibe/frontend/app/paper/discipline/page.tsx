@@ -137,6 +137,9 @@ export default function DailyDisciplinePage() {
             <a href="/paper" className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
               Paper Trading
             </a>
+            <a href="/paper/startup" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
+              Daily Startup
+            </a>
             <a href="/paper/live-test" className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
               Live Test
             </a>
