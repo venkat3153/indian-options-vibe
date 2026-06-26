@@ -62,6 +62,10 @@ export default function TradingWorkflowHomePage() {
   ).length;
 
   const liveOpen = todayLiveLogs.filter((log) => log.status === 'Entered').length;
+  const livePnl = todayLiveLogs.reduce((sum, log) => {
+    const value = Number(log.pnl);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
 
   const liveEnabled = Boolean(liveSettings?.enabled);
   const maxQtyOk = Number(liveSettings?.maxQty || 1) === 1;
@@ -122,6 +126,7 @@ export default function TradingWorkflowHomePage() {
           <Stat label="Live Tests" value={`${todayLiveLogs.length}/${Number(liveSettings?.maxTradesPerDay || 1)}`} tone={liveLimitOk ? 'win' : 'loss'} />
           <Stat label="Live SL" value={`${liveSlHits}/${Number(liveSettings?.maxSlPerDay || 1)}`} tone={liveSlOk ? 'win' : 'loss'} />
           <Stat label="Open Live" value={liveOpen} tone={liveOpen === 0 ? 'win' : 'loss'} />
+          <Stat label="Live P&L" value={livePnl ? livePnl.toLocaleString('en-IN') : '-'} tone={livePnl > 0 ? 'win' : livePnl < 0 ? 'loss' : undefined} />
           <Stat label="No-Trade Logs" value={todayNoTradeLogs.length} tone={todayNoTradeLogs.length > 0 ? 'win' : undefined} />
           <Stat label="Paper Plans" value={todayPaperTrades.length} />
         </div>
