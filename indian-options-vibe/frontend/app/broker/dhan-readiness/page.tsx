@@ -78,6 +78,17 @@ export default function DhanReadinessPage() {
 
   useEffect(() => {
     try {
+      const savedDate = window.localStorage.getItem('dhanReadinessDate');
+      const today = getIstDateKey(new Date().toISOString());
+
+      if (savedDate !== today) {
+        window.localStorage.setItem('dhanReadinessChecklist', JSON.stringify({}));
+    window.localStorage.setItem('dhanReadinessDate', todayKey);
+        window.localStorage.setItem('dhanReadinessDate', today);
+        setChecks({});
+        return;
+      }
+
       const saved = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
       setChecks(saved && typeof saved === 'object' ? saved : {});
     } catch {
@@ -89,6 +100,7 @@ export default function DhanReadinessPage() {
     const next = { ...checks, [id]: !checks[id] };
     setChecks(next);
     window.localStorage.setItem('dhanReadinessChecklist', JSON.stringify(next));
+    window.localStorage.setItem('dhanReadinessDate', todayKey);
   };
 
   const resetChecks = () => {

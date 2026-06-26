@@ -300,6 +300,7 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
       const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
       const dhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
+      const dhanReadinessDate = window.localStorage.getItem('dhanReadinessDate');
 
       const getIstDateKey = (value: unknown) => {
         const date = value ? new Date(String(value)) : new Date();
@@ -412,6 +413,10 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
       const missingDhanChecks = Object.entries(dhanHardChecks)
         .filter(([id]) => !dhanReadiness?.[id])
         .map(([, label]) => label);
+
+      if (dhanReadinessDate !== todayKey) {
+        reasons.push('Dhan readiness is stale. Complete today\'s Dhan checklist.');
+      }
 
       if (missingDhanChecks.length > 0) {
         reasons.push(`Dhan readiness blocked: ${missingDhanChecks.join(', ')}.`);
@@ -825,6 +830,7 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
   const buildDhanReadinessSnapshot = () => {
     try {
       const dhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
+      const dhanReadinessDate = window.localStorage.getItem('dhanReadinessDate');
 
       const dhanHardChecks: Record<string, string> = {
         'dhan-token': 'Dhan token updated',
@@ -841,9 +847,13 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
         .filter(([id]) => !dhanReadiness?.[id])
         .map(([, label]) => label);
 
+      const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const stale = dhanReadinessDate !== todayKey;
+
       return {
-        ready: missingDhanChecks.length === 0,
-        missing: missingDhanChecks,
+        ready: missingDhanChecks.length === 0 && !stale,
+        missing: stale ? ['Dhan readiness is stale for today', ...missingDhanChecks] : missingDhanChecks,
+        date: dhanReadinessDate || '-',
       };
     } catch {
       return {
@@ -999,6 +1009,7 @@ RR PLAN
 
 DHAN READINESS
 - Dhan Ready: ${buildDhanReadinessSnapshot().ready ? 'YES' : 'NO'}
+- Dhan Readiness Date: ${buildDhanReadinessSnapshot().date || '-'}
 ${buildDhanReadinessSnapshot().missing.length === 0 ? '- Missing Dhan Checks: None' : `- Missing Dhan Checks: ${buildDhanReadinessSnapshot().missing.join(', ')}`}
 
 DAILY RISK BUDGET
