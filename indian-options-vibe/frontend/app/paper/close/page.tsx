@@ -95,9 +95,25 @@ export default function DailyClosePage() {
     ['Chased entry', 'Ignored VWAP', 'Ignored rules', 'Oversized', 'Moved stop', 'Revenge trade'].includes(String(row.mistake || ''))
   ).length;
 
+  const incompleteLiveLogs = todayLive.filter((log) => {
+    const status = String(log.status || '');
+    const isCompleted = ['Target Hit', 'SL Hit', 'Cancelled'].includes(status);
+
+    if (!isCompleted) return false;
+
+    const missingEntry = !String(log.entryPrice || '').trim();
+    const missingExit = !String(log.exitPrice || '').trim();
+    const missingPnl = !String(log.pnl || '').trim();
+    const missingEmotion = !String(log.emotion || '').trim();
+    const missingMistake = !String(log.mistake || '').trim();
+
+    return missingEntry || missingExit || missingPnl || missingEmotion || missingMistake;
+  });
+
   const closeBlockReasons = [
     !dhanReady ? 'Dhan readiness is not complete today' : '',
     liveOpen > 0 ? 'Open live-test result is still pending' : '',
+    incompleteLiveLogs.length > 0 ? `${incompleteLiveLogs.length} completed live-test log is missing entry/exit/P&L/emotion/mistake data` : '',
     todayLive.length === 0 && todayNoTrade.length === 0 && todayPaper.length === 0
       ? 'No live-test, no-trade, or paper review is logged today'
       : '',
@@ -112,6 +128,7 @@ export default function DailyClosePage() {
       'LIVE TEST',
       `Live Tests: ${todayLive.length}`,
       `Open: ${liveOpen}`,
+      `Incomplete Logs: ${incompleteLiveLogs.length}`,
       `Target Hit: ${liveTarget}`,
       `SL Hit: ${liveSl}`,
       `Cancelled: ${liveCancelled}`,
@@ -215,6 +232,7 @@ export default function DailyClosePage() {
           <Stat label="Dhan Missing" value={missingDhanChecks.length} tone={dhanReady ? 'win' : 'loss'} />
           <Stat label="Live Tests" value={todayLive.length} />
           <Stat label="Open Live" value={liveOpen} tone={liveOpen > 0 ? 'loss' : 'win'} />
+          <Stat label="Incomplete Logs" value={incompleteLiveLogs.length} tone={incompleteLiveLogs.length > 0 ? 'loss' : 'win'} />
           <Stat label="Target Hit" value={liveTarget} tone="win" />
           <Stat label="SL Hit" value={liveSl} tone={liveSl > 0 ? 'loss' : undefined} />
           <Stat label="Cancelled" value={liveCancelled} />
@@ -264,7 +282,24 @@ export default function DailyClosePage() {
               </div>
             ) : null}
 
-            {!dhanReady || liveOpen > 0 ? null : (
+            {incompleteLiveLogs.length > 0 ? (
+              <div className="flex flex-col justify-between gap-3 rounded-2xl border border-red-900 bg-slate-950/50 p-4 md:flex-row md:items-center">
+                <div>
+                  <div className="text-sm font-bold text-red-300">⚠️ Completed live-test data is incomplete.</div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    Add entry price, exit price, P&L, emotion, and mistake before closing.
+                  </div>
+                </div>
+                <a
+                  href="/paper/live-test"
+                  className="rounded-xl border border-cyan-800 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20"
+                >
+                  Fix Live Test Data
+                </a>
+              </div>
+            ) : null}
+
+            {!dhanReady || liveOpen > 0 || incompleteLiveLogs.length > 0 ? null : (
               <div className="rounded-2xl border border-emerald-800 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
                 ✅ No hard close blockers.
               </div>
@@ -279,6 +314,7 @@ export default function DailyClosePage() {
               <Check ok={dhanReady} text="Dhan readiness was completed today" />
               <Check ok={todayLive.length > 0 || todayNoTrade.length > 0} text="Today has either live-test log or no-trade log" />
               <Check ok={liveOpen === 0} text="No live-test entry remains open" />
+              <Check ok={incompleteLiveLogs.length === 0} text="Completed live-test logs have entry, exit, P&L, emotion, and mistake data" />
               <Check ok={badEmotion === 0} text="No dangerous emotion logged" />
               <Check ok={mistakes === 0} text="No serious mistake logged" />
               <Check ok={todayNoTrade.length > 0 || todayLive.length > 0 || todayPaper.length > 0} text="Day has something to review" />
