@@ -299,6 +299,7 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
       const paperTrades = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
       const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+      const dhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
 
       const getIstDateKey = (value: unknown) => {
         const date = value ? new Date(String(value)) : new Date();
@@ -395,6 +396,25 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
 
       if (todayPaperSlHits >= maxSl) {
         reasons.push(`Daily SL limit reached: ${todayPaperSlHits}/${maxSl}.`);
+      }
+
+      const dhanHardChecks: Record<string, string> = {
+        'dhan-token': 'Dhan token updated',
+        'backend-running': 'Backend running',
+        'frontend-running': 'Frontend running',
+        'dhan-feed': 'Dhan live feed connected',
+        'manual-only': 'Manual execution only',
+        'one-size': 'Only 1 lot / 1 quantity',
+        'risk-budget': 'Daily risk budget checked',
+        'final-permission': 'Final Live Permission required',
+      };
+
+      const missingDhanChecks = Object.entries(dhanHardChecks)
+        .filter(([id]) => !dhanReadiness?.[id])
+        .map(([, label]) => label);
+
+      if (missingDhanChecks.length > 0) {
+        reasons.push(`Dhan readiness blocked: ${missingDhanChecks.join(', ')}.`);
       }
 
       if (!String(rrStatus || '').toLowerCase().includes('valid')) {
