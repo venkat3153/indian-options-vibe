@@ -343,6 +343,16 @@ function FinalLivePermissionCard({ rrStatus }: { rrStatus: string }) {
         reasons.push(`Live test SL limit reached: ${todayLiveSlHits}/${liveMaxSl}.`);
       }
 
+      const maxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || liveSettings?.maxDailyLoss || 500);
+      const todayLivePnl = todayLiveLogs.reduce((sum: number, log: any) => {
+        const value = Number(log.pnl);
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0);
+
+      if (todayLivePnl <= -maxDailyLoss) {
+        reasons.push(`Daily risk budget hit: P&L ₹${todayLivePnl} / max loss ₹${maxDailyLoss}.`);
+      }
+
       const hardRules: Record<string, string> = {
         'market-breadth': 'Market Breadth',
         vwap: 'VWAP Gate',
