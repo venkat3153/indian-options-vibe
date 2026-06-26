@@ -110,6 +110,9 @@ export default function NoTradeDayPage() {
             <a href="/paper/startup" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
               Daily Startup
             </a>
+            <a href="/paper/close" className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20">
+              Daily Close
+            </a>
             <a href="/stocks" className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">
               Stocks Research
             </a>
