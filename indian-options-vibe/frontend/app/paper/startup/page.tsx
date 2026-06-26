@@ -166,6 +166,7 @@ export default function DailyStartupPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* Startup header simplified */}
             <a href="/paper/home" className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
               Workflow Home
             </a>
@@ -175,17 +176,11 @@ export default function DailyStartupPage() {
             <a href="/stocks" className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800">
               Stocks Research
             </a>
-            <a href="/paper/close" className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20">
-              Daily Close
-            </a>
             <a href="/paper/live-test" className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
               Live Test
             </a>
-            <a href="/paper/rules" className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20">
-              Rules
-            </a>
-            <a href="/paper/today" className="rounded-2xl border border-yellow-800 bg-yellow-500/10 px-5 py-3 text-sm font-bold text-yellow-300 hover:bg-yellow-500/20">
-              Today Review
+            <a href="/paper/close" className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20">
+              Daily Close
             </a>
             <button
               onClick={copyStartupPlan}
