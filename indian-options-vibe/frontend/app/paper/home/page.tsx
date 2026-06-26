@@ -21,6 +21,7 @@ export default function TradingWorkflowHomePage() {
   const [noTradeLogs, setNoTradeLogs] = useState<Row[]>([]);
   const [rules, setRules] = useState<Row>({});
   const [dhanReadiness, setDhanReadiness] = useState<Row>({});
+  const [dhanReadinessDate, setDhanReadinessDate] = useState('');
 
   const todayKey = useMemo(() => getIstDateKey(new Date().toISOString()), []);
 
@@ -32,6 +33,7 @@ export default function TradingWorkflowHomePage() {
       const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
       const savedRules = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
       const savedDhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
+      const savedDhanReadinessDate = window.localStorage.getItem('dhanReadinessDate') || '';
 
       setLiveSettings(savedLiveSettings);
       setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
@@ -39,6 +41,7 @@ export default function TradingWorkflowHomePage() {
       setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
       setRules(savedRules && typeof savedRules === 'object' ? savedRules : {});
       setDhanReadiness(savedDhanReadiness && typeof savedDhanReadiness === 'object' ? savedDhanReadiness : {});
+      setDhanReadinessDate(savedDhanReadinessDate);
     } catch {
       setLiveSettings(null);
       setLiveLogs([]);
@@ -46,6 +49,7 @@ export default function TradingWorkflowHomePage() {
       setNoTradeLogs([]);
       setRules({});
       setDhanReadiness({});
+      setDhanReadinessDate('');
     }
   }, []);
 
@@ -86,7 +90,7 @@ export default function TradingWorkflowHomePage() {
     .filter(([id]) => !dhanReadiness?.[id])
     .map(([, label]) => label);
 
-  const dhanReady = missingDhanChecks.length === 0;
+  const dhanReady = missingDhanChecks.length === 0 && dhanReadinessDate === todayKey;
 
   const liveEnabled = Boolean(liveSettings?.enabled);
   const maxQtyOk = Number(liveSettings?.maxQty || 1) === 1;
@@ -147,6 +151,7 @@ export default function TradingWorkflowHomePage() {
           <Stat label="Live Mode" value={liveEnabled ? 'ON' : 'OFF'} tone={liveEnabled ? 'win' : 'loss'} />
           <Stat label="Rules Missing" value={missingRules} tone={missingRules === 0 ? 'win' : 'loss'} />
           <Stat label="Dhan Ready" value={dhanReady ? 'YES' : 'NO'} tone={dhanReady ? 'win' : 'loss'} />
+          <Stat label="Dhan Date" value={dhanReadinessDate || '-'} tone={dhanReadinessDate === todayKey ? 'win' : 'loss'} />
           <Stat label="Dhan Missing" value={missingDhanChecks.length} tone={dhanReady ? 'win' : 'loss'} />
           <Stat label="Max Qty" value={Number(liveSettings?.maxQty || 1)} tone={maxQtyOk ? 'win' : 'loss'} />
           <Stat label="Live Tests" value={`${todayLiveLogs.length}/${Number(liveSettings?.maxTradesPerDay || 1)}`} tone={liveLimitOk ? 'win' : 'loss'} />

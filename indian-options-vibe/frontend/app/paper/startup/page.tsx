@@ -21,6 +21,7 @@ export default function DailyStartupPage() {
   const [noTradeLogs, setNoTradeLogs] = useState<AnyRow[]>([]);
   const [rules, setRules] = useState<AnyRow>({});
   const [dhanReadiness, setDhanReadiness] = useState<AnyRow>({});
+  const [dhanReadinessDate, setDhanReadinessDate] = useState('');
   const [message, setMessage] = useState<string | null>(null);
 
   const todayKey = useMemo(() => getIstDateKey(new Date().toISOString()), []);
@@ -33,6 +34,7 @@ export default function DailyStartupPage() {
       const savedNoTradeLogs = JSON.parse(window.localStorage.getItem('noTradeLogs') || '[]');
       const savedRules = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
       const savedDhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
+      const savedDhanReadinessDate = window.localStorage.getItem('dhanReadinessDate') || '';
 
       setLiveSettings(savedLiveSettings);
       setLiveLogs(Array.isArray(savedLiveLogs) ? savedLiveLogs : []);
@@ -40,6 +42,7 @@ export default function DailyStartupPage() {
       setNoTradeLogs(Array.isArray(savedNoTradeLogs) ? savedNoTradeLogs : []);
       setRules(savedRules && typeof savedRules === 'object' ? savedRules : {});
       setDhanReadiness(savedDhanReadiness && typeof savedDhanReadiness === 'object' ? savedDhanReadiness : {});
+      setDhanReadinessDate(savedDhanReadinessDate);
     } catch {
       setLiveSettings(null);
       setLiveLogs([]);
@@ -47,6 +50,7 @@ export default function DailyStartupPage() {
       setNoTradeLogs([]);
       setRules({});
       setDhanReadiness({});
+      setDhanReadinessDate('');
     }
   }, []);
 
@@ -100,7 +104,7 @@ export default function DailyStartupPage() {
     .filter(([id]) => !dhanReadiness?.[id])
     .map(([, label]) => label);
 
-  const dhanReady = missingDhanChecks.length === 0;
+  const dhanReady = missingDhanChecks.length === 0 && dhanReadinessDate === todayKey;
 
   const liveReady =
     Boolean(liveSettings?.enabled) &&
@@ -129,7 +133,8 @@ export default function DailyStartupPage() {
       ``,
       `DHAN READINESS`,
       `Dhan Ready: ${dhanReady ? 'YES' : 'NO'}`,
-      `Missing Dhan Checks: ${missingDhanChecks.length > 0 ? missingDhanChecks.join(', ') : 'None'}`,
+      `Dhan Readiness Date: ${dhanReadinessDate || '-'}`,
+      `Missing Dhan Checks: ${dhanReadinessDate !== todayKey ? 'Dhan readiness is stale for today' : missingDhanChecks.length > 0 ? missingDhanChecks.join(', ') : 'None'}`,
       ``,
       `TODAY LOGS`,
       `Paper Plans: ${todayPaperTrades.length}`,
@@ -223,6 +228,7 @@ export default function DailyStartupPage() {
           <Stat label="Live Mode" value={liveSettings?.enabled ? 'ON' : 'OFF'} tone={liveSettings?.enabled ? 'win' : 'loss'} />
           <Stat label="Rules Missing" value={missingRules.length} tone={missingRules.length === 0 ? 'win' : 'loss'} />
           <Stat label="Dhan Ready" value={dhanReady ? 'YES' : 'NO'} tone={dhanReady ? 'win' : 'loss'} />
+          <Stat label="Dhan Date" value={dhanReadinessDate || '-'} tone={dhanReadinessDate === todayKey ? 'win' : 'loss'} />
           <Stat label="Dhan Missing" value={missingDhanChecks.length} tone={dhanReady ? 'win' : 'loss'} />
           <Stat label="Paper Plans" value={todayPaperTrades.length} />
           <Stat label="No-Trade Logs" value={todayNoTradeLogs.length} tone={todayNoTradeLogs.length > 0 ? 'win' : undefined} />
@@ -266,6 +272,7 @@ export default function DailyStartupPage() {
             {todayLiveLogs.length >= maxLiveTrades ? <Blocker text={`Daily live-test limit reached: ${todayLiveLogs.length}/${maxLiveTrades}.`} href="/paper/today" label="Today Review" /> : null}
             {todayLiveSlHits >= maxLiveSl ? <Blocker text={`Daily SL limit reached: ${todayLiveSlHits}/${maxLiveSl}.`} href="/paper/today" label="Today Review" /> : null}
             {missingRules.length > 0 ? <Blocker text={`Rules missing: ${missingRules.join(', ')}.`} href="/paper/rules" label="Open Rules" /> : null}
+            {dhanReadinessDate !== todayKey ? <Blocker text="Dhan readiness date is stale. Complete today's checklist." href="/broker/dhan-readiness" label="Dhan Readiness" /> : null}
             {missingDhanChecks.length > 0 ? <Blocker text={`Dhan readiness missing: ${missingDhanChecks.join(', ')}.`} href="/broker/dhan-readiness" label="Dhan Readiness" /> : null}
 
             {startupReady ? (
