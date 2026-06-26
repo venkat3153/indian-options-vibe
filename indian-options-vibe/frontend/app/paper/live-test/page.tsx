@@ -440,6 +440,29 @@ export default function LiveTestModePage() {
     setMessage(`Live test marked as ${status} ✅`);
   };
 
+  const liveTodayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+  const todayLiveLogs = logs.filter((log) => {
+    const stamp = log.createdAt || log.updatedAt;
+    const date = stamp ? new Date(String(stamp)) : new Date();
+
+    if (Number.isNaN(date.getTime())) {
+      return false;
+    }
+
+    return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === liveTodayKey;
+  });
+
+  const todayOpenLogs = todayLiveLogs.filter((log) => log.status === 'Entered').length;
+  const todayClosedLogs = todayLiveLogs.filter((log) =>
+    ['Target Hit', 'SL Hit', 'Cancelled'].includes(String(log.status || ''))
+  ).length;
+
+  const todayLivePnl = todayLiveLogs.reduce((sum, log) => {
+    const value = Number(log.pnl);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
       <div className="mx-auto max-w-6xl">
@@ -516,6 +539,41 @@ export default function LiveTestModePage() {
         </div>
 
         <DailyRiskBudgetCard liveLogs={logs} />
+
+        <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+          <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Today Live Test Summary</div>
+          <h2 className="mt-2 text-2xl font-black text-white">IST Day Control</h2>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Today Logs</div>
+              <div className="mt-2 text-xl font-black text-white">{todayLiveLogs.length}</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Open</div>
+              <div className={`mt-2 text-xl font-black ${todayOpenLogs > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                {todayOpenLogs}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Closed</div>
+              <div className="mt-2 text-xl font-black text-emerald-300">{todayClosedLogs}</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Today P&L</div>
+              <div className={`mt-2 text-xl font-black ${todayLivePnl < 0 ? 'text-red-300' : todayLivePnl > 0 ? 'text-emerald-300' : 'text-white'}`}>
+                ₹{todayLivePnl.toLocaleString('en-IN')}
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm leading-6 text-slate-400">
+            This card reads today only by IST date. The full table below can still show saved history.
+          </p>
+        </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
