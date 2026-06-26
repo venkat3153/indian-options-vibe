@@ -106,14 +106,15 @@ export default function DailyClosePage() {
     const missingPnl = !String(log.pnl || '').trim();
     const missingEmotion = !String(log.emotion || '').trim();
     const missingMistake = !String(log.mistake || '').trim();
+    const missingNote = !String(log.note || '').trim();
 
-    return missingEntry || missingExit || missingPnl || missingEmotion || missingMistake;
+    return missingEntry || missingExit || missingPnl || missingEmotion || missingMistake || missingNote;
   });
 
   const closeBlockReasons = [
     !dhanReady ? 'Dhan readiness is not complete today' : '',
     liveOpen > 0 ? 'Open live-test result is still pending' : '',
-    incompleteLiveLogs.length > 0 ? `${incompleteLiveLogs.length} completed live-test log is missing entry/exit/P&L/emotion/mistake data` : '',
+    incompleteLiveLogs.length > 0 ? `${incompleteLiveLogs.length} completed live-test log is missing entry/exit/P&L/emotion/mistake/review note data` : '',
     todayLive.length === 0 && todayNoTrade.length === 0 && todayPaper.length === 0
       ? 'No live-test, no-trade, or paper review is logged today'
       : '',
@@ -171,14 +172,12 @@ export default function DailyClosePage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* Close header simplified */}
             <a href="/paper/home" className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20">
               Workflow Home
             </a>
             <a href="/broker/dhan-readiness" className="rounded-2xl border border-orange-800 bg-orange-500/10 px-5 py-3 text-sm font-bold text-orange-300 hover:bg-orange-500/20">
               Dhan Readiness
-            </a>
-            <a href="/paper/startup" className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20">
-              Daily Startup
             </a>
             <a href="/paper/live-test" className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20">
               Live Test
@@ -287,7 +286,7 @@ export default function DailyClosePage() {
                 <div>
                   <div className="text-sm font-bold text-red-300">⚠️ Completed live-test data is incomplete.</div>
                   <div className="mt-1 text-xs text-slate-400">
-                    Add entry price, exit price, P&L, emotion, and mistake before closing.
+                    Add entry price, exit price, P&L, emotion, mistake, and review note before closing.
                   </div>
                 </div>
                 <a
@@ -314,7 +313,7 @@ export default function DailyClosePage() {
               <Check ok={dhanReady} text="Dhan readiness was completed today" />
               <Check ok={todayLive.length > 0 || todayNoTrade.length > 0} text="Today has either live-test log or no-trade log" />
               <Check ok={liveOpen === 0} text="No live-test entry remains open" />
-              <Check ok={incompleteLiveLogs.length === 0} text="Completed live-test logs have entry, exit, P&L, emotion, and mistake data" />
+              <Check ok={incompleteLiveLogs.length === 0} text="Completed live-test logs have entry, exit, P&L, emotion, mistake, and review note data" />
               <Check ok={badEmotion === 0} text="No dangerous emotion logged" />
               <Check ok={mistakes === 0} text="No serious mistake logged" />
               <Check ok={todayNoTrade.length > 0 || todayLive.length > 0 || todayPaper.length > 0} text="Day has something to review" />
