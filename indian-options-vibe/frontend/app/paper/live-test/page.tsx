@@ -380,12 +380,31 @@ export default function LiveTestModePage() {
   };
 
   const updateLiveTestStatus = (id: string, status: LiveTestLog['status']) => {
+    const targetLog = logs.find((log) => log.id === id);
+
+    if (!targetLog) {
+      setMessage('Live test log not found ❌');
+      return;
+    }
+
+    const isClosingStatus = status === 'Target Hit' || status === 'SL Hit';
+
+    if (isClosingStatus) {
+      const hasExit = String(targetLog.exitPrice || '').trim().length > 0;
+      const hasPnl = String(targetLog.pnl || '').trim().length > 0;
+
+      if (!hasExit || !hasPnl) {
+        setMessage('Cannot close live test without Exit Price and P&L ❌');
+        return;
+      }
+    }
+
     const nextLogs = logs.map((log) =>
       log.id === id ? { ...log, status, updatedAt: new Date().toISOString() } : log
     );
 
     saveLogs(nextLogs);
-    setMessage(`Live test marked ${status} ✅`);
+    setMessage(`Live test marked as ${status} ✅`);
   };
 
   return (
