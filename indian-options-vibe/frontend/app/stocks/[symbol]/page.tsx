@@ -773,7 +773,56 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
       : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
 
-    const buildFinalLivePermissionReasons = () => {
+    const buildDailyRiskBudgetSnapshot = () => {
+    try {
+      const liveSettings = JSON.parse(window.localStorage.getItem('liveTestSettings') || 'null');
+      const liveLogs = JSON.parse(window.localStorage.getItem('liveTestLogs') || '[]');
+      const maxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || liveSettings?.maxDailyLoss || 500);
+
+      const getIstDateKeyLocal = (value: unknown) => {
+        const date = value ? new Date(String(value)) : new Date();
+
+        if (Number.isNaN(date.getTime())) {
+          return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        }
+
+        return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      };
+
+      const todayKey = getIstDateKeyLocal(new Date().toISOString());
+
+      const todayLiveLogs = Array.isArray(liveLogs)
+        ? liveLogs.filter((log: any) => {
+            const stamp = log.createdAt || log.updatedAt;
+            return getIstDateKeyLocal(stamp) === todayKey;
+          })
+        : [];
+
+      const todayLivePnl = todayLiveLogs.reduce((sum: number, log: any) => {
+        const value = Number(log.pnl);
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0);
+
+      const remainingRisk = maxDailyLoss + todayLivePnl;
+      const stopped = todayLivePnl <= -maxDailyLoss;
+
+      return {
+        todayLivePnl,
+        maxDailyLoss,
+        remainingRisk,
+        status: stopped ? 'STOP FOR TODAY' : 'RISK OK',
+      };
+    } catch {
+      return {
+        todayLivePnl: 0,
+        maxDailyLoss: 500,
+        remainingRisk: 500,
+        status: 'UNKNOWN',
+      };
+    }
+  };
+
+  const buildFinalLivePermissionReasons = () => {
     const reasons: string[] = [];
 
     try {
@@ -867,6 +916,12 @@ RR PLAN
 - 1R Target: ${rr.oneR ? money(rr.oneR) : '-'}
 - 2R Target: ${rr.twoR ? money(rr.twoR) : '-'}
 - RR Status: ${rr.status}
+
+DAILY RISK BUDGET
+- Today Live P&L: ₹${buildDailyRiskBudgetSnapshot().todayLivePnl}
+- Max Daily Loss: ₹${buildDailyRiskBudgetSnapshot().maxDailyLoss}
+- Remaining Risk: ₹${buildDailyRiskBudgetSnapshot().remainingRisk}
+- Risk Budget Status: ${buildDailyRiskBudgetSnapshot().status}
 
 FINAL LIVE PERMISSION
 - Status: ${permissionStatus}
