@@ -104,6 +104,7 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/stocks" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">← Back to Stocks Research</Link>
             <a href="/paper" className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">Paper Trading</a>
+            <a href="/paper/home" className="rounded-xl border border-blue-800 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-300 hover:bg-blue-500/20">Workflow Home</a>
             <a href="/paper/startup" className="rounded-xl border border-emerald-800 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20">Daily Startup</a>
             <a href="/paper/close" className="rounded-xl border border-fuchsia-800 bg-fuchsia-500/10 px-3 py-2 text-xs font-bold text-fuchsia-300 hover:bg-fuchsia-500/20">Daily Close</a>
             <a href="/paper/live-test" className="rounded-xl border border-cyan-800 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20">Live Test</a>
