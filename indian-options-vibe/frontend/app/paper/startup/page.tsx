@@ -198,6 +198,8 @@ export default function DailyStartupPage() {
           <Stat label="No-Trade Logs" value={todayNoTradeLogs.length} tone={todayNoTradeLogs.length > 0 ? 'win' : undefined} />
         </div>
 
+        <DailyRiskBudgetCard liveLogs={liveLogs} />
+
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
             <h2 className="text-2xl font-bold text-cyan-200">Live Test Readiness</h2>
@@ -246,6 +248,72 @@ export default function DailyStartupPage() {
     </main>
   );
 }
+
+
+function DailyRiskBudgetCard({ liveLogs }: { liveLogs: Record<string, any>[] }) {
+  const maxDailyLoss = Number(window.localStorage.getItem('liveTestMaxDailyLoss') || 500);
+
+  const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+  const todayLogs = liveLogs.filter((log) => {
+    const stamp = log.createdAt || log.updatedAt;
+    const date = stamp ? new Date(String(stamp)) : new Date();
+    if (Number.isNaN(date.getTime())) return false;
+    return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === todayKey;
+  });
+
+  const livePnl = todayLogs.reduce((sum, log) => {
+    const value = Number(log.pnl);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
+
+  const remainingRisk = maxDailyLoss + livePnl;
+  const stopped = livePnl <= -maxDailyLoss;
+
+  return (
+    <div
+      className={`mt-8 rounded-3xl border p-6 ${
+        stopped ? 'border-red-900 bg-red-950/20' : 'border-emerald-800 bg-emerald-500/10'
+      }`}
+    >
+      <div className="text-xs uppercase tracking-[0.22em] text-slate-500">Daily Risk Budget</div>
+      <h2 className={`mt-2 text-3xl font-black ${stopped ? 'text-red-300' : 'text-emerald-300'}`}>
+        {stopped ? 'STOP FOR TODAY' : 'RISK OK'}
+      </h2>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Today Live P&L</div>
+          <div className={`mt-2 text-xl font-black ${livePnl < 0 ? 'text-red-300' : livePnl > 0 ? 'text-emerald-300' : 'text-white'}`}>
+            ₹{livePnl.toLocaleString('en-IN')}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Max Daily Loss</div>
+          <div className="mt-2 text-xl font-black text-red-300">₹{maxDailyLoss.toLocaleString('en-IN')}</div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Remaining Risk</div>
+          <div className={`mt-2 text-xl font-black ${remainingRisk <= 0 ? 'text-red-300' : 'text-yellow-300'}`}>
+            ₹{remainingRisk.toLocaleString('en-IN')}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Rule</div>
+          <div className="mt-2 text-xl font-black text-white">1 trade / day</div>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-6 text-slate-300">
+        If today&apos;s live P&L reaches -₹{maxDailyLoss.toLocaleString('en-IN')}, no more live tests. Log review and close the day.
+      </p>
+    </div>
+  );
+}
+
 
 function Stat({
   label,
