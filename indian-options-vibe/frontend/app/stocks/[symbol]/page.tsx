@@ -794,7 +794,35 @@ function RRPlanCard({ stock, quote, retest, vwap }: { stock: StockRow; quote?: L
       ? 'border-emerald-800 bg-emerald-500/10 text-emerald-200'
       : 'border-yellow-800 bg-yellow-500/10 text-yellow-200';
 
-    const buildDhanReadinessSnapshot = () => {
+    const buildRulesGateSnapshot = () => {
+    try {
+      const rulesChecklist = JSON.parse(window.localStorage.getItem('paperRulesChecklist') || '{}');
+
+      const hardRules: Record<string, string> = {
+        'market-breadth': 'Market Breadth',
+        vwap: 'VWAP Gate',
+        retest: 'Retest Quality',
+        rr: '1:2 RR Room',
+        execution: 'Execution Lock',
+      };
+
+      const missingRules = Object.entries(hardRules)
+        .filter(([id]) => !rulesChecklist?.[id])
+        .map(([, label]) => label);
+
+      return {
+        ready: missingRules.length === 0,
+        missing: missingRules,
+      };
+    } catch {
+      return {
+        ready: false,
+        missing: ['Could not read Rules Gate checklist'],
+      };
+    }
+  };
+
+  const buildDhanReadinessSnapshot = () => {
     try {
       const dhanReadiness = JSON.parse(window.localStorage.getItem('dhanReadinessChecklist') || '{}');
 
@@ -984,16 +1012,18 @@ FINAL LIVE PERMISSION
 ${permissionReasons.length === 0 ? '- Reason: All live-test gates are clear.' : permissionReasons.map((reason) => `- Blocked Reason: ${reason}`).join('\n')}
 
 BEFORE EXECUTION CONFIRM
-1. Rules Gate PASSED
-2. Discipline Lock ALLOWED
-3. Live Test Mode READY
-4. No FOMO / Revenge / Greed emotion
-5. Entry is not chased
-6. Stop is accepted before entry
-7. Quantity is only 1 lot or 1 stock
+1. Rules Gate: ${buildRulesGateSnapshot().ready ? 'PASSED' : 'BLOCKED'}
+${buildRulesGateSnapshot().missing.length === 0 ? '   Missing Rules: None' : `   Missing Rules: ${buildRulesGateSnapshot().missing.join(', ')}`}
+2. Dhan Readiness: ${buildDhanReadinessSnapshot().ready ? 'READY' : 'BLOCKED'}
+3. Risk Budget: ${buildDailyRiskBudgetSnapshot().status}
+4. Final Live Permission: ${permissionStatus}
+5. No FOMO / Revenge / Greed emotion: MANUAL CHECK REQUIRED
+6. Entry is not chased: MANUAL CHECK REQUIRED
+7. Stop is accepted before entry: MANUAL CHECK REQUIRED
+8. Quantity is only 1 lot or 1 stock: REQUIRED
 
 FINAL RULE
-If any answer is NO, do not execute. Save as no-trade only.
+If Final Live Permission is BLOCKED, do not execute. Save as no-trade only.
 `;
 
     await navigator.clipboard.writeText(checklistText);
