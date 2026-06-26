@@ -108,6 +108,10 @@ export default function TodayPaperReviewPage() {
   const liveTargetHit = todayLiveLogs.filter((log) => log.status === 'Target Hit').length;
   const liveSlHit = todayLiveLogs.filter((log) => log.status === 'SL Hit').length;
   const liveCancelled = todayLiveLogs.filter((log) => log.status === 'Cancelled').length;
+  const livePnl = todayLiveLogs.reduce((sum, log) => {
+    const value = Number(log.pnl);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
 
   const badEmotionCount = todayTrades.filter((trade) =>
     ['FOMO', 'Fear', 'Revenge', 'Greedy', 'Confused'].includes(String(trade.emotion || ''))
@@ -160,29 +164,12 @@ export default function TodayPaperReviewPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <a
-              href="/paper"
-              className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
-            >
-              Open Paper Trading
-            </a>
+            {/* Today review header simplified */}
             <a
               href="/paper/home"
               className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20"
             >
               Workflow Home
-            </a>
-            <a
-              href="/paper/startup"
-              className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
-            >
-              Daily Startup
-            </a>
-            <a
-              href="/paper/close"
-              className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20"
-            >
-              Daily Close
             </a>
             <a
               href="/paper/live-test"
@@ -191,22 +178,10 @@ export default function TodayPaperReviewPage() {
               Live Test
             </a>
             <a
-              href="/paper/no-trade"
-              className="rounded-2xl border border-lime-800 bg-lime-500/10 px-5 py-3 text-sm font-bold text-lime-300 hover:bg-lime-500/20"
+              href="/paper/close"
+              className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20"
             >
-              No-Trade Day
-            </a>
-            <a
-              href="/paper/discipline"
-              className="rounded-2xl border border-red-900 bg-red-950/30 px-5 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50"
-            >
-              Discipline Lock
-            </a>
-            <a
-              href="/paper/rules"
-              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
-            >
-              Rules
+              Daily Close
             </a>
             <a
               href="/paper/weekly"
@@ -215,23 +190,11 @@ export default function TodayPaperReviewPage() {
               Weekly Review
             </a>
             <a
-              href="/paper/analytics"
-              className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
+              href="/paper/export"
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
             >
-              Analytics
+              Export
             </a>
-            <a
-              href="/stocks"
-              className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20"
-            >
-              Stocks Research
-            </a>
-            <button
-              onClick={copyDailySummary}
-              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
-            >
-              Copy Summary
-            </button>
           </div>
         </div>
 
@@ -399,6 +362,7 @@ export default function TodayPaperReviewPage() {
             <MiniStat label="Target Hit" value={liveTargetHit} />
             <MiniStat label="SL Hit" value={liveSlHit} />
             <MiniStat label="Cancelled" value={liveCancelled} />
+            <MiniStat label="Live P&L" value={livePnl ? livePnl.toLocaleString('en-IN') : '-'} />
           </div>
 
           <div className="mt-5 overflow-x-auto">
@@ -409,6 +373,9 @@ export default function TodayPaperReviewPage() {
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Mode</th>
                   <th className="px-3 py-3">Qty</th>
+                  <th className="px-3 py-3">Entry</th>
+                  <th className="px-3 py-3">Exit</th>
+                  <th className="px-3 py-3">P&L</th>
                   <th className="px-3 py-3">Emotion</th>
                   <th className="px-3 py-3">Mistake</th>
                   <th className="px-3 py-3">Note</th>
@@ -421,6 +388,9 @@ export default function TodayPaperReviewPage() {
                     <td className="px-3 py-4 text-slate-300">{log.status || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mode || '-'}</td>
                     <td className="px-3 py-4 text-yellow-300">{log.qty || 1}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.entryPrice || '-'}</td>
+                    <td className="px-3 py-4 text-slate-300">{log.exitPrice || '-'}</td>
+                    <td className="px-3 py-4 text-yellow-300">{log.pnl || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
                     <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
@@ -429,7 +399,7 @@ export default function TodayPaperReviewPage() {
 
                 {todayLiveLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-cyan-100/50">
+                    <td colSpan={10} className="px-3 py-8 text-center text-cyan-100/50">
                       No live test logged today.
                     </td>
                   </tr>
