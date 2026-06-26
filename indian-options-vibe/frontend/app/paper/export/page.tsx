@@ -452,47 +452,12 @@ export default function PaperExportPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <a
-              href="/paper"
-              className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-200 hover:bg-slate-800"
-            >
-              Open Paper Trading
-            </a>
+            {/* Export header simplified */}
             <a
               href="/paper/home"
               className="rounded-2xl border border-blue-800 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-300 hover:bg-blue-500/20"
             >
               Workflow Home
-            </a>
-            <a
-              href="/paper/startup"
-              className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
-            >
-              Daily Startup
-            </a>
-            <a
-              href="/paper/close"
-              className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20"
-            >
-              Daily Close
-            </a>
-            <a
-              href="/paper/live-test"
-              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
-            >
-              Live Test
-            </a>
-            <a
-              href="/paper/discipline"
-              className="rounded-2xl border border-red-900 bg-red-950/30 px-5 py-3 text-sm font-bold text-red-300 hover:bg-red-950/50"
-            >
-              Discipline Lock
-            </a>
-            <a
-              href="/paper/rules"
-              className="rounded-2xl border border-purple-800 bg-purple-500/10 px-5 py-3 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
-            >
-              Rules
             </a>
             <a
               href="/paper/today"
@@ -507,10 +472,16 @@ export default function PaperExportPage() {
               Weekly Review
             </a>
             <a
-              href="/paper/analytics"
-              className="rounded-2xl border border-emerald-800 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20"
+              href="/paper/live-test"
+              className="rounded-2xl border border-cyan-800 bg-cyan-500/10 px-5 py-3 text-sm font-bold text-cyan-300 hover:bg-cyan-500/20"
             >
-              Analytics
+              Live Test
+            </a>
+            <a
+              href="/paper/close"
+              className="rounded-2xl border border-fuchsia-800 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 hover:bg-fuchsia-500/20"
+            >
+              Daily Close
             </a>
           </div>
         </div>
