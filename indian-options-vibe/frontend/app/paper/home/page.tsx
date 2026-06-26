@@ -133,6 +133,37 @@ export default function TradingWorkflowHomePage() {
           </div>
         </div>
 
+        <div className="mt-8 rounded-3xl border border-cyan-800 bg-cyan-500/10 p-6">
+          <div className="text-xs uppercase tracking-[0.22em] text-cyan-300">July Mode Active</div>
+          <h2 className="mt-2 text-3xl font-black text-white">Manual Dhan Controlled Live Test</h2>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-4">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Execution</div>
+              <div className="mt-2 text-lg font-black text-cyan-300">Manual Only</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Size</div>
+              <div className="mt-2 text-lg font-black text-yellow-300">1 Lot / 1 Qty</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Auto Order</div>
+              <div className="mt-2 text-lg font-black text-red-300">Disabled</div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Permission</div>
+              <div className="mt-2 text-lg font-black text-emerald-300">Required</div>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm leading-6 text-cyan-100/80">
+            This version is for personal July testing only. The system can say ALLOWED or BLOCKED, but you still execute manually in Dhan.
+          </p>
+        </div>
+
         <div
           className={`mt-8 rounded-3xl border p-6 ${
             readyForScan ? 'border-emerald-800 bg-emerald-500/10' : 'border-red-900 bg-red-950/20'
