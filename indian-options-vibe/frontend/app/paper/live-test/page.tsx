@@ -286,6 +286,15 @@ export default function LiveTestModePage() {
     setMessage('Live test entry logged ✅ Manual Dhan execution only.');
   };
 
+  const updateLiveTestField = (id: string, field: keyof LiveTestLog, value: string) => {
+    const nextLogs = logs.map((log) =>
+      log.id === id ? { ...log, [field]: value, updatedAt: new Date().toISOString() } : log
+    );
+
+    saveLogs(nextLogs);
+    setMessage('Live test field updated ✅');
+  };
+
   const updateLiveTestStatus = (id: string, status: LiveTestLog['status']) => {
     const nextLogs = logs.map((log) =>
       log.id === id ? { ...log, status, updatedAt: new Date().toISOString() } : log
@@ -616,9 +625,30 @@ export default function LiveTestModePage() {
                     <td className="px-3 py-4 text-slate-300">{log.mode}</td>
                     <td className="px-3 py-4 text-yellow-300">{log.qty}</td>
                     <td className="px-3 py-4 text-slate-300">{log.status}</td>
-                    <td className="px-3 py-4 text-slate-300">{log.entryPrice || '-'}</td>
-                    <td className="px-3 py-4 text-slate-300">{log.exitPrice || '-'}</td>
-                    <td className="px-3 py-4 text-yellow-300">{log.pnl || '-'}</td>
+                    <td className="px-3 py-4">
+                      <input
+                        value={log.entryPrice || ''}
+                        onChange={(event) => updateLiveTestField(log.id, 'entryPrice', event.target.value)}
+                        placeholder="-"
+                        className="w-24 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-cyan-700"
+                      />
+                    </td>
+                    <td className="px-3 py-4">
+                      <input
+                        value={log.exitPrice || ''}
+                        onChange={(event) => updateLiveTestField(log.id, 'exitPrice', event.target.value)}
+                        placeholder="-"
+                        className="w-24 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-white outline-none focus:border-cyan-700"
+                      />
+                    </td>
+                    <td className="px-3 py-4">
+                      <input
+                        value={log.pnl || ''}
+                        onChange={(event) => updateLiveTestField(log.id, 'pnl', event.target.value)}
+                        placeholder="-"
+                        className="w-24 rounded-lg border border-slate-800 bg-slate-950 px-2 py-2 text-xs text-yellow-300 outline-none focus:border-cyan-700"
+                      />
+                    </td>
                     <td className="px-3 py-4 text-slate-300">{log.emotion || '-'}</td>
                     <td className="px-3 py-4 text-slate-300">{log.mistake || '-'}</td>
                     <td className="px-3 py-4 text-slate-400">{log.note || '-'}</td>
