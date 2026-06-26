@@ -119,6 +119,7 @@ export default function DhanReadinessPage() {
       `DHAN READINESS CHECK - ${todayKey} IST`,
       ``,
       `Status: ${ready ? 'READY FOR MANUAL LIVE TEST' : 'NOT READY'}`,
+      `Readiness Date: ${todayKey}`,
       `Score: ${score}/100`,
       `Completed: ${completed}/${CHECKS.length}`,
       ``,
@@ -196,6 +197,7 @@ export default function DhanReadinessPage() {
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
           <Stat label="IST Date" value={todayKey} />
+          <Stat label="Checklist Date" value={todayKey} tone="win" />
           <Stat label="Completed" value={`${completed}/${CHECKS.length}`} tone={ready ? 'win' : undefined} />
           <Stat label="Score" value={`${score}%`} tone={score === 100 ? 'win' : 'loss'} />
           <Stat label="Hard Blocks" value={hardMissing.length} tone={hardMissing.length === 0 ? 'win' : 'loss'} />
@@ -204,7 +206,7 @@ export default function DhanReadinessPage() {
         <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
           <h2 className="text-2xl font-bold text-white">Checklist</h2>
           <p className="mt-2 text-sm text-slate-400">
-            Tick only when actually confirmed. Do not tick based on hope.
+            Tick only when actually confirmed. Do not tick based on hope. This checklist resets daily by IST date.
           </p>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
