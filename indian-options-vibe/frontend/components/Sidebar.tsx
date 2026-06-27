@@ -3,20 +3,12 @@ import Link from 'next/link';
 const items = [
   ['Home', '/'],
   ['Full Model', '/full-model'],
-  ['Agent', '/agent'],
   ['Stocks Research', '/stocks'],
-  ['Daily Plan', '/daily-plan'],
-  ['Daily Startup', '/daily/startup'],
-  ['Daily Close', '/daily/close'],
-  ['Weekly Review', '/weekly/review'],
-  ['Market Screener', '/scanner'],
+  ['Market Screener', '/screener'],
   ['Paper Trading', '/paper'],
   ['Journal Dashboard', '/journal'],
-  ['Runs', '/runs/demo-run-001'],
-  ['Broker Connect', '/broker'],
   ['Dhan Read-Only', '/broker/dhan-readonly'],
   ['Live Permission', '/live/permission'],
-  ['Discipline Lock', '/discipline/lock'],
   ['Settings', '/settings'],
 ];
 
