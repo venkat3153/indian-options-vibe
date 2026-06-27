@@ -109,6 +109,22 @@ export default function ManualLivePermissionCockpit() {
       ok: dailyRiskClear,
       fail: "Daily risk lock is active. Check Discipline Lock.",
     },
+  
+    {
+      label: "Candidate Match",
+      ok: candidateConsistency.ok,
+      fail: candidateConsistency.reason,
+    },
+    {
+      label: "Market Session",
+      ok: marketOpen,
+      fail: marketSession?.reason || "Market session is closed.",
+    },
+    {
+      label: "Cooldown Guard",
+      ok: cooldownClear,
+      fail: "Cooldown is active after trade/loss. Wait before next decision.",
+    },
   ];
 
   return (
@@ -190,24 +206,23 @@ export default function ManualLivePermissionCockpit() {
           </h2>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {checks
+              .filter((check) => !check.ok)
+              .map((check) => (
+                <div key={check.label} className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
+                  <div className="font-black">{check.label}</div>
+                  <div className="mt-1">{check.fail}</div>
+                </div>
+              ))}
+
             {checks.filter((check) => !check.ok).length === 0 ? (
               <div className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
-                <div className="font-black">Hidden Gate</div>
+                <div className="font-black">Logic mismatch</div>
                 <div className="mt-1">
-                  Final Permission is blocked by a gate that is not displayed in the top cards.
-                  Scroll down and check Market Session, Candidate Match, or Cooldown Guard.
+                  Final Permission is blocked, but no failed check is visible. Recheck allowed logic.
                 </div>
               </div>
-            ) : (
-              checks
-                .filter((check) => !check.ok)
-                .map((check) => (
-                  <div key={check.label} className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
-                    <div className="font-black">{check.label}</div>
-                    <div className="mt-1">{check.fail}</div>
-                  </div>
-                ))
-            )}
+            ) : null}
           </div>
         </section>
       ) : null}
