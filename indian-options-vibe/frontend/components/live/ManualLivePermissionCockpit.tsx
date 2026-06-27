@@ -190,14 +190,24 @@ export default function ManualLivePermissionCockpit() {
           </h2>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {checks
-              .filter((check) => !check.ok)
-              .map((check) => (
-                <div key={check.label} className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
-                  <div className="font-black">{check.label}</div>
-                  <div className="mt-1">{check.fail}</div>
+            {checks.filter((check) => !check.ok).length === 0 ? (
+              <div className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
+                <div className="font-black">Hidden Gate</div>
+                <div className="mt-1">
+                  Final Permission is blocked by a gate that is not displayed in the top cards.
+                  Scroll down and check Market Session, Candidate Match, or Cooldown Guard.
                 </div>
-              ))}
+              </div>
+            ) : (
+              checks
+                .filter((check) => !check.ok)
+                .map((check) => (
+                  <div key={check.label} className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
+                    <div className="font-black">{check.label}</div>
+                    <div className="mt-1">{check.fail}</div>
+                  </div>
+                ))
+            )}
           </div>
         </section>
       ) : null}
