@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calculateTradeDisciplineLock } from "@/lib/tradeDisciplineLock";
-import { loadDailyRiskState, saveDailyRiskState } from "@/lib/dailyRiskState";
+import {
+  defaultDailyRiskState,
+  loadDailyRiskState,
+  saveDailyRiskState,
+} from "@/lib/dailyRiskState";
 
 export default function TradeDisciplineLockPanel() {
   const [mounted, setMounted] = useState(false);
@@ -46,8 +50,8 @@ export default function TradeDisciplineLockPanel() {
       todayLossR,
       maxLossR,
       hasOpenPosition,
-      emotion,
       lockedManually,
+      emotion,
       oneQtyConfirmed,
       manualOnlyConfirmed,
     ]
@@ -67,6 +71,31 @@ export default function TradeDisciplineLockPanel() {
     });
   }, [mounted, todayTrades, maxTrades, todayLossR, maxLossR, emotion, lockedManually]);
 
+  function markTradeTaken() {
+    setTodayTrades((value) => value + 1);
+  }
+
+  function recordOneRLoss() {
+    setTodayLossR((value) => value - 1);
+  }
+
+  function lockDayNow() {
+    setLockedManually(true);
+  }
+
+  function resetTodayRisk() {
+    const fresh = defaultDailyRiskState();
+    setTodayTrades(fresh.todayTrades);
+    setMaxTrades(fresh.maxTrades);
+    setTodayLossR(fresh.todayLossR);
+    setMaxLossR(fresh.maxLossR);
+    setEmotion(fresh.emotion);
+    setLockedManually(fresh.lockedManually);
+    setHasOpenPosition(false);
+    setOneQtyConfirmed(true);
+    setManualOnlyConfirmed(true);
+  }
+
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
       <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
@@ -79,7 +108,7 @@ export default function TradeDisciplineLockPanel() {
               Trade Discipline Lock
             </h1>
             <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              This page protects you from overtrading, revenge trades, position stacking,
+              This protects you from overtrading, revenge trades, position stacking,
               and breaking the one-quantity rule. It never places orders.
             </p>
           </div>
@@ -151,7 +180,47 @@ export default function TradeDisciplineLockPanel() {
             />
           </label>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Post-Trade Quick Actions
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <button
+                type="button"
+                onClick={markTradeTaken}
+                className="rounded-xl border border-emerald-800 bg-emerald-950 px-4 py-3 text-sm font-black text-emerald-100 hover:bg-emerald-900"
+              >
+                +1 Trade Taken
+              </button>
+
+              <button
+                type="button"
+                onClick={recordOneRLoss}
+                className="rounded-xl border border-red-800 bg-red-950 px-4 py-3 text-sm font-black text-red-100 hover:bg-red-900"
+              >
+                Record -1R Loss
+              </button>
+
+              <button
+                type="button"
+                onClick={lockDayNow}
+                className="rounded-xl border border-yellow-800 bg-yellow-950 px-4 py-3 text-sm font-black text-yellow-100 hover:bg-yellow-900"
+              >
+                Lock Day
+              </button>
+
+              <button
+                type="button"
+                onClick={resetTodayRisk}
+                className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-black text-slate-200 hover:bg-slate-800"
+              >
+                Reset Today
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-4">
             <label className="rounded-xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-200">
               <input
                 type="checkbox"
