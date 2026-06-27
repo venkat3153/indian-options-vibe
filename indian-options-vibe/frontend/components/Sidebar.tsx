@@ -7,6 +7,7 @@ const items = [
   ['Daily Plan', '/daily-plan'],
   ['Daily Startup', '/daily/startup'],
   ['Daily Close', '/daily/close'],
+  ['Weekly Review', '/weekly/review'],
   ['Market Screener', '/scanner'],
   ['Paper Trading', '/paper'],
   ['Journal Dashboard', '/journal'],
