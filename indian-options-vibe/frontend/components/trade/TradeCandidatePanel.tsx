@@ -171,8 +171,9 @@ export default function TradeCandidatePanel() {
           </div>
 
           {savedAt ? (
-            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
-              Saved: {savedAt}
+            <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 p-4 text-sm text-emerald-100">
+              <div className="font-black">Candidate saved. Next step: Open Evidence Recorder.</div>
+              <div className="mt-1 text-xs text-emerald-200">Saved: {savedAt}</div>
             </div>
           ) : null}
         </div>
