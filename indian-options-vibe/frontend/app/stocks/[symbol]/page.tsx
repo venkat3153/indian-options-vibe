@@ -54,6 +54,7 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
 
   async function addToWatchlist() {
     if (!stock) return;
+
     const signal = getLiveSignal(stock, quote);
     const finalDecision = getFinalDecision(signal, vwap, retest, breadth);
     try {
@@ -97,8 +98,6 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
   const breakdown = stock ? getScoreBreakdown(stock, quote) : [];
 
   if (loading) return <section className="p-8 md:p-12"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 text-slate-300">
-      {/* final-permission-evidence-lock-v2 */}
-      <FinalPermissionEvidenceGate />
 Loading stock research...</div></section>;
   if (!stock) return <section className="p-8 md:p-12"><div className="mx-auto max-w-5xl rounded-3xl border border-red-900 bg-red-950/20 p-8"><h1 className="text-3xl font-bold text-white">Stock not found</h1><p className="mt-2 text-slate-300">{symbol} is not available in the current research universe.</p><Link href="/stocks" className="mt-5 inline-block rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Stocks</Link></div></section>;
 
@@ -1023,6 +1022,9 @@ BEFORE EXECUTION CONFIRM
 ${buildRulesGateSnapshot().missing.length === 0 ? '   Missing Rules: None' : `   Missing Rules: ${buildRulesGateSnapshot().missing.join(', ')}`}
 2. Dhan Readiness: ${buildDhanReadinessSnapshot().ready ? 'READY' : 'BLOCKED'}
 3. Risk Budget: ${buildDailyRiskBudgetSnapshot().status}
+      {/* final-permission-evidence-engine-v2-real */}
+      <FinalPermissionEvidenceGate baseStatus={permissionStatus} />
+
 4. Final Live Permission: ${permissionStatus}
 5. No FOMO / Revenge / Greed emotion: MANUAL CHECK REQUIRED
 6. Entry is not chased: MANUAL CHECK REQUIRED
