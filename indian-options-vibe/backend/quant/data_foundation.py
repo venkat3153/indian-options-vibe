@@ -67,17 +67,19 @@ def clamp(value: float, low: float = 0, high: float = 100) -> float:
 
 
 def has_only_option_pricing_data(snapshot: MarketSnapshot) -> bool:
-    core_total = (
+    core_market_total = (
         abs(snapshot.trend_strength)
         + abs(snapshot.breadth_support)
         + abs(snapshot.vwap_distance_pct)
         + abs(snapshot.retest_quality)
         + abs(snapshot.liquidity_sweep_score)
-        + abs(snapshot.option_ce_momentum)
-        + abs(snapshot.option_pe_momentum)
     )
 
-    return core_total <= 0 and snapshot.option_pricing_score > 0 and snapshot.option_pricing_side != "NO_SIDE"
+    return (
+        core_market_total <= 0
+        and snapshot.option_pricing_score > 0
+        and snapshot.option_pricing_side != "NO_SIDE"
+    )
 
 
 def score_symbol(snapshot: MarketSnapshot) -> ScannerResult:
