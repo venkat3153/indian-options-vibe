@@ -114,6 +114,8 @@ def score_symbol(snapshot: MarketSnapshot) -> ScannerResult:
             setup="Dhan Option Pricing Only",
             reasons=reasons,
             warnings=warnings,
+            option_pricing_score=snapshot.option_pricing_score,
+            option_pricing_side=snapshot.option_pricing_side,
         )
 
 
@@ -209,6 +211,8 @@ def score_symbol(snapshot: MarketSnapshot) -> ScannerResult:
         setup="Trend + VWAP + Retest + Liquidity + Option Momentum",
         reasons=reasons,
         warnings=warnings,
+        option_pricing_score=snapshot.option_pricing_score,
+        option_pricing_side=snapshot.option_pricing_side,
     )
 
 
