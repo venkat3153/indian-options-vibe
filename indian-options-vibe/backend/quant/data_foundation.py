@@ -58,6 +58,8 @@ class ScannerResult:
     setup: str
     reasons: list[str]
     warnings: list[str]
+    option_pricing_score: float = 0
+    option_pricing_side: str = "NO_SIDE"
     auto_order_allowed: bool = False
     manual_only: bool = True
 
