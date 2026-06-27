@@ -1,5 +1,7 @@
 from routers.dhan_readonly import router as dhan_readonly_router
+from routers.quant import router as quant_router
 from routers.dhan_readonly import router as dhan_readonly_router
+from routers.quant import router as quant_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,3 +55,5 @@ app.include_router(final_status_router, prefix="/api/final-status", tags=["final
 app.include_router(stock_history_router, prefix="/api/stocks/history", tags=["stock-history"])
 app.include_router(quotes_router, prefix="/api/live", tags=["live"])
 app.include_router(watchlist_router, prefix="/api/watchlist", tags=["watchlist"])
+
+app.include_router(quant_router)
