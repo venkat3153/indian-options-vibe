@@ -3,7 +3,7 @@ import requests
 from fastapi import APIRouter
 from pydantic import BaseModel
 from quant.dhan_option_adapter import pick_nearest_expiry, extract_option_chain_data, build_option_pricing_signal
-from quant.snapshot_store import save_market_snapshots
+from quant.snapshot_store import save_market_snapshots, load_latest_market_snapshots
 
 
 router = APIRouter(prefix="/api/dhan-data", tags=["dhan-data"])
@@ -297,6 +297,91 @@ def dhan_nifty_structure_snapshot():
         "status_code": response.status_code,
         "raw": payload,
         "snapshot": snapshot,
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+
+@router.get("/nifty/save-combined-snapshot")
+def dhan_save_nifty_combined_snapshot():
+    structure_result = dhan_nifty_structure_snapshot()
+
+    if structure_result.get("status") != "success":
+        return {
+            "status": "failed",
+            "stage": "structure",
+            "error": structure_result.get("error", "Could not build NIFTY structure snapshot."),
+            "raw": structure_result,
+            "auto_order_allowed": False,
+        }
+
+    option_result = dhan_nifty_option_pricing_snapshot()
+
+    if option_result.get("status") != "success":
+        return {
+            "status": "failed",
+            "stage": "option_pricing",
+            "error": option_result.get("error", "Could not build NIFTY option-pricing snapshot."),
+            "raw": option_result,
+            "auto_order_allowed": False,
+        }
+
+    structure_snapshot = structure_result.get("snapshot", {})
+    pricing_signal = option_result.get("pricing_signal", {})
+    option_snapshot = option_result.get("option_snapshot", {})
+
+    side = pricing_signal.get("side", "NO_SIDE")
+    option_score = float(pricing_signal.get("option_pricing_score", 0) or 0)
+
+    combined = dict(structure_snapshot)
+
+    combined["option_pricing_score"] = option_score
+    combined["option_pricing_side"] = side
+
+    combined["option_ce_momentum"] = 70 if side == "BUY_CE" else 30
+    combined["option_pe_momentum"] = 70 if side == "BUY_PE" else 30
+
+    combined["iv_rank"] = 50
+    combined["spread_quality"] = 70
+
+    # Simple agreement boost:
+    # BUY_CE needs positive trend/vwap. BUY_PE needs negative trend/vwap.
+    trend_strength = float(combined.get("trend_strength", 0) or 0)
+    vwap_distance_pct = float(combined.get("vwap_distance_pct", 0) or 0)
+
+    structure_agrees = (
+        (side == "BUY_CE" and trend_strength > 0 and vwap_distance_pct > 0)
+        or (side == "BUY_PE" and trend_strength < 0 and vwap_distance_pct < 0)
+    )
+
+    if structure_agrees:
+        combined["breadth_support"] = max(float(combined.get("breadth_support", 0) or 0), 55)
+        combined["retest_quality"] = max(float(combined.get("retest_quality", 0) or 0), 55)
+        combined["liquidity_sweep_score"] = max(float(combined.get("liquidity_sweep_score", 0) or 0), 50)
+
+    save_status = save_market_snapshots(
+        [combined],
+        source="dhan-combined-structure-options",
+    )
+
+    return {
+        "status": "success",
+        "message": "Combined NIFTY structure + option-pricing snapshot saved into quant scanner.",
+        "structure_agrees": structure_agrees,
+        "save_status": save_status,
+        "combined_snapshot": combined,
+        "structure_snapshot": structure_snapshot,
+        "option_snapshot": {
+            "expiry": option_result.get("expiry"),
+            "atm_strike": option_snapshot.get("atm_strike"),
+            "atm_ce_ltp": option_snapshot.get("atm_ce_ltp"),
+            "atm_pe_ltp": option_snapshot.get("atm_pe_ltp"),
+            "atm_straddle": option_snapshot.get("atm_straddle"),
+            "pcr_oi": option_snapshot.get("pcr_oi"),
+            "pcr_volume": option_snapshot.get("pcr_volume"),
+            "pricing_signal": pricing_signal,
+        },
         "auto_order_allowed": False,
         "manual_only": True,
     }
