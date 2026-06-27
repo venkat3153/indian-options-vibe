@@ -173,6 +173,13 @@ export default function ManualLivePermissionCockpit() {
           </button>
 
           <a
+            href="/trade/candidate"
+            className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
+          >
+            Open Trade Candidate
+          </a>
+
+          <a
             href="/paper/evidence"
             className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
           >
