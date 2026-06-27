@@ -3,7 +3,7 @@ import { TradeCandidate } from "@/lib/tradeCandidate";
 
 export type CandidateConsistencyResult = {
   ok: boolean;
-  status: "PASS" | "BLOCK" | "CHECK";
+  status: "PASS" | "BLOCK";
   reason: string;
 };
 
@@ -20,9 +20,9 @@ export function checkCandidateConsistency({
 }): CandidateConsistencyResult {
   if (!candidate) {
     return {
-      ok: true,
-      status: "CHECK",
-      reason: "No trade candidate saved. This is allowed, but candidate bridge is empty.",
+      ok: false,
+      status: "BLOCK",
+      reason: "No Trade Candidate saved. Save one planned idea before live permission.",
     };
   }
 
@@ -30,7 +30,7 @@ export function checkCandidateConsistency({
     return {
       ok: false,
       status: "BLOCK",
-      reason: "Trade candidate exists, but pre-trade evidence is missing.",
+      reason: "Trade Candidate exists, but pre-trade evidence is missing.",
     };
   }
 
@@ -39,11 +39,11 @@ export function checkCandidateConsistency({
   const candidateSide = clean(candidate.side);
   const evidenceSide = clean(evidence.side);
 
-  if (!candidateSymbol || !candidateSide) {
+  if (!candidateSymbol || !candidateSide || !candidate.setup.trim()) {
     return {
       ok: false,
       status: "BLOCK",
-      reason: "Trade candidate is incomplete. Symbol and side are required.",
+      reason: "Trade Candidate is incomplete. Symbol, side, and setup are required.",
     };
   }
 
@@ -74,6 +74,6 @@ export function checkCandidateConsistency({
   return {
     ok: true,
     status: "PASS",
-    reason: "Trade candidate matches pre-trade evidence.",
+    reason: "Trade Candidate matches pre-trade evidence.",
   };
 }
