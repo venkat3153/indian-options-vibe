@@ -60,7 +60,8 @@ export default function FullModelCommandCenter() {
       !risk.lockedManually);
 
   const marketOpen = Boolean(marketSession?.isOpen);
-  const finalReady = evidenceGate.allowed && dhanConnected && dailyRiskOk && marketOpen;
+  const candidateConsistency = checkCandidateConsistency({ candidate, evidence });
+  const finalReady = evidenceGate.allowed && dhanConnected && dailyRiskOk && marketOpen && candidateConsistency.ok;
 
   function emergencyLockDay() {
     const current = loadDailyRiskState();
