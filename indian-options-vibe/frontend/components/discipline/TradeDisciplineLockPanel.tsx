@@ -1,15 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { calculateTradeDisciplineLock } from "@/lib/tradeDisciplineLock";
+import { loadDailyRiskState, saveDailyRiskState } from "@/lib/dailyRiskState";
 
 export default function TradeDisciplineLockPanel() {
-  const [todayTrades, setTodayTrades] = useState(0);
-  const [maxTrades, setMaxTrades] = useState(1);
-  const [todayLossR, setTodayLossR] = useState(0);
-  const [maxLossR, setMaxLossR] = useState(2);
+  const savedRisk = typeof window !== "undefined" ? loadDailyRiskState() : null;
+
+  const [todayTrades, setTodayTrades] = useState(savedRisk?.todayTrades ?? 0);
+  const [maxTrades, setMaxTrades] = useState(savedRisk?.maxTrades ?? 1);
+  const [todayLossR, setTodayLossR] = useState(savedRisk?.todayLossR ?? 0);
+  const [maxLossR, setMaxLossR] = useState(savedRisk?.maxLossR ?? 2);
   const [hasOpenPosition, setHasOpenPosition] = useState(false);
-  const [emotion, setEmotion] = useState("");
+  const [emotion, setEmotion] = useState(savedRisk?.emotion ?? "");
+  const [lockedManually, setLockedManually] = useState(savedRisk?.lockedManually ?? false);
   const [oneQtyConfirmed, setOneQtyConfirmed] = useState(true);
   const [manualOnlyConfirmed, setManualOnlyConfirmed] = useState(true);
 
@@ -20,7 +24,7 @@ export default function TradeDisciplineLockPanel() {
         maxTrades,
         todayLossR,
         maxLossR,
-        hasOpenPosition,
+        hasOpenPosition: hasOpenPosition || lockedManually,
         emotion,
         oneQtyConfirmed,
         manualOnlyConfirmed,
@@ -32,10 +36,23 @@ export default function TradeDisciplineLockPanel() {
       maxLossR,
       hasOpenPosition,
       emotion,
+      lockedManually,
       oneQtyConfirmed,
       manualOnlyConfirmed,
     ]
   );
+
+  useEffect(() => {
+    saveDailyRiskState({
+      date: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+      todayTrades,
+      maxTrades,
+      todayLossR,
+      maxLossR,
+      emotion,
+      lockedManually,
+    });
+  }, [todayTrades, maxTrades, todayLossR, maxLossR, emotion, lockedManually]);
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
@@ -150,6 +167,16 @@ export default function TradeDisciplineLockPanel() {
                 className="mr-2"
               />
               Manual Dhan only
+            </label>
+
+            <label className="rounded-xl border border-red-900 bg-red-950/50 p-4 text-sm text-red-100">
+              <input
+                type="checkbox"
+                checked={lockedManually}
+                onChange={(e) => setLockedManually(e.target.checked)}
+                className="mr-2"
+              />
+              Manual lock active
             </label>
           </div>
         </div>

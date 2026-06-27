@@ -10,10 +10,12 @@ import {
   DhanReadOnlySnapshot,
   getDhanReadOnlySnapshot,
 } from "@/lib/dhanReadOnly";
+import { loadDailyRiskState, DailyRiskState } from "@/lib/dailyRiskState";
 
 export default function ManualLivePermissionCockpit() {
   const [evidence, setEvidence] = useState<PreTradeEvidence | null>(null);
   const [dhan, setDhan] = useState<DhanReadOnlySnapshot | null>(null);
+  const [riskState, setRiskState] = useState<DailyRiskState | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
@@ -21,6 +23,7 @@ export default function ManualLivePermissionCockpit() {
 
     try {
       setEvidence(loadLatestEvidence());
+      setRiskState(loadDailyRiskState());
       setDhan(await getDhanReadOnlySnapshot());
     } finally {
       setLoading(false);
@@ -46,13 +49,18 @@ export default function ManualLivePermissionCockpit() {
   const noOpenPositions = (dhan?.positions.length || 0) === 0;
   const oneQtyConfirmed = Boolean(evidence?.oneQtyOnlyConfirmed);
   const manualOnlyConfirmed = Boolean(evidence?.noAutoOrderConfirmed);
+  const maxTradesOk = !riskState || riskState.todayTrades < riskState.maxTrades;
+  const lossLimitOk = !riskState || riskState.todayLossR > -Math.abs(riskState.maxLossR);
+  const manualLockOk = !riskState?.lockedManually;
+  const dailyRiskClear = maxTradesOk && lossLimitOk && manualLockOk;
 
   const allowed =
     evidenceGate.allowed &&
     dhanConnected &&
     noOpenPositions &&
     oneQtyConfirmed &&
-    manualOnlyConfirmed;
+    manualOnlyConfirmed &&
+    dailyRiskClear;
 
   const checks = [
     {
@@ -79,6 +87,11 @@ export default function ManualLivePermissionCockpit() {
       label: "Manual Dhan Only",
       ok: manualOnlyConfirmed,
       fail: "Manual-only confirmation missing.",
+    },
+    {
+      label: "Daily Risk State",
+      ok: dailyRiskClear,
+      fail: "Daily risk lock is active. Check Discipline Lock.",
     },
   ];
 
@@ -139,6 +152,13 @@ export default function ManualLivePermissionCockpit() {
             className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
           >
             Open Dhan Read-Only
+          </a>
+
+          <a
+            href="/discipline/lock"
+            className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
+          >
+            Open Discipline Lock
           </a>
         </div>
       </section>
