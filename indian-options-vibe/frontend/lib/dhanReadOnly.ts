@@ -1,115 +1,69 @@
-export type DhanReadOnlyStatus = {
+export type DhanReadOnlySnapshot = {
   connected: boolean;
   mode: "READ_ONLY";
   message: string;
-  checkedAt: string;
+  positions: {
+    symbol: string;
+    qty: number;
+    avgPrice?: number;
+    ltp?: number;
+    pnl?: number;
+  }[];
+  orders: {
+    symbol: string;
+    side?: string;
+    status: string;
+    qty: number;
+    price?: number;
+  }[];
 };
 
-export type DhanReadOnlyPosition = {
-  symbol: string;
-  productType?: string;
-  quantity: number;
-  averagePrice?: number;
-  ltp?: number;
-  pnl?: number;
-};
-
-export type DhanReadOnlyOrder = {
-  orderId?: string;
-  symbol: string;
-  side?: string;
-  status: string;
-  quantity: number;
-  price?: number;
-  createdAt?: string;
-};
-
-export type DhanReadOnlySnapshot = {
-  status: DhanReadOnlyStatus;
-  positions: DhanReadOnlyPosition[];
-  orders: DhanReadOnlyOrder[];
-};
-
-async function tryFetchJson<T>(paths: string[]): Promise<T | null> {
-  for (const path of paths) {
-    try {
-      const response = await fetch(path, { cache: "no-store" });
-
-      if (!response.ok) continue;
-
-      const data = await response.json();
-      return data as T;
-    } catch {
-      continue;
-    }
+async function safeFetch(path: string) {
+  try {
+    const res = await fetch(path, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
-export async function loadDhanReadOnlySnapshot(): Promise<DhanReadOnlySnapshot> {
-  const checkedAt = new Date().toISOString();
+export async function getDhanReadOnlySnapshot(): Promise<DhanReadOnlySnapshot> {
+  const status = await safeFetch("http://localhost:8000/api/dhan/status");
+  const positionsRaw = await safeFetch("http://localhost:8000/api/dhan/positions");
+  const ordersRaw = await safeFetch("http://localhost:8000/api/dhan/orders");
 
-  const statusData = await tryFetchJson<any>([
-    "/api/dhan/status",
-    "/api/broker/dhan/status",
-    "http://localhost:8000/dhan/status",
-    "http://localhost:8000/api/dhan/status",
-  ]);
+  const positionsList = Array.isArray(positionsRaw)
+    ? positionsRaw
+    : Array.isArray(positionsRaw?.positions)
+      ? positionsRaw.positions
+      : [];
 
-  const positionsData = await tryFetchJson<any>([
-    "/api/dhan/positions",
-    "/api/broker/dhan/positions",
-    "http://localhost:8000/dhan/positions",
-    "http://localhost:8000/api/dhan/positions",
-  ]);
-
-  const ordersData = await tryFetchJson<any>([
-    "/api/dhan/orders",
-    "/api/broker/dhan/orders",
-    "http://localhost:8000/dhan/orders",
-    "http://localhost:8000/api/dhan/orders",
-  ]);
-
-  const positions =
-    Array.isArray(positionsData)
-      ? positionsData
-      : Array.isArray(positionsData?.positions)
-        ? positionsData.positions
-        : [];
-
-  const orders =
-    Array.isArray(ordersData)
-      ? ordersData
-      : Array.isArray(ordersData?.orders)
-        ? ordersData.orders
-        : [];
+  const ordersList = Array.isArray(ordersRaw)
+    ? ordersRaw
+    : Array.isArray(ordersRaw?.orders)
+      ? ordersRaw.orders
+      : [];
 
   return {
-    status: {
-      connected: Boolean(statusData) || positions.length > 0 || orders.length > 0,
-      mode: "READ_ONLY",
-      message: statusData
-        ? "Dhan read-only data source responded."
-        : "No Dhan read-only endpoint responded yet. Backend route may need wiring.",
-      checkedAt,
-    },
-    positions: positions.map((item: any) => ({
-      symbol: String(item.symbol || item.tradingSymbol || item.securityId || "-"),
-      productType: item.productType || item.product || item.exchangeSegment,
-      quantity: Number(item.quantity || item.netQty || item.positionQty || 0),
-      averagePrice: Number(item.averagePrice || item.avgPrice || item.buyAvg || 0),
-      ltp: Number(item.ltp || item.lastTradedPrice || 0),
-      pnl: Number(item.pnl || item.realizedProfit || item.unrealizedProfit || 0),
+    connected: Boolean(status || positionsRaw || ordersRaw),
+    mode: "READ_ONLY",
+    message: status
+      ? "Dhan read-only endpoint responded."
+      : "Dhan backend read-only endpoint not wired yet.",
+    positions: positionsList.map((p: any) => ({
+      symbol: String(p.symbol || p.tradingSymbol || p.securityId || "-"),
+      qty: Number(p.quantity || p.netQty || p.qty || 0),
+      avgPrice: Number(p.averagePrice || p.avgPrice || 0),
+      ltp: Number(p.ltp || p.lastTradedPrice || 0),
+      pnl: Number(p.pnl || p.unrealizedProfit || 0),
     })),
-    orders: orders.map((item: any) => ({
-      orderId: String(item.orderId || item.id || ""),
-      symbol: String(item.symbol || item.tradingSymbol || item.securityId || "-"),
-      side: item.side || item.transactionType || item.orderSide,
-      status: String(item.status || item.orderStatus || "-"),
-      quantity: Number(item.quantity || item.qty || 0),
-      price: Number(item.price || item.orderPrice || 0),
-      createdAt: item.createdAt || item.orderTime || item.exchangeTime,
+    orders: ordersList.map((o: any) => ({
+      symbol: String(o.symbol || o.tradingSymbol || o.securityId || "-"),
+      side: String(o.side || o.transactionType || "-"),
+      status: String(o.status || o.orderStatus || "-"),
+      qty: Number(o.quantity || o.qty || 0),
+      price: Number(o.price || o.orderPrice || 0),
     })),
   };
 }
