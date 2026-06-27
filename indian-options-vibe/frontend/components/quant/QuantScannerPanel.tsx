@@ -29,7 +29,7 @@ export default function QuantScannerPanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/scanner/sample`, {
+      const response = await fetch(`${API_BASE}/api/quant/scanner/latest`, {
         cache: "no-store",
       });
 
@@ -92,7 +92,7 @@ export default function QuantScannerPanel() {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm text-slate-300">
-              This scanner ranks stocks by edge using trend, breadth, VWAP, retest,
+              This scanner ranks latest saved market snapshots using trend, breadth, VWAP, retest,
               liquidity, option momentum, IV, and spread quality. It creates candidates only.
               It never places orders.
             </p>
