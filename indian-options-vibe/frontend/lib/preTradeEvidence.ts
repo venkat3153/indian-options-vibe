@@ -69,67 +69,46 @@ export function buildBlankEvidence(): PreTradeEvidence {
   };
 }
 
-export function calculateEvidenceGate(evidence?: PreTradeEvidence | null): EvidenceGateResult {
+export function calculateEvidenceGate(evidence?: PreTradeEvidence | null) {
   const reasons: string[] = [];
-  let score = 0;
-  const total = 14;
 
   if (!evidence) {
     return {
-      status: "BLOCK",
       allowed: false,
-      reasons: ["No pre-trade evidence recorded yet."],
+      status: "BLOCK" as const,
       score: 0,
-      total,
+      reasons: ["No pre-trade evidence saved for today."],
     };
   }
 
-  const checks: Array<[boolean, string]> = [
-    [Boolean(evidence.symbol.trim()), "Symbol is missing."],
-    [Boolean(evidence.instrument.trim()), "Instrument is missing."],
-    [Boolean(evidence.side), "Trade side is missing."],
-    [evidence.quantity === 1, "Quantity must be exactly 1 for July manual live-test."],
-    [Boolean(evidence.setupName.trim()), "Setup name is missing."],
-    [Boolean(evidence.entryPlan.trim()), "Entry plan is missing."],
-    [Boolean(evidence.stopLossPlan.trim()), "Stop-loss plan is missing."],
-    [Boolean(evidence.targetPlan.trim()), "Target/exit plan is missing."],
-    [Boolean(evidence.invalidationReason.trim()), "Invalidation reason is missing."],
-    [Boolean(evidence.marketContext.trim()), "Market context is missing."],
-    [evidence.dhanReadOnlyChecked, "Dhan read-only check is not confirmed."],
-    [evidence.videoRecorded, "Pre-trade video recording is not confirmed."],
-    [evidence.voiceRecorded, "Pre-trade voice recording is not confirmed."],
-    [evidence.screenshotReady, "Chart screenshot evidence is not confirmed."],
-  ];
+  if (!evidence.symbol?.trim()) reasons.push("Symbol is missing.");
+  if (!evidence.side?.trim()) reasons.push("Trade side is missing.");
+  if (!evidence.setupName?.trim()) reasons.push("Setup name is missing.");
+  if (!evidence.entryPlan?.trim()) reasons.push("Entry plan is missing.");
+  if (!evidence.stopLossPlan?.trim()) reasons.push("Stop-loss plan is missing.");
+  if (!evidence.targetExitPlan?.trim()) reasons.push("Target/exit plan is missing.");
+  if (!evidence.invalidationReason?.trim()) reasons.push("Invalidation reason is missing.");
+  if (!evidence.marketContext?.trim()) reasons.push("Market context is missing.");
 
-  for (const [passed, message] of checks) {
-    if (passed) score += 1;
-    else reasons.push(message);
+  if (!evidence.dhanReadOnlyChecked) {
+    reasons.push("Dhan read-only check is not confirmed.");
   }
 
-  if (!evidence.mcpReadOnlyReviewDone) {
-    reasons.push("MCP read-only review confirmation is missing.");
-  }
-
-  if (!evidence.oneQtyOnlyConfirmed) {
+  if (!evidence.oneQuantityOnlyConfirmed) {
     reasons.push("One-quantity-only discipline confirmation is missing.");
   }
 
-  if (!evidence.noAutoOrderConfirmed) {
+  if (!evidence.manualDhanOnlyConfirmed) {
     reasons.push("Manual Dhan only / no auto-order confirmation is missing.");
-  }
-
-  if (!evidence.finalSelfPermission) {
-    reasons.push("Final self-permission is not confirmed.");
   }
 
   const allowed = reasons.length === 0;
 
   return {
-    status: allowed ? "PASS" : "BLOCK",
     allowed,
+    status: allowed ? ("READY" as const) : ("BLOCK" as const),
+    score: allowed ? 100 : Math.max(0, 100 - reasons.length * 10),
     reasons,
-    score,
-    total,
   };
 }
 
