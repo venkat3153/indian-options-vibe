@@ -10,6 +10,7 @@ const items = [
   ['Journal Dashboard', '/journal'],
   ['Runs', '/runs/demo-run-001'],
   ['Broker Connect', '/broker'],
+  ['Dhan Read-Only', '/broker/dhan-readonly'],
   ['Settings', '/settings'],
 ];
 
