@@ -13,6 +13,9 @@ export default function TradeCandidatePanel() {
   const [candidate, setCandidate] = useState<TradeCandidate>(() => defaultTradeCandidate());
   const [savedAt, setSavedAt] = useState("");
   const [validationMessage, setValidationMessage] = useState("");
+  const [oneQtyConfirmed, setOneQtyConfirmed] = useState(false);
+  const [manualOnlyConfirmed, setManualOnlyConfirmed] = useState(false);
+  const [noFomoConfirmed, setNoFomoConfirmed] = useState(false);
 
   useEffect(() => {
     const saved = loadTradeCandidate();
@@ -42,6 +45,11 @@ export default function TradeCandidatePanel() {
       return;
     }
 
+    if (!oneQtyConfirmed || !manualOnlyConfirmed || !noFomoConfirmed) {
+      setValidationMessage("Risk confirmations are required before saving candidate.");
+      return;
+    }
+
     saveTradeCandidate(candidate);
     setValidationMessage("");
     setSavedAt(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }));
@@ -53,12 +61,18 @@ export default function TradeCandidatePanel() {
     setCandidate(fresh);
     setSavedAt("");
     setValidationMessage("");
+    setOneQtyConfirmed(false);
+    setManualOnlyConfirmed(false);
+    setNoFomoConfirmed(false);
   }
 
   const missingFields = [
     !candidate.symbol.trim() ? "Symbol is required" : "",
     !candidate.side ? "Side is required" : "",
     !candidate.setup.trim() ? "Setup is required" : "",
+    !oneQtyConfirmed ? "Confirm 1 quantity / 1 lot only" : "",
+    !manualOnlyConfirmed ? "Confirm manual Dhan only" : "",
+    !noFomoConfirmed ? "Confirm this is not FOMO/revenge" : "",
   ].filter(Boolean);
 
   const ready = missingFields.length === 0;
@@ -175,6 +189,44 @@ export default function TradeCandidatePanel() {
               className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white"
             />
           </label>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Candidate Risk Confirmation
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <label className="rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={oneQtyConfirmed}
+                  onChange={(event) => setOneQtyConfirmed(event.target.checked)}
+                  className="mr-2"
+                />
+                1 quantity / 1 lot only
+              </label>
+
+              <label className="rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={manualOnlyConfirmed}
+                  onChange={(event) => setManualOnlyConfirmed(event.target.checked)}
+                  className="mr-2"
+                />
+                Manual Dhan only
+              </label>
+
+              <label className="rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={noFomoConfirmed}
+                  onChange={(event) => setNoFomoConfirmed(event.target.checked)}
+                  className="mr-2"
+                />
+                Not FOMO / revenge
+              </label>
+            </div>
+          </div>
 
           {!ready ? (
             <div className="rounded-xl border border-yellow-900 bg-yellow-950/40 p-4 text-sm text-yellow-100">
