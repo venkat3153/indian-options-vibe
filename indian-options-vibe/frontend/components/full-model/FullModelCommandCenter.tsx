@@ -17,6 +17,7 @@ export default function FullModelCommandCenter() {
   const [risk, setRisk] = useState<DailyRiskState | null>(null);
   const [evidence, setEvidence] = useState<PreTradeEvidence | null>(null);
   const [dhan, setDhan] = useState<DhanReadOnlySnapshot | null>(null);
+  const [marketSession, setMarketSession] = useState<MarketSessionStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
