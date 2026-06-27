@@ -7,6 +7,7 @@ import {
   loadDailyRiskState,
   saveDailyRiskState,
 } from "@/lib/dailyRiskState";
+import { clearTradeCandidate } from "@/lib/tradeCandidate";
 
 type StartupMode = "TRADE_DAY" | "NO_TRADE_DAY";
 
@@ -73,6 +74,7 @@ export default function DailyStartupControl() {
     setDhanCheckConfirmed(false);
     setMarketPlanWritten("");
     saveDailyRiskState(fresh);
+    clearTradeCandidate();
     setSavedAt(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }));
   }
 

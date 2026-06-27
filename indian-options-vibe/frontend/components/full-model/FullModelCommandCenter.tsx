@@ -5,7 +5,7 @@ import { loadDailyRiskState, saveDailyRiskState, DailyRiskState } from "@/lib/da
 import { loadLatestEvidence, calculateEvidenceGate, PreTradeEvidence } from "@/lib/preTradeEvidence";
 import { getDhanReadOnlySnapshot, DhanReadOnlySnapshot } from "@/lib/dhanReadOnly";
 import { getMarketSessionStatus, MarketSessionStatus } from "@/lib/marketSession";
-import { loadTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
+import { loadTradeCandidate, clearTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
 import { checkCandidateConsistency } from "@/lib/candidateConsistency";
 
 type Card = {
@@ -73,6 +73,11 @@ export default function FullModelCommandCenter() {
 
     saveDailyRiskState(locked);
     setRisk(locked);
+  }
+
+  function clearCurrentCandidate() {
+    clearTradeCandidate();
+    setCandidate(null);
   }
 
   const nextAction = (() => {
@@ -231,6 +236,16 @@ export default function FullModelCommandCenter() {
           >
             {loading ? "Refreshing..." : "Refresh Command Center"}
           </button>
+
+          {candidate ? (
+            <button
+              type="button"
+              onClick={clearCurrentCandidate}
+              className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-black text-slate-200 hover:bg-slate-900"
+            >
+              Clear Candidate
+            </button>
+          ) : null}
 
           {risk?.lockedManually ? (
             <div className="rounded-xl border border-red-800 bg-red-950 px-5 py-3 text-sm font-black text-red-100">

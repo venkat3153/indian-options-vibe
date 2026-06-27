@@ -7,6 +7,7 @@ import {
   loadDailyRiskState,
   saveDailyRiskState,
 } from "@/lib/dailyRiskState";
+import { clearTradeCandidate } from "@/lib/tradeCandidate";
 
 export default function TradeDisciplineLockPanel() {
   const [mounted, setMounted] = useState(false);
@@ -94,6 +95,7 @@ export default function TradeDisciplineLockPanel() {
     setHasOpenPosition(false);
     setOneQtyConfirmed(true);
     setManualOnlyConfirmed(true);
+    clearTradeCandidate();
   }
 
   return (
