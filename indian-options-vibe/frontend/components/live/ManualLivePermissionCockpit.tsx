@@ -16,6 +16,7 @@ export default function ManualLivePermissionCockpit() {
   const [evidence, setEvidence] = useState<PreTradeEvidence | null>(null);
   const [dhan, setDhan] = useState<DhanReadOnlySnapshot | null>(null);
   const [riskState, setRiskState] = useState<DailyRiskState | null>(null);
+  const [marketSession, setMarketSession] = useState<MarketSessionStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
@@ -24,6 +25,7 @@ export default function ManualLivePermissionCockpit() {
     try {
       setEvidence(loadLatestEvidence());
       setRiskState(loadDailyRiskState());
+      setMarketSession(getMarketSessionStatus());
       setDhan(await getDhanReadOnlySnapshot());
     } finally {
       setLoading(false);
@@ -53,6 +55,7 @@ export default function ManualLivePermissionCockpit() {
   const lossLimitOk = !riskState || riskState.todayLossR > -Math.abs(riskState.maxLossR);
   const manualLockOk = !riskState?.lockedManually;
   const dailyRiskClear = maxTradesOk && lossLimitOk && manualLockOk;
+  const marketOpen = Boolean(marketSession?.isOpen);
 
   const allowed =
     evidenceGate.allowed &&
@@ -60,7 +63,8 @@ export default function ManualLivePermissionCockpit() {
     noOpenPositions &&
     oneQtyConfirmed &&
     manualOnlyConfirmed &&
-    dailyRiskClear;
+    dailyRiskClear &&
+    marketOpen;
 
   const checks = [
     {

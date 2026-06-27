@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { loadDailyRiskState, saveDailyRiskState, DailyRiskState } from "@/lib/dailyRiskState";
 import { loadLatestEvidence, calculateEvidenceGate, PreTradeEvidence } from "@/lib/preTradeEvidence";
 import { getDhanReadOnlySnapshot, DhanReadOnlySnapshot } from "@/lib/dhanReadOnly";
+import { getMarketSessionStatus, MarketSessionStatus } from "@/lib/marketSession";
 
 type Card = {
   title: string;
@@ -24,6 +25,7 @@ export default function FullModelCommandCenter() {
     try {
       setRisk(loadDailyRiskState());
       setEvidence(loadLatestEvidence());
+      setMarketSession(getMarketSessionStatus());
       setDhan(await getDhanReadOnlySnapshot());
     } finally {
       setLoading(false);
@@ -52,7 +54,8 @@ export default function FullModelCommandCenter() {
       risk.todayLossR > -Math.abs(risk.maxLossR) &&
       !risk.lockedManually);
 
-  const finalReady = evidenceGate.allowed && dhanConnected && dailyRiskOk;
+  const marketOpen = Boolean(marketSession?.isOpen);
+  const finalReady = evidenceGate.allowed && dhanConnected && dailyRiskOk && marketOpen;
 
   function emergencyLockDay() {
     const current = loadDailyRiskState();
@@ -93,6 +96,16 @@ export default function FullModelCommandCenter() {
         message: "Before live permission, complete the small evidence checklist.",
         href: "/paper/evidence",
         cta: "Open Evidence",
+        status: "BLOCK",
+      };
+    }
+
+    if (!marketOpen) {
+      return {
+        title: "Market is closed",
+        message: marketSession?.reason || "Live permission is blocked outside NSE market session.",
+        href: "/full-model",
+        cta: "Refresh Command Center",
         status: "BLOCK",
       };
     }
@@ -243,6 +256,16 @@ export default function FullModelCommandCenter() {
           </div>
           <div className="mt-2 text-sm text-slate-300">
             Positions {dhan?.positions.length || 0} · Orders {dhan?.orders.length || 0}
+          </div>
+        </div>
+
+        <div className={`rounded-2xl border p-5 ${marketOpen ? "border-emerald-800 bg-emerald-950/50" : "border-red-900 bg-red-950/50"}`}>
+          <div className="text-xs font-black uppercase tracking-widest text-slate-500">Market Session</div>
+          <div className={`mt-2 text-3xl font-black ${marketOpen ? "text-emerald-200" : "text-red-200"}`}>
+            {marketSession?.label || "CHECK"}
+          </div>
+          <div className="mt-2 text-sm text-slate-300">
+            {marketSession?.istTime || "-"}
           </div>
         </div>
       </section>
