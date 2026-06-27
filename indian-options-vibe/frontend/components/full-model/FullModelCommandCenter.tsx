@@ -206,6 +206,47 @@ export default function FullModelCommandCenter() {
         ))}
       </section>
 
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-xl font-black text-white">Non-Negotiable Trading Rules</h2>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">
+              These are not suggestions. If one rule breaks, live permission should stay blocked.
+            </p>
+          </div>
+
+          <a
+            href="/discipline/lock"
+            className="rounded-xl border border-red-800 bg-red-950 px-5 py-3 text-center text-sm font-black text-red-100 hover:bg-red-900"
+          >
+            Emergency Lock Day
+          </a>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-5">
+          <div className="rounded-xl bg-slate-900 p-4 text-sm font-bold text-slate-200">
+            1. Only 1 quantity / 1 lot
+          </div>
+
+          <div className="rounded-xl bg-slate-900 p-4 text-sm font-bold text-slate-200">
+            2. Manual Dhan only
+          </div>
+
+          <div className="rounded-xl bg-slate-900 p-4 text-sm font-bold text-slate-200">
+            3. No revenge / FOMO trade
+          </div>
+
+          <div className="rounded-xl bg-slate-900 p-4 text-sm font-bold text-slate-200">
+            4. No stacking open positions
+          </div>
+
+          <div className="rounded-xl bg-slate-900 p-4 text-sm font-bold text-slate-200">
+            5. Stop when rule says stop
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
         <h2 className="text-xl font-black text-white">Correct Daily Flow</h2>
 
