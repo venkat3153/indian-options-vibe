@@ -8,6 +8,30 @@ from quant.snapshot_store import save_market_snapshots, load_latest_market_snaps
 
 router = APIRouter(prefix="/api/dhan-data", tags=["dhan-data"])
 
+
+def find_first_number(obj, keys):
+    if isinstance(obj, dict):
+        for key in keys:
+            if key in obj:
+                try:
+                    return float(obj[key] or 0)
+                except Exception:
+                    pass
+
+        for value in obj.values():
+            found = find_first_number(value, keys)
+            if found:
+                return found
+
+    if isinstance(obj, list):
+        for value in obj:
+            found = find_first_number(value, keys)
+            if found:
+                return found
+
+    return 0
+
+
 DHAN_BASE_URL = "https://api.dhan.co/v2"
 
 
@@ -250,29 +274,30 @@ def dhan_nifty_structure_snapshot():
     )
 
     payload = response.json() if response.content else {}
-    data = payload.get("data", {})
-    index_data = data.get("IDX_I", {}).get("13", {}) if isinstance(data, dict) else {}
 
-    ltp = float(index_data.get("last_price") or 0)
-    ohlc = index_data.get("ohlc") or {}
-
-    open_price = float(ohlc.get("open") or 0)
-    close_price = float(ohlc.get("close") or 0)
-    high_price = float(ohlc.get("high") or 0)
-    low_price = float(ohlc.get("low") or 0)
+    # Dhan response shapes can differ. Use recursive search so scanner does not lose structure.
+    ltp = find_first_number(payload, ["last_price", "ltp", "LTP"])
+    open_price = find_first_number(payload, ["open", "open_price"])
+    close_price = find_first_number(payload, ["close", "prev_close", "previous_close"])
+    high_price = find_first_number(payload, ["high", "day_high"])
+    low_price = find_first_number(payload, ["low", "day_low"])
 
     base = close_price if close_price else open_price
-    day_change_pct = round(((ltp - base) / base) * 100, 2) if base else 0
+    day_change_pct = round(((ltp - base) / base) * 100, 2) if ltp and base else 0
 
     range_size = high_price - low_price if high_price and low_price else 0
-    position_in_range = ((ltp - low_price) / range_size) if range_size else 0.5
+    position_in_range = ((ltp - low_price) / range_size) if range_size and ltp else 0.5
 
     if day_change_pct > 0.25 and position_in_range >= 0.60:
         trend_strength = 65
     elif day_change_pct < -0.25 and position_in_range <= 0.40:
         trend_strength = -65
+    elif day_change_pct > 0:
+        trend_strength = 35
+    elif day_change_pct < 0:
+        trend_strength = -35
     else:
-        trend_strength = 25 if day_change_pct > 0 else -25 if day_change_pct < 0 else 0
+        trend_strength = 0
 
     snapshot = {
         "symbol": "NIFTY",
@@ -382,6 +407,18 @@ def dhan_save_nifty_combined_snapshot():
             "pcr_volume": option_snapshot.get("pcr_volume"),
             "pricing_signal": pricing_signal,
         },
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+
+@router.get("/debug/latest-snapshot")
+def dhan_debug_latest_snapshot():
+    latest = load_latest_market_snapshots()
+    return {
+        "status": "success",
+        "latest": latest,
         "auto_order_allowed": False,
         "manual_only": True,
     }
