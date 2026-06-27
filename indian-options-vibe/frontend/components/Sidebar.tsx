@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 const items = [
   ['Home', '/'],
+  ['Full Model', '/full-model'],
   ['Agent', '/agent'],
   ['Stocks Research', '/stocks'],
   ['Daily Plan', '/daily-plan'],
