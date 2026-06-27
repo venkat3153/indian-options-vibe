@@ -49,8 +49,41 @@ export default function DhanOptionPricingPanel() {
   const [result, setResult] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingCombined, setSavingCombined] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [combinedSaveMessage, setCombinedSaveMessage] = useState("");
   const [error, setError] = useState("");
+
+  async function saveCombinedToScanner() {
+    setSavingCombined(true);
+    setCombinedSaveMessage("");
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/dhan-data/nifty/save-combined-snapshot`,
+        { cache: "no-store" }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Save combined snapshot failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status !== "success") {
+        throw new Error(data.error || "Failed to save combined snapshot.");
+      }
+
+      setCombinedSaveMessage(
+        `Combined NIFTY snapshot saved. Structure agrees: ${String(data.structure_agrees)}`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save combined snapshot.");
+    } finally {
+      setSavingCombined(false);
+    }
+  }
 
   async function saveToScanner() {
     setSaving(true);
@@ -158,7 +191,16 @@ export default function DhanOptionPricingPanel() {
             disabled={saving}
             className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-emerald-300 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save to Quant Scanner"}
+            {saving ? "Saving..." : "Save Option Only"}
+          </button>
+
+          <button
+            type="button"
+            onClick={saveCombinedToScanner}
+            disabled={savingCombined}
+            className="rounded-xl bg-purple-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-purple-300 disabled:opacity-50"
+          >
+            {savingCombined ? "Saving..." : "Save Combined Snapshot"}
           </button>
 
           <a
@@ -179,6 +221,12 @@ export default function DhanOptionPricingPanel() {
         {saveMessage ? (
           <div className="mt-4 rounded-xl border border-emerald-800 bg-emerald-950/50 p-4 text-sm font-bold text-emerald-100">
             {saveMessage}
+          </div>
+        ) : null}
+
+        {combinedSaveMessage ? (
+          <div className="mt-4 rounded-xl border border-purple-800 bg-purple-950/50 p-4 text-sm font-bold text-purple-100">
+            {combinedSaveMessage}
           </div>
         ) : null}
 
