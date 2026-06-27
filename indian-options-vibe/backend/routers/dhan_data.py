@@ -380,20 +380,34 @@ def dhan_save_nifty_combined_snapshot():
         or (side == "BUY_PE" and trend_strength < 0 and vwap_distance_pct < 0)
     )
 
+    structure_has_data = (
+        abs(trend_strength) > 0
+        or abs(vwap_distance_pct) > 0
+        or abs(float(combined.get("day_change_pct", 0) or 0)) > 0
+    )
+
     if structure_agrees:
         combined["breadth_support"] = max(float(combined.get("breadth_support", 0) or 0), 55)
         combined["retest_quality"] = max(float(combined.get("retest_quality", 0) or 0), 55)
         combined["liquidity_sweep_score"] = max(float(combined.get("liquidity_sweep_score", 0) or 0), 50)
 
+    source_label = (
+        "dhan-combined-structure-options"
+        if structure_has_data
+        else "dhan-option-pricing-structure-missing"
+    )
+
     save_status = save_market_snapshots(
         [combined],
-        source="dhan-combined-structure-options",
+        source=source_label,
     )
 
     return {
         "status": "success",
         "message": "Combined NIFTY structure + option-pricing snapshot saved into quant scanner.",
+        "structure_has_data": structure_has_data,
         "structure_agrees": structure_agrees,
+        "source_label": source_label,
         "save_status": save_status,
         "combined_snapshot": combined,
         "structure_snapshot": structure_snapshot,
