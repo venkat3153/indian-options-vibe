@@ -5,6 +5,7 @@ from typing import Optional
 from quant.core import QuantInput, evaluate_quant_candidate, sample_candidates
 from quant.data_foundation import NIFTY_CORE_UNIVERSE, run_sample_scanner
 from quant.scanner_log import log_scanner_run, read_recent_scanner_runs
+from quant.scanner_review import save_scanner_review, read_recent_reviews, summarize_reviews
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -20,6 +21,15 @@ class QuantEvaluateRequest(BaseModel):
     option_momentum_score: float = 0
     volatility_score: float = 0
     risk_penalty: float = 0
+
+
+class ScannerReviewRequest(BaseModel):
+    symbol: str
+    side: str
+    edge_score: float
+    decision: str
+    outcome: str
+    notes: str = ""
 
 
 @router.get("/status")
@@ -91,4 +101,24 @@ def quant_scanner_logs():
     return {
         "runs": read_recent_scanner_runs(limit=20),
         "message": "Recent scanner runs for quant research and later backtesting.",
+    }
+
+
+@router.post("/scanner/review")
+def quant_scanner_review(payload: ScannerReviewRequest):
+    return save_scanner_review(
+        symbol=payload.symbol,
+        side=payload.side,
+        edge_score=payload.edge_score,
+        decision=payload.decision,
+        outcome=payload.outcome,
+        notes=payload.notes,
+    )
+
+
+@router.get("/scanner/reviews")
+def quant_scanner_reviews():
+    return {
+        "reviews": read_recent_reviews(limit=50),
+        "summary": summarize_reviews(),
     }
