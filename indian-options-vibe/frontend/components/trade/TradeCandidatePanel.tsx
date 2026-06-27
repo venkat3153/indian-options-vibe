@@ -12,6 +12,7 @@ import {
 export default function TradeCandidatePanel() {
   const [candidate, setCandidate] = useState<TradeCandidate>(() => defaultTradeCandidate());
   const [savedAt, setSavedAt] = useState("");
+  const [validationMessage, setValidationMessage] = useState("");
 
   useEffect(() => {
     const saved = loadTradeCandidate();
@@ -26,7 +27,23 @@ export default function TradeCandidatePanel() {
   }
 
   function saveCandidate() {
+    if (!candidate.symbol.trim()) {
+      setValidationMessage("Symbol is required before saving candidate.");
+      return;
+    }
+
+    if (!candidate.side) {
+      setValidationMessage("Side is required before saving candidate.");
+      return;
+    }
+
+    if (!candidate.setup.trim()) {
+      setValidationMessage("Setup is required before saving candidate.");
+      return;
+    }
+
     saveTradeCandidate(candidate);
+    setValidationMessage("");
     setSavedAt(new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }));
   }
 
@@ -35,6 +52,7 @@ export default function TradeCandidatePanel() {
     clearTradeCandidate();
     setCandidate(fresh);
     setSavedAt("");
+    setValidationMessage("");
   }
 
   const ready = Boolean(candidate.symbol.trim() && candidate.side && candidate.setup.trim());
@@ -156,7 +174,11 @@ export default function TradeCandidatePanel() {
             <button
               type="button"
               onClick={saveCandidate}
-              className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300"
+              className={`rounded-xl px-5 py-3 text-sm font-black ${
+                ready
+                  ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+                  : "bg-slate-800 text-slate-500"
+              }`}
             >
               Save Candidate
             </button>
@@ -169,6 +191,12 @@ export default function TradeCandidatePanel() {
               Clear Candidate
             </button>
           </div>
+
+          {validationMessage ? (
+            <div className="rounded-xl border border-red-900 bg-red-950/50 p-4 text-sm font-bold text-red-100">
+              {validationMessage}
+            </div>
+          ) : null}
 
           {savedAt ? (
             <div className="rounded-xl border border-emerald-800 bg-emerald-950/50 p-4 text-sm text-emerald-100">
