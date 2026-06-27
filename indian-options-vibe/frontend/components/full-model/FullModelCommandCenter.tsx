@@ -101,6 +101,26 @@ export default function FullModelCommandCenter() {
       };
     }
 
+    if (!candidate) {
+      return {
+        title: "Save one trade candidate",
+        message: "No random trades. First save the exact symbol, side, and setup you are evaluating.",
+        href: "/trade/candidate",
+        cta: "Open Trade Candidate",
+        status: "BLOCK",
+      };
+    }
+
+    if (!candidateConsistency.ok) {
+      return {
+        title: "Fix candidate/evidence mismatch",
+        message: candidateConsistency.reason,
+        href: "/trade/candidate",
+        cta: "Open Trade Candidate",
+        status: "BLOCK",
+      };
+    }
+
     if (!evidenceGate.allowed) {
       return {
         title: "Record pre-trade evidence",
@@ -145,7 +165,7 @@ export default function FullModelCommandCenter() {
       title: "0. Trade Candidate",
       href: "/trade/candidate",
       description: "Save the one idea being evaluated before permission.",
-      status: candidate ? "READY" : "CHECK",
+      status: candidate ? "READY" : "BLOCK",
     },
     {
       title: "1. Daily Startup",
