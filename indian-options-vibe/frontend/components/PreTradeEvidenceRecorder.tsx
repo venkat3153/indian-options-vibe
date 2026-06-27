@@ -88,6 +88,9 @@ export default function PreTradeEvidenceRecorder() {
               Record evidence before entry. This does not place orders. It only creates a manual permission gate.
             </p>
             <p className="mt-2 text-xs font-bold text-cyan-300">
+              Same-day evidence guard: old evidence is ignored after the IST day changes.
+            </p>
+            <p className="mt-2 text-xs font-bold text-cyan-300">
               Candidate prefill is active: saved Trade Candidate can auto-fill symbol, side, setup, and notes.
             </p>
           </div>
