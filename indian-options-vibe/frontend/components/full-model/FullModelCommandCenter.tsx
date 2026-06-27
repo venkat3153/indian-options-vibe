@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { loadDailyRiskState, DailyRiskState } from "@/lib/dailyRiskState";
+import { loadDailyRiskState, saveDailyRiskState, DailyRiskState } from "@/lib/dailyRiskState";
 import { loadLatestEvidence, calculateEvidenceGate, PreTradeEvidence } from "@/lib/preTradeEvidence";
 import { getDhanReadOnlySnapshot, DhanReadOnlySnapshot } from "@/lib/dhanReadOnly";
 
@@ -53,6 +53,18 @@ export default function FullModelCommandCenter() {
       !risk.lockedManually);
 
   const finalReady = evidenceGate.allowed && dhanConnected && dailyRiskOk;
+
+  function emergencyLockDay() {
+    const current = loadDailyRiskState();
+    const locked = {
+      ...current,
+      lockedManually: true,
+      emotion: current.emotion || "Emergency lock activated from Full Model",
+    };
+
+    saveDailyRiskState(locked);
+    setRisk(locked);
+  }
 
   const cards: Card[] = [
     {
@@ -135,14 +147,22 @@ export default function FullModelCommandCenter() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={loading}
-          className="mt-5 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300 disabled:opacity-50"
-        >
-          {loading ? "Refreshing..." : "Refresh Command Center"}
-        </button>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-300 disabled:opacity-50"
+          >
+            {loading ? "Refreshing..." : "Refresh Command Center"}
+          </button>
+
+          {risk?.lockedManually ? (
+            <div className="rounded-xl border border-red-800 bg-red-950 px-5 py-3 text-sm font-black text-red-100">
+              Emergency lock is active
+            </div>
+          ) : null}
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -216,12 +236,13 @@ export default function FullModelCommandCenter() {
             </p>
           </div>
 
-          <a
-            href="/discipline/lock"
+          <button
+            type="button"
+            onClick={emergencyLockDay}
             className="rounded-xl border border-red-800 bg-red-950 px-5 py-3 text-center text-sm font-black text-red-100 hover:bg-red-900"
           >
             Emergency Lock Day
-          </a>
+          </button>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-5">
