@@ -16,6 +16,8 @@ import { loadDailyRiskState, DailyRiskState } from "@/lib/dailyRiskState";
 import { loadTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
 import { checkCandidateConsistency } from "@/lib/candidateConsistency";
 
+import { getMarketSessionStatus, MarketSessionStatus } from "@/lib/marketSession";
+
 export default function ManualLivePermissionCockpit() {
   const [evidence, setEvidence] = useState<PreTradeEvidence | null>(null);
   const [dhan, setDhan] = useState<DhanReadOnlySnapshot | null>(null);
