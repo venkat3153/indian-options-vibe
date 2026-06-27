@@ -1,6 +1,8 @@
 from routers.dhan_readonly import router as dhan_readonly_router
+from routers.dhan_data import router as dhan_data_router
 from routers.quant import router as quant_router
 from routers.dhan_readonly import router as dhan_readonly_router
+from routers.dhan_data import router as dhan_data_router
 from routers.quant import router as quant_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -57,3 +59,5 @@ app.include_router(quotes_router, prefix="/api/live", tags=["live"])
 app.include_router(watchlist_router, prefix="/api/watchlist", tags=["watchlist"])
 
 app.include_router(quant_router)
+
+app.include_router(dhan_data_router)
