@@ -66,6 +66,56 @@ export default function FullModelCommandCenter() {
     setRisk(locked);
   }
 
+  const nextAction = (() => {
+    if (risk?.lockedManually) {
+      return {
+        title: "Stop for today",
+        message: "Emergency lock or manual lock is active. Do not trade. Review only.",
+        href: "/discipline/lock",
+        cta: "Open Discipline Lock",
+        status: "BLOCK",
+      };
+    }
+
+    if (!dailyRiskOk) {
+      return {
+        title: "Fix daily risk first",
+        message: "Daily risk is blocking. Check max trades, max loss, or lock state.",
+        href: "/discipline/lock",
+        cta: "Open Discipline Lock",
+        status: "BLOCK",
+      };
+    }
+
+    if (!evidenceGate.allowed) {
+      return {
+        title: "Record pre-trade evidence",
+        message: "Before live permission, complete the small evidence checklist.",
+        href: "/paper/evidence",
+        cta: "Open Evidence",
+        status: "BLOCK",
+      };
+    }
+
+    if (!dhanConnected) {
+      return {
+        title: "Check Dhan read-only",
+        message: "Broker read-only sync is not connected. Do not continue until checked.",
+        href: "/broker/dhan-readonly",
+        cta: "Open Dhan Read-Only",
+        status: "CHECK",
+      };
+    }
+
+    return {
+      title: "Go to Live Permission",
+      message: "All core gates look clean. Final screen decides manual Dhan permission.",
+      href: "/live/permission",
+      cta: "Open Live Permission",
+      status: "READY",
+    };
+  })();
+
   const cards: Card[] = [
     {
       title: "1. Daily Startup",
@@ -194,6 +244,39 @@ export default function FullModelCommandCenter() {
           <div className="mt-2 text-sm text-slate-300">
             Positions {dhan?.positions.length || 0} · Orders {dhan?.orders.length || 0}
           </div>
+        </div>
+      </section>
+
+      <section
+        className={`rounded-3xl border p-6 ${
+          nextAction.status === "READY"
+            ? "border-emerald-800 bg-emerald-950/50"
+            : nextAction.status === "CHECK"
+              ? "border-yellow-900 bg-yellow-950/50"
+              : "border-red-900 bg-red-950/50"
+        }`}
+      >
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-500">
+              Smart Next Action
+            </div>
+
+            <h2 className="mt-2 text-2xl font-black text-white">
+              {nextAction.title}
+            </h2>
+
+            <p className="mt-2 max-w-3xl text-sm text-slate-300">
+              {nextAction.message}
+            </p>
+          </div>
+
+          <a
+            href={nextAction.href}
+            className="rounded-xl bg-slate-100 px-5 py-3 text-center text-sm font-black text-slate-950 hover:bg-white"
+          >
+            {nextAction.cta}
+          </a>
         </div>
       </section>
 
