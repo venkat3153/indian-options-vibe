@@ -180,6 +180,10 @@ export default function TradeCandidatePanel() {
         <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
           <h2 className="text-xl font-black text-white">Candidate Summary</h2>
 
+          <div className="mt-4 rounded-xl border border-cyan-900 bg-cyan-950/40 p-4 text-sm text-cyan-100">
+            Correct flow: Save Candidate → Open Evidence Recorder → Save Evidence → Live Permission.
+          </div>
+
           <div className="mt-4 space-y-3 text-sm text-slate-300">
             <div className="rounded-xl bg-slate-900 p-4">
               Symbol: <span className="font-black text-white">{candidate.symbol || "-"}</span>
@@ -203,6 +207,13 @@ export default function TradeCandidatePanel() {
           </div>
 
           <div className="mt-5 flex flex-col gap-3">
+            <a
+              href="/paper/evidence"
+              className="rounded-xl bg-cyan-400 px-5 py-3 text-center text-sm font-black text-slate-950 hover:bg-cyan-300"
+            >
+              Open Evidence Recorder
+            </a>
+
             <a
               href="/full-model"
               className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
