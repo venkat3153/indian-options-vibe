@@ -13,6 +13,8 @@ type ScannerItem = {
   warnings: string[];
   auto_order_allowed: boolean;
   manual_only: boolean;
+  option_pricing_score?: number;
+  option_pricing_side?: string;
 };
 
 const API_BASE =
@@ -23,6 +25,8 @@ export default function QuantScannerPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [savedSymbol, setSavedSymbol] = useState("");
+  const [snapshotSource, setSnapshotSource] = useState("");
+  const [snapshotCreatedAt, setSnapshotCreatedAt] = useState("");
 
   async function loadScanner() {
     setLoading(true);
@@ -39,6 +43,8 @@ export default function QuantScannerPanel() {
 
       const data = await response.json();
       setItems(Array.isArray(data.scanner) ? data.scanner : []);
+      setSnapshotSource(data.snapshot_source || "");
+      setSnapshotCreatedAt(data.snapshot_created_at || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load scanner.");
     } finally {
@@ -173,6 +179,31 @@ export default function QuantScannerPanel() {
         </div>
       </section>
 
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-500">
+          Scanner Data Source
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+            Source: <span className="font-black text-white">{snapshotSource || "unknown"}</span>
+          </div>
+
+          <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+            Snapshot Time:{" "}
+            <span className="font-black text-white">
+              {snapshotCreatedAt
+                ? new Date(snapshotCreatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                : "-"}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+            Mode: <span className="font-black text-red-200">No auto-order</span>
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-4">
         {items.length === 0 ? (
           <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6 text-sm text-slate-400">
@@ -204,7 +235,7 @@ export default function QuantScannerPanel() {
                     </div>
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-3 md:min-w-[420px]">
+                  <div className="grid gap-2 sm:grid-cols-3 md:min-w-[620px]">
                     <div className="rounded-xl bg-black/20 p-3 text-center">
                       <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                         Decision
@@ -229,6 +260,24 @@ export default function QuantScannerPanel() {
                       </div>
                       <div className="mt-1 font-black text-red-200">
                         {String(item.auto_order_allowed)}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl bg-black/20 p-3 text-center">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Option Pricing Score
+                      </div>
+                      <div className="mt-1 font-black text-cyan-200">
+                        {item.option_pricing_score ?? "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl bg-black/20 p-3 text-center">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Option Side
+                      </div>
+                      <div className="mt-1 font-black text-cyan-200">
+                        {item.option_pricing_side || "-"}
                       </div>
                     </div>
                   </div>
