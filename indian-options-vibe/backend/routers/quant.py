@@ -4,6 +4,7 @@ from typing import Optional
 
 from quant.core import QuantInput, evaluate_quant_candidate, sample_candidates
 from quant.data_foundation import NIFTY_CORE_UNIVERSE, run_sample_scanner
+from quant.scanner_log import log_scanner_run, read_recent_scanner_runs
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -74,8 +75,20 @@ def quant_universe():
 
 @router.get("/scanner/sample")
 def quant_scanner_sample():
+    scanner = run_sample_scanner()
+    log_status = log_scanner_run(scanner, source="sample")
+
     return {
         "auto_order_allowed": False,
         "manual_only": True,
-        "scanner": run_sample_scanner(),
+        "log_status": log_status,
+        "scanner": scanner,
+    }
+
+
+@router.get("/scanner/logs")
+def quant_scanner_logs():
+    return {
+        "runs": read_recent_scanner_runs(limit=20),
+        "message": "Recent scanner runs for quant research and later backtesting.",
     }
