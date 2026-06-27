@@ -361,6 +361,32 @@ export default function FullModelCommandCenter() {
           <div className="rounded-xl bg-slate-900 p-4">After market: Daily Close</div>
         </div>
       </section>
+
+      <section className="rounded-3xl border border-yellow-900 bg-yellow-950/30 p-6">
+        <h2 className="text-xl font-black text-yellow-100">
+          READY does not mean force a trade
+        </h2>
+
+        <p className="mt-3 max-w-4xl text-sm text-yellow-100">
+          READY only means your discipline gates are clean. You still need a valid chart setup,
+          clean option movement, and calm execution. If the setup disappears, do nothing.
+        </p>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl bg-black/20 p-4 text-sm font-bold text-yellow-100">
+            No setup = no trade
+          </div>
+
+          <div className="rounded-xl bg-black/20 p-4 text-sm font-bold text-yellow-100">
+            No chase after move
+          </div>
+
+          <div className="rounded-xl bg-black/20 p-4 text-sm font-bold text-yellow-100">
+            Permission is not prediction
+          </div>
+        </div>
+      </section>
+
     </main>
   );
 }
