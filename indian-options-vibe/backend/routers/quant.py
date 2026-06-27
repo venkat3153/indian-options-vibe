@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from quant.core import QuantInput, evaluate_quant_candidate, sample_candidates
+from quant.data_foundation import NIFTY_CORE_UNIVERSE, run_sample_scanner
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -59,4 +60,22 @@ def quant_evaluate(payload: QuantEvaluateRequest):
         "auto_order_allowed": False,
         "manual_only": True,
         "candidate": result,
+    }
+
+
+@router.get("/universe")
+def quant_universe():
+    return {
+        "universe": NIFTY_CORE_UNIVERSE,
+        "count": len(NIFTY_CORE_UNIVERSE),
+        "message": "Core NIFTY universe for scanner v1.",
+    }
+
+
+@router.get("/scanner/sample")
+def quant_scanner_sample():
+    return {
+        "auto_order_allowed": False,
+        "manual_only": True,
+        "scanner": run_sample_scanner(),
     }
