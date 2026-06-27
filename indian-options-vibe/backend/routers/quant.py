@@ -6,6 +6,7 @@ from quant.core import QuantInput, evaluate_quant_candidate, sample_candidates
 from quant.data_foundation import NIFTY_CORE_UNIVERSE, run_sample_scanner
 from quant.scanner_log import log_scanner_run, read_recent_scanner_runs
 from quant.scanner_review import save_scanner_review, read_recent_reviews, summarize_reviews
+from quant.calibration import build_calibration_report
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -122,3 +123,8 @@ def quant_scanner_reviews():
         "reviews": read_recent_reviews(limit=50),
         "summary": summarize_reviews(),
     }
+
+
+@router.get("/scanner/calibration")
+def quant_scanner_calibration():
+    return build_calibration_report()
