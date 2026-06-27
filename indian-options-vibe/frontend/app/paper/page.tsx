@@ -1,4 +1,5 @@
 'use client';
+import EvidenceGatePanel from "@/components/EvidenceGatePanel";
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
