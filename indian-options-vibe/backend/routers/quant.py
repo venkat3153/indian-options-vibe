@@ -3,8 +3,9 @@ from pydantic import BaseModel
 from typing import Optional
 
 from quant.core import QuantInput, evaluate_quant_candidate, sample_candidates
-from quant.data_foundation import NIFTY_CORE_UNIVERSE, run_sample_scanner
+from quant.data_foundation import NIFTY_CORE_UNIVERSE, MarketSnapshot, score_symbol, run_sample_scanner
 from quant.scanner_log import log_scanner_run, read_recent_scanner_runs
+from quant.snapshot_store import save_market_snapshots, load_latest_market_snapshots
 from quant.scanner_review import save_scanner_review, read_recent_reviews, summarize_reviews
 from quant.calibration import build_calibration_report
 
@@ -31,6 +32,27 @@ class ScannerReviewRequest(BaseModel):
     decision: str
     outcome: str
     notes: str = ""
+
+
+class MarketSnapshotPayload(BaseModel):
+    symbol: str
+    ltp: float = 0
+    day_change_pct: float = 0
+    volume_ratio: float = 0
+    vwap_distance_pct: float = 0
+    trend_strength: float = 0
+    breadth_support: float = 0
+    retest_quality: float = 0
+    liquidity_sweep_score: float = 0
+    option_ce_momentum: float = 0
+    option_pe_momentum: float = 0
+    iv_rank: float = 0
+    spread_quality: float = 0
+
+
+class MarketSnapshotBatchRequest(BaseModel):
+    source: str = "manual"
+    snapshots: list[MarketSnapshotPayload]
 
 
 @router.get("/status")
@@ -128,3 +150,61 @@ def quant_scanner_reviews():
 @router.get("/scanner/calibration")
 def quant_scanner_calibration():
     return build_calibration_report()
+
+
+@router.post("/snapshots")
+def quant_save_snapshots(payload: MarketSnapshotBatchRequest):
+    rows = [item.model_dump() for item in payload.snapshots]
+    return save_market_snapshots(rows, source=payload.source)
+
+
+@router.get("/snapshots/latest")
+def quant_latest_snapshots():
+    return load_latest_market_snapshots()
+
+
+@router.get("/scanner/latest")
+def quant_scanner_latest():
+    latest = load_latest_market_snapshots()
+    snapshots = latest.get("snapshots", [])
+
+    scanner = []
+
+    for row in snapshots:
+        try:
+            item = MarketSnapshot(**row)
+            scanner.append(score_symbol(item))
+        except Exception as error:
+            scanner.append({
+                "symbol": row.get("symbol", "UNKNOWN"),
+                "decision": "NO_TRADE",
+                "side": "NO_SIDE",
+                "edge_score": 0,
+                "setup": "Invalid snapshot",
+                "reasons": [],
+                "warnings": [str(error)],
+                "auto_order_allowed": False,
+                "manual_only": True,
+            })
+
+    scanner = sorted(
+        scanner,
+        key=lambda item: item.edge_score if hasattr(item, "edge_score") else item.get("edge_score", 0),
+        reverse=True,
+    )
+
+    scanner_dicts = [
+        item.__dict__ if hasattr(item, "__dict__") else item
+        for item in scanner
+    ]
+
+    log_status = log_scanner_run(scanner_dicts, source=latest.get("source", "latest"))
+
+    return {
+        "auto_order_allowed": False,
+        "manual_only": True,
+        "snapshot_source": latest.get("source"),
+        "snapshot_created_at": latest.get("created_at"),
+        "log_status": log_status,
+        "scanner": scanner_dicts,
+    }
