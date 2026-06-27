@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildBlankEvidence,
   calculateEvidenceGate,
@@ -8,6 +8,7 @@ import {
   PreTradeEvidence,
   saveEvidence,
 } from "@/lib/preTradeEvidence";
+import { loadTradeCandidate } from "@/lib/tradeCandidate";
 
 const sideOptions = [
   { value: "BUY_CE", label: "Buy CE" },
@@ -26,6 +27,23 @@ export default function PreTradeEvidenceRecorder() {
   const [evidence, setEvidence] = useState<PreTradeEvidence>(() => buildBlankEvidence());
   const [savedAt, setSavedAt] = useState<string>("");
   const [history, setHistory] = useState<PreTradeEvidence[]>([]);
+
+  useEffect(() => {
+    const candidate = loadTradeCandidate();
+
+    if (!candidate) return;
+
+    setEvidence((current) => ({
+      ...current,
+      symbol: current.symbol || candidate.symbol,
+      side: current.side || candidate.side,
+      setupName: current.setupName || candidate.setup,
+      entryPlan: current.entryPlan || candidate.notes,
+      marketContext:
+        current.marketContext ||
+        `Candidate source: ${candidate.source}. Confidence: ${candidate.confidence}.`,
+    }));
+  }, []);
 
   const gate = useMemo(() => calculateEvidenceGate(evidence), [evidence]);
 
@@ -68,6 +86,9 @@ export default function PreTradeEvidenceRecorder() {
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-slate-300">
               Record evidence before entry. This does not place orders. It only creates a manual permission gate.
+            </p>
+            <p className="mt-2 text-xs font-bold text-cyan-300">
+              Candidate prefill is active: saved Trade Candidate can auto-fill symbol, side, setup, and notes.
             </p>
           </div>
 
