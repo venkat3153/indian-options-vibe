@@ -18,6 +18,7 @@ export default function TradeDisciplineLockPanel() {
   const [hasOpenPosition, setHasOpenPosition] = useState(false);
   const [emotion, setEmotion] = useState("");
   const [lockedManually, setLockedManually] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState("");
   const [oneQtyConfirmed, setOneQtyConfirmed] = useState(true);
   const [manualOnlyConfirmed, setManualOnlyConfirmed] = useState(true);
 
@@ -30,6 +31,7 @@ export default function TradeDisciplineLockPanel() {
     setMaxLossR(savedRisk.maxLossR);
     setEmotion(savedRisk.emotion);
     setLockedManually(savedRisk.lockedManually);
+    setCooldownUntil(savedRisk.cooldownUntil || "");
     setMounted(true);
   }, []);
 
@@ -44,6 +46,7 @@ export default function TradeDisciplineLockPanel() {
         emotion,
         oneQtyConfirmed,
         manualOnlyConfirmed,
+        cooldownUntil,
       }),
     [
       todayTrades,
@@ -52,6 +55,7 @@ export default function TradeDisciplineLockPanel() {
       maxLossR,
       hasOpenPosition,
       lockedManually,
+      cooldownUntil,
       emotion,
       oneQtyConfirmed,
       manualOnlyConfirmed,
@@ -69,15 +73,27 @@ export default function TradeDisciplineLockPanel() {
       maxLossR,
       emotion,
       lockedManually,
+      cooldownUntil,
     });
-  }, [mounted, todayTrades, maxTrades, todayLossR, maxLossR, emotion, lockedManually]);
+  }, [mounted, todayTrades, maxTrades, todayLossR, maxLossR, emotion, lockedManually, cooldownUntil]);
+
+  function startCooldown(minutes = 15) {
+    const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    setCooldownUntil(until);
+  }
+
+  function clearCooldown() {
+    setCooldownUntil("");
+  }
 
   function markTradeTaken() {
     setTodayTrades((value) => value + 1);
+    startCooldown(15);
   }
 
   function recordOneRLoss() {
     setTodayLossR((value) => value - 1);
+    startCooldown(15);
   }
 
   function lockDayNow() {
@@ -95,6 +111,7 @@ export default function TradeDisciplineLockPanel() {
     setHasOpenPosition(false);
     setOneQtyConfirmed(true);
     setManualOnlyConfirmed(true);
+    setCooldownUntil("");
     clearTradeCandidate();
   }
 

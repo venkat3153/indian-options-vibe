@@ -6,6 +6,7 @@ export type DailyRiskState = {
   maxLossR: number;
   emotion: string;
   lockedManually: boolean;
+  cooldownUntil: string;
 };
 
 export const DAILY_RISK_KEY = "indian-options-vibe:daily-risk-state:v1";
@@ -23,6 +24,7 @@ export function defaultDailyRiskState(): DailyRiskState {
     maxLossR: 2,
     emotion: "",
     lockedManually: false,
+    cooldownUntil: "",
   };
 }
 

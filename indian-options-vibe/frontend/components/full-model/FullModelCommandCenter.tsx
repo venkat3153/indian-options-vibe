@@ -57,11 +57,15 @@ export default function FullModelCommandCenter() {
 
   const evidenceGate = calculateEvidenceGate(evidence);
   const dhanConnected = Boolean(dhan?.connected);
+  const cooldownClear =
+    !risk?.cooldownUntil || new Date(risk.cooldownUntil).getTime() <= Date.now();
+
   const dailyRiskOk =
     !risk ||
     (risk.todayTrades < risk.maxTrades &&
       risk.todayLossR > -Math.abs(risk.maxLossR) &&
-      !risk.lockedManually);
+      !risk.lockedManually &&
+      cooldownClear);
 
   const marketOpen = Boolean(marketSession?.isOpen);
   const candidateConsistency = checkCandidateConsistency({ candidate, evidence });
@@ -291,6 +295,7 @@ export default function FullModelCommandCenter() {
           </div>
           <div className="mt-2 text-sm text-slate-300">
             Trades {risk?.todayTrades ?? 0}/{risk?.maxTrades ?? 1} · R {risk?.todayLossR ?? 0}
+            {risk?.cooldownUntil ? " · Cooldown active" : ""}
           </div>
         </div>
 

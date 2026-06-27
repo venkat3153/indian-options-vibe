@@ -60,7 +60,9 @@ export default function ManualLivePermissionCockpit() {
   const maxTradesOk = !riskState || riskState.todayTrades < riskState.maxTrades;
   const lossLimitOk = !riskState || riskState.todayLossR > -Math.abs(riskState.maxLossR);
   const manualLockOk = !riskState?.lockedManually;
-  const dailyRiskClear = maxTradesOk && lossLimitOk && manualLockOk;
+  const cooldownClear =
+    !riskState?.cooldownUntil || new Date(riskState.cooldownUntil).getTime() <= Date.now();
+  const dailyRiskClear = maxTradesOk && lossLimitOk && manualLockOk && cooldownClear;
   const marketOpen = Boolean(marketSession?.isOpen);
   const candidateConsistency = checkCandidateConsistency({ candidate, evidence });
 

@@ -7,6 +7,7 @@ export type DisciplineInput = {
   emotion: string;
   oneQtyConfirmed: boolean;
   manualOnlyConfirmed: boolean;
+  cooldownUntil?: string;
 };
 
 export type DisciplineResult = {
@@ -28,6 +29,14 @@ export function calculateTradeDisciplineLock(input: DisciplineInput): Discipline
 
   if (input.hasOpenPosition) {
     reasons.push("Open position exists. Do not stack trades.");
+  }
+
+  if (input.cooldownUntil) {
+    const cooldownTime = new Date(input.cooldownUntil).getTime();
+
+    if (!Number.isNaN(cooldownTime) && cooldownTime > Date.now()) {
+      reasons.push("Cooldown is active. Do not take another trade yet.");
+    }
   }
 
   const emotion = input.emotion.toLowerCase();
