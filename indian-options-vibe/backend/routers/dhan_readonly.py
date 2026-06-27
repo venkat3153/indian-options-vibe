@@ -1,7 +1,9 @@
+import json
 import os
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-import requests
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/api/dhan", tags=["dhan-readonly"])
@@ -27,26 +29,38 @@ def get_dhan_token() -> str:
 
 
 def dhan_get(path: str) -> Any:
-    response = requests.get(
+    req = Request(
         f"{DHAN_BASE_URL}{path}",
         headers={
             "Content-Type": "application/json",
             "access-token": get_dhan_token(),
         },
-        timeout=12,
+        method="GET",
     )
 
-    if response.status_code >= 400:
+    try:
+        with urlopen(req, timeout=12) as response:
+            body = response.read().decode("utf-8")
+            return json.loads(body) if body else {}
+    except HTTPError as error:
+        body = error.read().decode("utf-8")
         raise HTTPException(
-            status_code=response.status_code,
+            status_code=error.code,
             detail={
                 "message": "Dhan read-only request failed",
                 "path": path,
-                "response": response.text,
+                "response": body,
             },
         )
-
-    return response.json()
+    except URLError as error:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Could not reach Dhan API",
+                "path": path,
+                "response": str(error),
+            },
+        )
 
 
 @router.get("/status")
