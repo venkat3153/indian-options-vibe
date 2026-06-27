@@ -1,3 +1,4 @@
+from backend.routers.dhan_readonly import router as dhan_readonly_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +22,7 @@ from api.watchlist import router as watchlist_router
 load_dotenv()
 
 app = FastAPI(title="Indian Options Vibe API", version="0.1.0")
+app.include_router(dhan_readonly_router)
 
 app.add_middleware(
     CORSMiddleware,
