@@ -55,7 +55,13 @@ export default function TradeCandidatePanel() {
     setValidationMessage("");
   }
 
-  const ready = Boolean(candidate.symbol.trim() && candidate.side && candidate.setup.trim());
+  const missingFields = [
+    !candidate.symbol.trim() ? "Symbol is required" : "",
+    !candidate.side ? "Side is required" : "",
+    !candidate.setup.trim() ? "Setup is required" : "",
+  ].filter(Boolean);
+
+  const ready = missingFields.length === 0;
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
@@ -169,6 +175,17 @@ export default function TradeCandidatePanel() {
               className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white"
             />
           </label>
+
+          {!ready ? (
+            <div className="rounded-xl border border-yellow-900 bg-yellow-950/40 p-4 text-sm text-yellow-100">
+              <div className="font-black">Missing Requirements</div>
+              <div className="mt-2 space-y-1">
+                {missingFields.map((field) => (
+                  <div key={field}>• {field}</div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
