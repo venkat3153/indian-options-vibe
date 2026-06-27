@@ -1,4 +1,5 @@
 'use client';
+import EvidenceGatePanel from "@/components/EvidenceGatePanel";
 
 import { useEffect, useMemo, useState } from 'react';
 
@@ -518,6 +519,9 @@ export default function LiveTestModePage() {
 
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-slate-100">
+      {/* evidence-gate-v2-live-test */}
+      <EvidenceGatePanel context="Paper Live Test" />
+
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
