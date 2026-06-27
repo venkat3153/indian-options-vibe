@@ -65,8 +65,15 @@ def dhan_get(path: str) -> Any:
 
 @router.get("/status")
 def dhan_status():
+    token_present = bool(
+        os.getenv("DHAN_ACCESS_TOKEN")
+        or os.getenv("DHAN_TOKEN")
+        or os.getenv("DHAN_API_TOKEN")
+    )
+
     return {
         "connected": True,
+        "token_present": token_present,
         "mode": "READ_ONLY",
         "message": "Dhan read-only backend is active. No order placement route exists here.",
     }
