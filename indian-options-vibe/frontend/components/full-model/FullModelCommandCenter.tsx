@@ -6,6 +6,7 @@ import { loadLatestEvidence, calculateEvidenceGate, PreTradeEvidence } from "@/l
 import { getDhanReadOnlySnapshot, DhanReadOnlySnapshot } from "@/lib/dhanReadOnly";
 import { getMarketSessionStatus, MarketSessionStatus } from "@/lib/marketSession";
 import { loadTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
+import { checkCandidateConsistency } from "@/lib/candidateConsistency";
 
 type Card = {
   title: string;
@@ -286,6 +287,16 @@ export default function FullModelCommandCenter() {
           </div>
           <div className="mt-2 text-sm text-slate-300">
             {candidate?.symbol || "No candidate"} {candidate?.side ? "· " + candidate.side : ""}
+          </div>
+        </div>
+
+        <div className={`rounded-2xl border p-5 ${candidateConsistency.ok ? "border-emerald-800 bg-emerald-950/50" : "border-red-900 bg-red-950/50"}`}>
+          <div className="text-xs font-black uppercase tracking-widest text-slate-500">Candidate Match</div>
+          <div className={`mt-2 text-3xl font-black ${candidateConsistency.ok ? "text-emerald-200" : "text-red-200"}`}>
+            {candidateConsistency.status}
+          </div>
+          <div className="mt-2 text-sm text-slate-300">
+            {candidateConsistency.reason}
           </div>
         </div>
       </section>
