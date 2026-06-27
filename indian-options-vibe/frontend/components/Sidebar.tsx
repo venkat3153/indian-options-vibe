@@ -4,6 +4,7 @@ const items = [
   ['Home', '/'],
   ['Full Model', '/full-model'],
   ['Quant Engine', '/quant'],
+  ['Quant Scanner', '/quant/scanner'],
   ['Trade Candidate', '/trade/candidate'],
   ['Stocks Research', '/stocks'],
   ['Market Screener', '/screener'],
