@@ -250,6 +250,43 @@ export default function ManualLivePermissionCockpit() {
         ))}
       </section>
 
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-500">
+          Gate Debug Snapshot
+        </div>
+
+        <h2 className="mt-2 text-xl font-black text-white">
+          Final Permission Logic
+        </h2>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {[
+            ["Evidence Gate", evidenceGate.allowed],
+            ["Dhan Connected", dhanConnected],
+            ["No Open Position", noOpenPositions],
+            ["One Qty", oneQtyConfirmed],
+            ["Manual Only", manualOnlyConfirmed],
+            ["Daily Risk Clear", dailyRiskClear],
+            ["Cooldown Clear", typeof cooldownClear === "undefined" ? true : cooldownClear],
+            ["Market Open", typeof marketOpen === "undefined" ? true : marketOpen],
+            ["Candidate Match", typeof candidateConsistency === "undefined" ? true : candidateConsistency.ok],
+          ].map(([label, ok]) => (
+            <div
+              key={String(label)}
+              className={`rounded-xl p-4 text-sm ${
+                ok
+                  ? "border border-emerald-900 bg-emerald-950/40 text-emerald-100"
+                  : "border border-red-900 bg-red-950/40 text-red-100"
+              }`}
+            >
+              <div className="font-black">{label}</div>
+              <div className="mt-1">{ok ? "PASS" : "BLOCK"}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
           <h2 className="text-xl font-black text-white">Today Evidence</h2>
