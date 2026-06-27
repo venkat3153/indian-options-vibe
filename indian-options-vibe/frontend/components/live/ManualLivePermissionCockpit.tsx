@@ -179,6 +179,29 @@ export default function ManualLivePermissionCockpit() {
         </div>
       </section>
 
+      {!allowed ? (
+        <section className="rounded-3xl border border-red-900 bg-red-950/50 p-6">
+          <div className="text-xs font-black uppercase tracking-[0.35em] text-red-200">
+            Top Blocker Summary
+          </div>
+
+          <h2 className="mt-2 text-2xl font-black text-red-100">
+            Why Final Permission is BLOCKED
+          </h2>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {checks
+              .filter((check) => !check.ok)
+              .map((check) => (
+                <div key={check.label} className="rounded-xl bg-black/20 p-4 text-sm text-red-100">
+                  <div className="font-black">{check.label}</div>
+                  <div className="mt-1">{check.fail}</div>
+                </div>
+              ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-5">
         {checks.map((check) => (
           <div
