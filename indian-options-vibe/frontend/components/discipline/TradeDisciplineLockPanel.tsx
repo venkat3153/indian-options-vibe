@@ -5,17 +5,28 @@ import { calculateTradeDisciplineLock } from "@/lib/tradeDisciplineLock";
 import { loadDailyRiskState, saveDailyRiskState } from "@/lib/dailyRiskState";
 
 export default function TradeDisciplineLockPanel() {
-  const savedRisk = typeof window !== "undefined" ? loadDailyRiskState() : null;
-
-  const [todayTrades, setTodayTrades] = useState(savedRisk?.todayTrades ?? 0);
-  const [maxTrades, setMaxTrades] = useState(savedRisk?.maxTrades ?? 1);
-  const [todayLossR, setTodayLossR] = useState(savedRisk?.todayLossR ?? 0);
-  const [maxLossR, setMaxLossR] = useState(savedRisk?.maxLossR ?? 2);
+  const [mounted, setMounted] = useState(false);
+  const [todayTrades, setTodayTrades] = useState(0);
+  const [maxTrades, setMaxTrades] = useState(1);
+  const [todayLossR, setTodayLossR] = useState(0);
+  const [maxLossR, setMaxLossR] = useState(2);
   const [hasOpenPosition, setHasOpenPosition] = useState(false);
-  const [emotion, setEmotion] = useState(savedRisk?.emotion ?? "");
-  const [lockedManually, setLockedManually] = useState(savedRisk?.lockedManually ?? false);
+  const [emotion, setEmotion] = useState("");
+  const [lockedManually, setLockedManually] = useState(false);
   const [oneQtyConfirmed, setOneQtyConfirmed] = useState(true);
   const [manualOnlyConfirmed, setManualOnlyConfirmed] = useState(true);
+
+  useEffect(() => {
+    const savedRisk = loadDailyRiskState();
+
+    setTodayTrades(savedRisk.todayTrades);
+    setMaxTrades(savedRisk.maxTrades);
+    setTodayLossR(savedRisk.todayLossR);
+    setMaxLossR(savedRisk.maxLossR);
+    setEmotion(savedRisk.emotion);
+    setLockedManually(savedRisk.lockedManually);
+    setMounted(true);
+  }, []);
 
   const result = useMemo(
     () =>
@@ -43,6 +54,8 @@ export default function TradeDisciplineLockPanel() {
   );
 
   useEffect(() => {
+    if (!mounted) return;
+
     saveDailyRiskState({
       date: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
       todayTrades,
@@ -52,7 +65,7 @@ export default function TradeDisciplineLockPanel() {
       emotion,
       lockedManually,
     });
-  }, [todayTrades, maxTrades, todayLossR, maxLossR, emotion, lockedManually]);
+  }, [mounted, todayTrades, maxTrades, todayLossR, maxLossR, emotion, lockedManually]);
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
