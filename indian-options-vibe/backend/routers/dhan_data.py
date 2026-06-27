@@ -197,3 +197,106 @@ def dhan_save_nifty_option_snapshot():
         "auto_order_allowed": False,
         "manual_only": True,
     }
+
+
+
+class MarketOhlcRequest(BaseModel):
+    instruments: dict[str, list[int]]
+
+
+
+@router.post("/market/ohlc")
+def dhan_market_ohlc(payload: MarketOhlcRequest):
+    if not credentials_present():
+        return {
+            "status": "failed",
+            "error": "Missing DHAN_CLIENT_ID or DHAN_ACCESS_TOKEN in backend/.env",
+            "auto_order_allowed": False,
+        }
+
+    response = requests.post(
+        f"{DHAN_BASE_URL}/marketfeed/ohlc",
+        headers=dhan_headers(),
+        json=payload.instruments,
+        timeout=15,
+    )
+
+    return {
+        "status_code": response.status_code,
+        "auto_order_allowed": False,
+        "manual_only": True,
+        "data": response.json() if response.content else None,
+    }
+
+
+
+@router.get("/nifty/structure-snapshot")
+def dhan_nifty_structure_snapshot():
+    if not credentials_present():
+        return {
+            "status": "failed",
+            "error": "Missing DHAN_CLIENT_ID or DHAN_ACCESS_TOKEN in backend/.env",
+            "auto_order_allowed": False,
+        }
+
+    # Dhan NIFTY index security id commonly used in current option-chain route is 13.
+    response = requests.post(
+        f"{DHAN_BASE_URL}/marketfeed/ohlc",
+        headers=dhan_headers(),
+        json={
+            "IDX_I": [13],
+        },
+        timeout=15,
+    )
+
+    payload = response.json() if response.content else {}
+    data = payload.get("data", {})
+    index_data = data.get("IDX_I", {}).get("13", {}) if isinstance(data, dict) else {}
+
+    ltp = float(index_data.get("last_price") or 0)
+    ohlc = index_data.get("ohlc") or {}
+
+    open_price = float(ohlc.get("open") or 0)
+    close_price = float(ohlc.get("close") or 0)
+    high_price = float(ohlc.get("high") or 0)
+    low_price = float(ohlc.get("low") or 0)
+
+    base = close_price if close_price else open_price
+    day_change_pct = round(((ltp - base) / base) * 100, 2) if base else 0
+
+    range_size = high_price - low_price if high_price and low_price else 0
+    position_in_range = ((ltp - low_price) / range_size) if range_size else 0.5
+
+    if day_change_pct > 0.25 and position_in_range >= 0.60:
+        trend_strength = 65
+    elif day_change_pct < -0.25 and position_in_range <= 0.40:
+        trend_strength = -65
+    else:
+        trend_strength = 25 if day_change_pct > 0 else -25 if day_change_pct < 0 else 0
+
+    snapshot = {
+        "symbol": "NIFTY",
+        "ltp": ltp,
+        "day_change_pct": day_change_pct,
+        "volume_ratio": 1,
+        "vwap_distance_pct": day_change_pct,
+        "trend_strength": trend_strength,
+        "breadth_support": 0,
+        "retest_quality": 0,
+        "liquidity_sweep_score": 0,
+        "option_ce_momentum": 0,
+        "option_pe_momentum": 0,
+        "iv_rank": 50,
+        "spread_quality": 70,
+        "option_pricing_score": 0,
+        "option_pricing_side": "NO_SIDE",
+    }
+
+    return {
+        "status": "success",
+        "status_code": response.status_code,
+        "raw": payload,
+        "snapshot": snapshot,
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
