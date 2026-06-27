@@ -6,6 +6,7 @@ const items = [
   ['Quant Engine', '/quant'],
   ['Quant Data', '/quant/snapshots'],
   ['Quant Scanner', '/quant/scanner'],
+  ['Option Pricing', '/quant/options'],
   ['Quant Review', '/quant/review'],
   ['Quant Calibration', '/quant/calibration'],
   ['Trade Candidate', '/trade/candidate'],
