@@ -1,4 +1,5 @@
 'use client';
+import FinalPermissionEvidenceGate from "@/components/FinalPermissionEvidenceGate";
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -95,7 +96,10 @@ export default function StockDetailPage({ params }: { params: { symbol: string }
   const strength = stock ? getLiveStrength(stock, quote) : 0;
   const breakdown = stock ? getScoreBreakdown(stock, quote) : [];
 
-  if (loading) return <section className="p-8 md:p-12"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 text-slate-300">Loading stock research...</div></section>;
+  if (loading) return <section className="p-8 md:p-12"><div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 text-slate-300">
+      {/* final-permission-evidence-lock-v2 */}
+      <FinalPermissionEvidenceGate />
+Loading stock research...</div></section>;
   if (!stock) return <section className="p-8 md:p-12"><div className="mx-auto max-w-5xl rounded-3xl border border-red-900 bg-red-950/20 p-8"><h1 className="text-3xl font-bold text-white">Stock not found</h1><p className="mt-2 text-slate-300">{symbol} is not available in the current research universe.</p><Link href="/stocks" className="mt-5 inline-block rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800">Back to Stocks</Link></div></section>;
 
   return <section className="p-8 md:p-12"><div className="mx-auto max-w-7xl">
