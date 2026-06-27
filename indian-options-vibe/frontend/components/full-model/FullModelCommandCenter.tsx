@@ -7,6 +7,7 @@ import { getDhanReadOnlySnapshot, DhanReadOnlySnapshot } from "@/lib/dhanReadOnl
 import { getMarketSessionStatus, MarketSessionStatus } from "@/lib/marketSession";
 import { loadTradeCandidate, clearTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
 import { checkCandidateConsistency } from "@/lib/candidateConsistency";
+import { addPermissionAudit, loadPermissionAudit, PermissionAuditEvent } from "@/lib/permissionAudit";
 
 type Card = {
   title: string;
@@ -22,6 +23,7 @@ export default function FullModelCommandCenter() {
   const [marketSession, setMarketSession] = useState<MarketSessionStatus | null>(null);
   const [candidate, setCandidate] = useState<TradeCandidate | null>(null);
   const [loading, setLoading] = useState(false);
+  const [auditEvents, setAuditEvents] = useState<PermissionAuditEvent[]>([]);
 
   async function refresh() {
     setLoading(true);
@@ -32,6 +34,8 @@ export default function FullModelCommandCenter() {
       setMarketSession(getMarketSessionStatus());
       setCandidate(loadTradeCandidate());
       setDhan(await getDhanReadOnlySnapshot());
+      addPermissionAudit("FULL_MODEL_REFRESH", "Full Model command center refreshed.");
+      setAuditEvents(loadPermissionAudit());
     } finally {
       setLoading(false);
     }
@@ -72,12 +76,16 @@ export default function FullModelCommandCenter() {
     };
 
     saveDailyRiskState(locked);
+    addPermissionAudit("EMERGENCY_LOCK", "Emergency Lock Day activated from Full Model.");
     setRisk(locked);
+    setAuditEvents(loadPermissionAudit());
   }
 
   function clearCurrentCandidate() {
     clearTradeCandidate();
+    addPermissionAudit("CANDIDATE_CLEARED", "Trade Candidate cleared from Full Model.");
     setCandidate(null);
+    setAuditEvents(loadPermissionAudit());
   }
 
   const nextAction = (() => {
@@ -474,6 +482,43 @@ export default function FullModelCommandCenter() {
           <div className="rounded-xl bg-black/20 p-4 text-sm font-bold text-yellow-100">
             Permission is not prediction
           </div>
+        </div>
+      </section>
+
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-xl font-black text-white">Permission Audit Trail</h2>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">
+              Recent system events. This is for discipline review, not execution.
+            </p>
+          </div>
+
+          <a
+            href="/daily/close"
+            className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
+          >
+            Daily Close Review
+          </a>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {auditEvents.length === 0 ? (
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-400">
+              No audit events yet.
+            </div>
+          ) : (
+            auditEvents.slice(0, 6).map((event) => (
+              <div key={event.id} className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+                <div className="font-black text-white">{event.type}</div>
+                <div className="mt-1">{event.message}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {new Date(event.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
