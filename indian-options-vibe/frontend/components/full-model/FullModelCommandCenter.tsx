@@ -5,6 +5,7 @@ import { loadDailyRiskState, saveDailyRiskState, DailyRiskState } from "@/lib/da
 import { loadLatestEvidence, calculateEvidenceGate, PreTradeEvidence } from "@/lib/preTradeEvidence";
 import { getDhanReadOnlySnapshot, DhanReadOnlySnapshot } from "@/lib/dhanReadOnly";
 import { getMarketSessionStatus, MarketSessionStatus } from "@/lib/marketSession";
+import { loadTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
 
 type Card = {
   title: string;
@@ -18,6 +19,7 @@ export default function FullModelCommandCenter() {
   const [evidence, setEvidence] = useState<PreTradeEvidence | null>(null);
   const [dhan, setDhan] = useState<DhanReadOnlySnapshot | null>(null);
   const [marketSession, setMarketSession] = useState<MarketSessionStatus | null>(null);
+  const [candidate, setCandidate] = useState<TradeCandidate | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
@@ -27,6 +29,7 @@ export default function FullModelCommandCenter() {
       setRisk(loadDailyRiskState());
       setEvidence(loadLatestEvidence());
       setMarketSession(getMarketSessionStatus());
+      setCandidate(loadTradeCandidate());
       setDhan(await getDhanReadOnlySnapshot());
     } finally {
       setLoading(false);
@@ -132,6 +135,12 @@ export default function FullModelCommandCenter() {
 
   const cards: Card[] = [
     {
+      title: "0. Trade Candidate",
+      href: "/trade/candidate",
+      description: "Save the one idea being evaluated before permission.",
+      status: candidate ? "READY" : "CHECK",
+    },
+    {
       title: "1. Daily Startup",
       href: "/daily/startup",
       description: "Set trade day, max trades, max loss, emotion, and market plan.",
@@ -229,7 +238,7 @@ export default function FullModelCommandCenter() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <div className={`rounded-2xl border p-5 ${dailyRiskOk ? "border-emerald-800 bg-emerald-950/50" : "border-red-900 bg-red-950/50"}`}>
           <div className="text-xs font-black uppercase tracking-widest text-slate-500">Daily Risk</div>
           <div className={`mt-2 text-3xl font-black ${dailyRiskOk ? "text-emerald-200" : "text-red-200"}`}>
@@ -267,6 +276,16 @@ export default function FullModelCommandCenter() {
           </div>
           <div className="mt-2 text-sm text-slate-300">
             {marketSession?.istTime || "-"}
+          </div>
+        </div>
+
+        <div className={`rounded-2xl border p-5 ${candidate ? "border-emerald-800 bg-emerald-950/50" : "border-yellow-900 bg-yellow-950/50"}`}>
+          <div className="text-xs font-black uppercase tracking-widest text-slate-500">Trade Candidate</div>
+          <div className={`mt-2 text-3xl font-black ${candidate ? "text-emerald-200" : "text-yellow-200"}`}>
+            {candidate ? "SET" : "EMPTY"}
+          </div>
+          <div className="mt-2 text-sm text-slate-300">
+            {candidate?.symbol || "No candidate"} {candidate?.side ? "· " + candidate.side : ""}
           </div>
         </div>
       </section>
