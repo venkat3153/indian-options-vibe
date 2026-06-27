@@ -6,6 +6,7 @@ const items = [
   ['Stocks Research', '/stocks'],
   ['Daily Plan', '/daily-plan'],
   ['Daily Startup', '/daily/startup'],
+  ['Daily Close', '/daily/close'],
   ['Market Screener', '/scanner'],
   ['Paper Trading', '/paper'],
   ['Journal Dashboard', '/journal'],
