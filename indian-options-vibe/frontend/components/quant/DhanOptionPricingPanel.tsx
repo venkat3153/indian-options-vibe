@@ -48,7 +48,38 @@ const API_BASE =
 export default function DhanOptionPricingPanel() {
   const [result, setResult] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const [error, setError] = useState("");
+
+  async function saveToScanner() {
+    setSaving(true);
+    setSaveMessage("");
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/dhan-data/nifty/save-option-snapshot`,
+        { cache: "no-store" }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Save option snapshot failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status !== "success") {
+        throw new Error(data.error || "Failed to save option snapshot.");
+      }
+
+      setSaveMessage("NIFTY option-pricing snapshot saved to Quant Scanner.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save to scanner.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function loadOptionSnapshot() {
     setLoading(true);
@@ -121,6 +152,15 @@ export default function DhanOptionPricingPanel() {
             {loading ? "Loading Dhan Data..." : "Load Option Pricing Snapshot"}
           </button>
 
+          <button
+            type="button"
+            onClick={saveToScanner}
+            disabled={saving}
+            className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-emerald-300 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save to Quant Scanner"}
+          </button>
+
           <a
             href="/quant/scanner"
             className="rounded-xl border border-slate-700 px-5 py-3 text-center text-sm font-black text-slate-200 hover:bg-slate-900"
@@ -135,6 +175,12 @@ export default function DhanOptionPricingPanel() {
             Open Full Model
           </a>
         </div>
+
+        {saveMessage ? (
+          <div className="mt-4 rounded-xl border border-emerald-800 bg-emerald-950/50 p-4 text-sm font-bold text-emerald-100">
+            {saveMessage}
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-4 rounded-xl border border-red-900 bg-red-950/50 p-4 text-sm font-bold text-red-100">
