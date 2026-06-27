@@ -11,6 +11,7 @@ const items = [
   ['Runs', '/runs/demo-run-001'],
   ['Broker Connect', '/broker'],
   ['Dhan Read-Only', '/broker/dhan-readonly'],
+  ['Live Permission', '/live/permission'],
   ['Settings', '/settings'],
 ];
 
