@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/dhan", tags=["dhan-readonly"])
 DHAN_BASE_URL = "https://api.dhan.co/v2"
 
 
-def _get_access_token() -> str:
+def get_dhan_token() -> str:
     token = (
         os.getenv("DHAN_ACCESS_TOKEN")
         or os.getenv("DHAN_TOKEN")
@@ -20,20 +20,18 @@ def _get_access_token() -> str:
     if not token:
         raise HTTPException(
             status_code=500,
-            detail="Dhan access token missing. Set DHAN_ACCESS_TOKEN in backend/.env",
+            detail="Dhan token missing. Add DHAN_ACCESS_TOKEN in backend/.env",
         )
 
     return token
 
 
-def _dhan_get(path: str) -> Any:
-    token = _get_access_token()
-
+def dhan_get(path: str) -> Any:
     response = requests.get(
         f"{DHAN_BASE_URL}{path}",
         headers={
             "Content-Type": "application/json",
-            "access-token": token,
+            "access-token": get_dhan_token(),
         },
         timeout=12,
     )
@@ -56,20 +54,20 @@ def dhan_status():
     return {
         "connected": True,
         "mode": "READ_ONLY",
-        "message": "Dhan read-only router is active. No order placement endpoints are exposed.",
+        "message": "Dhan read-only backend is active. No order placement route exists here.",
     }
 
 
 @router.get("/fundlimit")
 def dhan_fundlimit():
-    return _dhan_get("/fundlimit")
+    return dhan_get("/fundlimit")
 
 
 @router.get("/positions")
 def dhan_positions():
-    return _dhan_get("/positions")
+    return dhan_get("/positions")
 
 
 @router.get("/orders")
 def dhan_orders():
-    return _dhan_get("/orders")
+    return dhan_get("/orders")
