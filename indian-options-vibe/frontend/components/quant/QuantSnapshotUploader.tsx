@@ -48,6 +48,7 @@ export default function QuantSnapshotUploader() {
   ]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [csvText, setCsvText] = useState("");
 
   function updateRow<K extends keyof SnapshotRow>(
     index: number,
@@ -67,6 +68,79 @@ export default function QuantSnapshotUploader() {
 
   function removeRow(index: number) {
     setRows((current) => current.filter((_, rowIndex) => rowIndex !== index));
+  }
+
+  function parseNumber(value: string) {
+    const parsed = Number(String(value || "").trim());
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function importCsvText() {
+    setMessage("");
+    setError("");
+
+    const lines = csvText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length < 2) {
+      setError("Paste CSV with header and at least one data row.");
+      return;
+    }
+
+    const headers = lines[0].split(",").map((item) => item.trim());
+    const required = [
+      "symbol",
+      "ltp",
+      "day_change_pct",
+      "volume_ratio",
+      "vwap_distance_pct",
+      "trend_strength",
+      "breadth_support",
+      "retest_quality",
+      "liquidity_sweep_score",
+      "option_ce_momentum",
+      "option_pe_momentum",
+      "iv_rank",
+      "spread_quality",
+    ];
+
+    const missing = required.filter((key) => !headers.includes(key));
+
+    if (missing.length > 0) {
+      setError(`CSV missing columns: ${missing.join(", ")}`);
+      return;
+    }
+
+    const imported = lines.slice(1).map((line) => {
+      const values = line.split(",").map((item) => item.trim());
+      const row: Record<string, string> = {};
+
+      headers.forEach((header, index) => {
+        row[header] = values[index] || "";
+      });
+
+      return {
+        symbol: String(row.symbol || "").toUpperCase(),
+        ltp: parseNumber(row.ltp),
+        day_change_pct: parseNumber(row.day_change_pct),
+        volume_ratio: parseNumber(row.volume_ratio),
+        vwap_distance_pct: parseNumber(row.vwap_distance_pct),
+        trend_strength: parseNumber(row.trend_strength),
+        breadth_support: parseNumber(row.breadth_support),
+        retest_quality: parseNumber(row.retest_quality),
+        liquidity_sweep_score: parseNumber(row.liquidity_sweep_score),
+        option_ce_momentum: parseNumber(row.option_ce_momentum),
+        option_pe_momentum: parseNumber(row.option_pe_momentum),
+        iv_rank: parseNumber(row.iv_rank),
+        spread_quality: parseNumber(row.spread_quality),
+      };
+    }).filter((row) => row.symbol);
+
+    setRows(imported);
+    setSource("csv-paste");
+    setMessage(`Imported ${imported.length} rows from CSV paste. Click Save Market Snapshots next.`);
   }
 
   async function saveSnapshots() {
@@ -177,6 +251,41 @@ export default function QuantSnapshotUploader() {
             className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-white"
           />
         </label>
+      </section>
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <h2 className="text-xl font-black text-white">Paste CSV Snapshot Data</h2>
+
+        <p className="mt-2 text-sm text-slate-400">
+          Paste data from Google Sheets, TradingView export, or your own CSV table.
+          Then import rows and save snapshots.
+        </p>
+
+        <textarea
+          value={csvText}
+          onChange={(event) => setCsvText(event.target.value)}
+          rows={8}
+          placeholder={"symbol,ltp,day_change_pct,volume_ratio,vwap_distance_pct,trend_strength,breadth_support,retest_quality,liquidity_sweep_score,option_ce_momentum,option_pe_momentum,iv_rank,spread_quality\nBAJFINANCE,7100,1.2,1.8,0.45,78,70,75,68,76,28,55,75"}
+          className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+        />
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={importCsvText}
+            className="rounded-xl bg-emerald-400 px-5 py-3 text-sm font-black text-slate-950 hover:bg-emerald-300"
+          >
+            Import CSV Rows
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCsvText("")}
+            className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-black text-slate-200 hover:bg-slate-900"
+          >
+            Clear CSV
+          </button>
+        </div>
       </section>
 
       <section className="space-y-4">
