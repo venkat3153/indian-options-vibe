@@ -45,6 +45,8 @@ class MarketSnapshot:
     option_pe_momentum: float
     iv_rank: float
     spread_quality: float
+    option_pricing_score: float = 0
+    option_pricing_side: str = "NO_SIDE"
 
 
 @dataclass
@@ -75,6 +77,7 @@ def score_symbol(snapshot: MarketSnapshot) -> ScannerResult:
         + snapshot.retest_quality * 0.15
         + snapshot.liquidity_sweep_score * 0.10
         + snapshot.option_ce_momentum * 0.15
+        + (snapshot.option_pricing_score * 0.12 if snapshot.option_pricing_side == "BUY_CE" else 0)
         + snapshot.volume_ratio * 5
         + snapshot.spread_quality * 0.05
     )
@@ -86,6 +89,7 @@ def score_symbol(snapshot: MarketSnapshot) -> ScannerResult:
         + snapshot.retest_quality * 0.15
         + snapshot.liquidity_sweep_score * 0.10
         + snapshot.option_pe_momentum * 0.15
+        + (snapshot.option_pricing_score * 0.12 if snapshot.option_pricing_side == "BUY_PE" else 0)
         + snapshot.volume_ratio * 5
         + snapshot.spread_quality * 0.05
     )
@@ -128,8 +132,17 @@ def score_symbol(snapshot: MarketSnapshot) -> ScannerResult:
     if side == "BUY_CE" and snapshot.option_ce_momentum >= 60:
         reasons.append("CE option momentum supports bullish side.")
 
+    if side == "BUY_CE" and snapshot.option_pricing_side == "BUY_CE" and snapshot.option_pricing_score >= 60:
+        reasons.append("Option-pricing model supports bullish side.")
+
     if side == "BUY_PE" and snapshot.option_pe_momentum >= 60:
         reasons.append("PE option momentum supports bearish side.")
+
+    if side == "BUY_PE" and snapshot.option_pricing_side == "BUY_PE" and snapshot.option_pricing_score >= 60:
+        reasons.append("Option-pricing model supports bearish side.")
+
+    if snapshot.option_pricing_side not in ["NO_SIDE", side]:
+        warnings.append("Option-pricing side conflicts with scanner side.")
 
     if side == "NO_SIDE":
         decision: Decision = "NO_TRADE"
@@ -168,6 +181,8 @@ def sample_market_snapshots() -> list[MarketSnapshot]:
             option_pe_momentum=28,
             iv_rank=55,
             spread_quality=75,
+            option_pricing_score=70,
+            option_pricing_side="BUY_CE",
         ),
         MarketSnapshot(
             symbol="TATAMOTORS",
@@ -183,6 +198,8 @@ def sample_market_snapshots() -> list[MarketSnapshot]:
             option_pe_momentum=74,
             iv_rank=58,
             spread_quality=70,
+            option_pricing_score=62,
+            option_pricing_side="BUY_PE",
         ),
         MarketSnapshot(
             symbol="INFY",
@@ -198,6 +215,8 @@ def sample_market_snapshots() -> list[MarketSnapshot]:
             option_pe_momentum=30,
             iv_rank=50,
             spread_quality=60,
+            option_pricing_score=40,
+            option_pricing_side="NO_SIDE",
         ),
     ]
 

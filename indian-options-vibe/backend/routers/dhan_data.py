@@ -3,6 +3,7 @@ import requests
 from fastapi import APIRouter
 from pydantic import BaseModel
 from quant.dhan_option_adapter import pick_nearest_expiry, extract_option_chain_data, build_option_pricing_signal
+from quant.snapshot_store import save_market_snapshots
 
 
 router = APIRouter(prefix="/api/dhan-data", tags=["dhan-data"])
@@ -152,4 +153,47 @@ def dhan_nifty_option_pricing_snapshot():
         "manual_only": True,
         "option_snapshot": option_snapshot,
         "pricing_signal": pricing_signal,
+    }
+
+
+@router.get("/nifty/save-option-snapshot")
+def dhan_save_nifty_option_snapshot():
+    result = dhan_nifty_option_pricing_snapshot()
+
+    if result.get("status") != "success":
+        return result
+
+    pricing_signal = result.get("pricing_signal", {})
+    option_snapshot = result.get("option_snapshot", {})
+
+    snapshot_row = {
+        "symbol": "NIFTY",
+        "ltp": option_snapshot.get("underlying_price", 0),
+        "day_change_pct": 0,
+        "volume_ratio": 1,
+        "vwap_distance_pct": 0,
+        "trend_strength": 0,
+        "breadth_support": 0,
+        "retest_quality": 0,
+        "liquidity_sweep_score": 0,
+        "option_ce_momentum": 70 if pricing_signal.get("side") == "BUY_CE" else 30,
+        "option_pe_momentum": 70 if pricing_signal.get("side") == "BUY_PE" else 30,
+        "iv_rank": 50,
+        "spread_quality": 70,
+        "option_pricing_score": pricing_signal.get("option_pricing_score", 0),
+        "option_pricing_side": pricing_signal.get("side", "NO_SIDE"),
+    }
+
+    save_status = save_market_snapshots(
+        [snapshot_row],
+        source="dhan-option-pricing",
+    )
+
+    return {
+        "status": "success",
+        "message": "Dhan option-pricing snapshot saved into quant snapshot store.",
+        "save_status": save_status,
+        "snapshot": snapshot_row,
+        "auto_order_allowed": False,
+        "manual_only": True,
     }
