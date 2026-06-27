@@ -13,6 +13,25 @@ export type TradeCandidate = {
 
 export const TRADE_CANDIDATE_KEY = "indian-options-vibe:trade-candidate:v1";
 
+export function candidateTodayKey() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+}
+
+export function candidateDateKey(value?: string) {
+  if (!value) return "";
+
+  try {
+    return new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  } catch {
+    return "";
+  }
+}
+
+export function isCandidateFromToday(candidate?: TradeCandidate | null) {
+  if (!candidate) return false;
+  return candidateDateKey(candidate.createdAt) === candidateTodayKey();
+}
+
 export function defaultTradeCandidate(): TradeCandidate {
   return {
     id: crypto.randomUUID(),
@@ -32,7 +51,15 @@ export function loadTradeCandidate(): TradeCandidate | null {
   try {
     const raw = window.localStorage.getItem(TRADE_CANDIDATE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as TradeCandidate;
+
+    const candidate = JSON.parse(raw) as TradeCandidate;
+
+    if (!isCandidateFromToday(candidate)) {
+      clearTradeCandidate();
+      return null;
+    }
+
+    return candidate;
   } catch {
     return null;
   }

@@ -56,6 +56,9 @@ export default function TradeCandidatePanel() {
               Save the one setup you are considering. This does not execute anything.
               It only tells Full Model what idea is being evaluated.
             </p>
+            <p className="mt-2 text-xs font-bold text-cyan-300">
+              Same-day guard: old candidates are ignored after the IST day changes.
+            </p>
           </div>
 
           <div
