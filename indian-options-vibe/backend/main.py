@@ -1,5 +1,5 @@
 from routers.dhan_readonly import router as dhan_readonly_router
-from backend.routers.dhan_readonly import router as dhan_readonly_router
+from routers.dhan_readonly import router as dhan_readonly_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
