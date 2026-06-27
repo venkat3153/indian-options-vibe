@@ -1,0 +1,29 @@
+# Environment files
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env.local
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/next-env.d.ts
+node_modules/
+.next/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Backups
+*.bak
+*.backup
+*.before-*
+*_backup_*/
+frontend/.next_backup_*/
+
+# Logs / OS
+*.log
+.DS_Store
