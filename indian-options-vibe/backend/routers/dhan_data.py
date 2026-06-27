@@ -2,6 +2,7 @@ import os
 import requests
 from fastapi import APIRouter
 from pydantic import BaseModel
+from quant.dhan_option_adapter import pick_nearest_expiry, extract_option_chain_data, build_option_pricing_signal
 
 
 router = APIRouter(prefix="/api/dhan-data", tags=["dhan-data"])
@@ -94,4 +95,61 @@ def dhan_option_chain(payload: OptionChainRequest):
         "auto_order_allowed": False,
         "manual_only": True,
         "data": response.json() if response.content else None,
+    }
+
+
+@router.get("/nifty/option-pricing-snapshot")
+def dhan_nifty_option_pricing_snapshot():
+    if not credentials_present():
+        return {
+            "status": "failed",
+            "error": "Missing DHAN_CLIENT_ID or DHAN_ACCESS_TOKEN in backend/.env",
+            "auto_order_allowed": False,
+        }
+
+    expiry_response = requests.post(
+        f"{DHAN_BASE_URL}/optionchain/expirylist",
+        headers=dhan_headers(),
+        json={
+            "UnderlyingScrip": 13,
+            "UnderlyingSeg": "IDX_I",
+        },
+        timeout=15,
+    )
+
+    expiry_payload = expiry_response.json() if expiry_response.content else {}
+    expiry = pick_nearest_expiry(expiry_payload)
+
+    if not expiry:
+        return {
+            "status": "failed",
+            "error": "Could not find nearest expiry from Dhan expiry response.",
+            "raw_expiry_response": expiry_payload,
+            "auto_order_allowed": False,
+        }
+
+    chain_response = requests.post(
+        f"{DHAN_BASE_URL}/optionchain",
+        headers=dhan_headers(),
+        json={
+            "UnderlyingScrip": 13,
+            "UnderlyingSeg": "IDX_I",
+            "Expiry": expiry,
+        },
+        timeout=20,
+    )
+
+    chain_payload = chain_response.json() if chain_response.content else {}
+    option_snapshot = extract_option_chain_data(chain_payload)
+    pricing_signal = build_option_pricing_signal(option_snapshot)
+
+    return {
+        "status": "success",
+        "expiry": expiry,
+        "underlying": "NIFTY",
+        "status_code": chain_response.status_code,
+        "auto_order_allowed": False,
+        "manual_only": True,
+        "option_snapshot": option_snapshot,
+        "pricing_signal": pricing_signal,
     }
