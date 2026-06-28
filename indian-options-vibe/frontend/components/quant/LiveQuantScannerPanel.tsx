@@ -35,8 +35,20 @@ type LiveResult = {
       alignment_message: string;
     };
     entry_plan?: string | null;
-    stop_loss_plan?: string | null;
-    target_plan?: string | null;
+    stop_loss_plan?: string | number | null;
+    target_plan?: string | number | null;
+    trade_plan?: {
+      has_trade_plan: boolean;
+      entry_zone: string | null;
+      stop_loss: number | null;
+      target_1: number | null;
+      target_2: number | null;
+      risk_reward_1: number | null;
+      risk_reward_2: number | null;
+      position_size: string;
+      execution_mode: string;
+      trade_plan_note: string;
+    };
   };
   auto_order_allowed: boolean;
   manual_only: boolean;
@@ -398,6 +410,90 @@ export default function LiveQuantScannerPanel() {
         </section>
       ) : null}
 
+      {result?.model_features?.trade_plan ? (
+        <section className="rounded-3xl border border-cyan-800 bg-cyan-950/30 p-6">
+          <div className="text-xs font-black uppercase tracking-[0.35em] text-cyan-300">
+            Trade Plan v2
+          </div>
+
+          <h2 className="mt-3 text-2xl font-black text-white">
+            {result.model_features.trade_plan.has_trade_plan ? "Plan Available" : "No Trade Plan"}
+          </h2>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-cyan-200">
+                Entry Zone
+              </div>
+              <div className="mt-1 text-xl font-black text-white">
+                {result.model_features.trade_plan.entry_zone || "-"}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-cyan-200">
+                Stop Loss
+              </div>
+              <div className="mt-1 text-xl font-black text-red-100">
+                {result.model_features.trade_plan.stop_loss ?? "-"}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-cyan-200">
+                Target 1
+              </div>
+              <div className="mt-1 text-xl font-black text-emerald-100">
+                {result.model_features.trade_plan.target_1 ?? "-"}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-cyan-200">
+                Target 2
+              </div>
+              <div className="mt-1 text-xl font-black text-emerald-100">
+                {result.model_features.trade_plan.target_2 ?? "-"}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              RR Target 1:{" "}
+              <span className="font-black text-white">
+                {result.model_features.trade_plan.risk_reward_1 ?? "-"}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              RR Target 2:{" "}
+              <span className="font-black text-white">
+                {result.model_features.trade_plan.risk_reward_2 ?? "-"}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Size:{" "}
+              <span className="font-black text-white">
+                {result.model_features.trade_plan.position_size}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Mode:{" "}
+              <span className="font-black text-red-200">
+                {result.model_features.trade_plan.execution_mode}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-cyan-800 bg-cyan-950/50 p-4 text-sm font-bold text-cyan-100">
+            {result.model_features.trade_plan.trade_plan_note}
+          </div>
+        </section>
+      ) : null}
+
       {snapshot ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
           <h2 className="text-xl font-black text-white">Live Feature Snapshot</h2>
@@ -449,6 +545,22 @@ export default function LiveQuantScannerPanel() {
 
             <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
               Alignment: <span className="font-black text-white">{snapshot.alignment_message ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Entry Zone: <span className="font-black text-white">{snapshot.entry_zone ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              SL: <span className="font-black text-red-200">{snapshot.stop_loss ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Target 1: <span className="font-black text-emerald-200">{snapshot.target_1 ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Target 2: <span className="font-black text-emerald-200">{snapshot.target_2 ?? "-"}</span>
             </div>
           </div>
         </section>
