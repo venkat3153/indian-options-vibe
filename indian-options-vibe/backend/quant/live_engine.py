@@ -18,6 +18,7 @@ from quant.feature_engine import build_model_features, enrich_snapshot_with_feat
 from quant.live_price_memory import update_live_price_features, get_last_valid_price
 from quant.market_session import get_market_session_status
 from quant.data_readiness import assess_data_readiness
+from quant.paper_signal_logger import log_paper_signal
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
@@ -287,12 +288,22 @@ def run_once() -> dict[str, Any]:
     result_dict["model_decision"] = model_features["model_decision"]
     result_dict["model_side"] = model_features["model_side"]
 
+    paper_log = log_paper_signal(
+        snapshot=enriched_snapshot,
+        result=result_dict,
+        model_features=model_features,
+        market_session=market_session,
+        data_readiness=data_readiness,
+    )
+    result_dict["paper_log_status"] = paper_log.get("status")
+
     _live_state.update(
         {
             "running": _live_state.get("running", False),
             "last_updated": datetime.utcnow().isoformat(),
             "latest_snapshot": enriched_snapshot,
             "latest_result": result_dict,
+            "latest_paper_log": paper_log.get("row"),
             "structure_agrees": live.get("structure_agrees"),
             "market_session": market_session,
             "data_readiness": data_readiness,
@@ -306,6 +317,7 @@ def run_once() -> dict[str, Any]:
         "snapshot": enriched_snapshot,
         "result": result_dict,
         "model_features": model_features,
+        "paper_log": paper_log,
         "structure_agrees": live.get("structure_agrees"),
         "auto_order_allowed": False,
         "manual_only": True,

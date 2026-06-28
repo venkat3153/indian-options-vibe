@@ -10,6 +10,7 @@ from quant.scanner_review import save_scanner_review, read_recent_reviews, summa
 from quant.calibration import build_calibration_report
 from quant.live_engine import start_live_engine, stop_live_engine, get_live_state, get_live_latest, run_once
 from quant.live_price_memory import reset_price_memory
+from quant.paper_signal_logger import read_paper_signals, latest_paper_signal, paper_signal_summary, reset_paper_signals
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -257,3 +258,34 @@ def quant_live_reset_memory():
         "auto_order_allowed": False,
         "manual_only": True,
     }
+
+
+
+@router.get("/paper/signals")
+def quant_paper_signals(limit: int = 100):
+    return {
+        "status": "success",
+        "signals": read_paper_signals(limit=limit),
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+@router.get("/paper/latest")
+def quant_paper_latest():
+    return {
+        "status": "success",
+        "latest": latest_paper_signal(),
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+@router.get("/paper/summary")
+def quant_paper_summary():
+    return paper_signal_summary()
+
+
+@router.post("/paper/reset")
+def quant_paper_reset():
+    return reset_paper_signals()
