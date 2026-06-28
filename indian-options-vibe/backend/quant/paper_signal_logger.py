@@ -124,6 +124,22 @@ def paper_signal_summary() -> dict[str, Any]:
         outcome = row.get("paper_outcome") or "UNMARKED"
         outcome_counts[outcome] = outcome_counts.get(outcome, 0) + 1
 
+    target_hit = outcome_counts.get("TARGET_HIT", 0)
+    sl_hit = outcome_counts.get("SL_HIT", 0)
+    no_move = outcome_counts.get("NO_MOVE", 0)
+    avoided = outcome_counts.get("AVOIDED", 0)
+    good_filter = outcome_counts.get("GOOD_FILTER", 0)
+    bad_signal = outcome_counts.get("BAD_SIGNAL", 0)
+    manual_skip = outcome_counts.get("MANUAL_SKIP", 0)
+    unmarked = outcome_counts.get("UNMARKED", 0)
+
+    resolved_trade_tests = target_hit + sl_hit + no_move
+    research_win_rate = round((target_hit / resolved_trade_tests) * 100, 2) if resolved_trade_tests else None
+
+    protection_count = avoided + good_filter
+    failure_count = sl_hit + bad_signal
+    protection_ratio = round((protection_count / (protection_count + failure_count)) * 100, 2) if (protection_count + failure_count) else None
+
     return {
         "status": "success",
         "total_signals_logged": total,
@@ -133,6 +149,17 @@ def paper_signal_summary() -> dict[str, Any]:
         "no_trade_count": no_trade,
         "ready_candidate_count": ready_candidate,
         "market_open_count": market_open,
+        "target_hit_count": target_hit,
+        "sl_hit_count": sl_hit,
+        "no_move_count": no_move,
+        "avoided_count": avoided,
+        "good_filter_count": good_filter,
+        "bad_signal_count": bad_signal,
+        "manual_skip_count": manual_skip,
+        "unmarked_count": unmarked,
+        "resolved_trade_tests": resolved_trade_tests,
+        "research_win_rate": research_win_rate,
+        "protection_ratio": protection_ratio,
         "latest": latest,
         "auto_order_allowed": False,
         "manual_only": True,
