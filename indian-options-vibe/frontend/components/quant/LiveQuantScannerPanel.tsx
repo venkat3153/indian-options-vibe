@@ -103,6 +103,23 @@ type LiveState = {
 };
 
 
+
+type ChecklistItem = {
+  name: string;
+  status: "PASS" | "WATCH" | "BLOCK" | string;
+  detail: string;
+};
+
+type MarketOpenChecklist = {
+  status: string;
+  overall_status: string;
+  checks: ChecklistItem[];
+  blocking_count: number;
+  watch_count: number;
+  auto_order_allowed: boolean;
+  manual_only: boolean;
+};
+
 type PaperSignal = {
   logged_at_utc: string;
   symbol: string;
@@ -159,6 +176,12 @@ type PaperSummary = {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
+function checklistBadgeClass(status?: string) {
+  if (status === "PASS") return "border-emerald-800 bg-emerald-950/50 text-emerald-100";
+  if (status === "WATCH") return "border-yellow-800 bg-yellow-950/50 text-yellow-100";
+  return "border-red-900 bg-red-950/50 text-red-100";
+}
+
 function statusColor(decision?: string) {
   if (decision === "CANDIDATE") return "border-emerald-800 bg-emerald-950/50 text-emerald-100";
   if (decision === "WATCH") return "border-yellow-800 bg-yellow-950/50 text-yellow-100";
@@ -171,7 +194,25 @@ export default function LiveQuantScannerPanel() {
   const [actionMessage, setActionMessage] = useState("");
   const [paperSummary, setPaperSummary] = useState<PaperSummary | null>(null);
   const [paperSignals, setPaperSignals] = useState<PaperSignal[]>([]);
+  const [marketChecklist, setMarketChecklist] = useState<MarketOpenChecklist | null>(null);
   const [error, setError] = useState("");
+
+  async function loadMarketChecklist() {
+    try {
+      const response = await fetch(`${API_BASE}/api/quant/live/checklist`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setMarketChecklist(data);
+    } catch {
+      // Keep live scanner usable even if checklist fails.
+    }
+  }
 
   async function loadPaperSignals() {
     try {
@@ -223,6 +264,7 @@ export default function LiveQuantScannerPanel() {
       const data = await response.json();
       setState(data.state || null);
       await loadPaperSummary();
+      await loadMarketChecklist();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load live scanner.");
     }
@@ -504,6 +546,55 @@ export default function LiveQuantScannerPanel() {
               {String(state?.market_session?.is_open_time ?? false)}
             </span>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-500">
+          Tomorrow Market Open Checklist
+        </div>
+
+        <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-3xl font-black text-white">
+              {marketChecklist?.overall_status || "NOT_LOADED"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">
+              One checklist for backend, Dhan data, price memory, readiness, session guard, and no-auto-order lock.
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl bg-red-950/40 px-4 py-3 text-sm font-black text-red-100">
+              Blocks: {marketChecklist?.blocking_count ?? "-"}
+            </div>
+            <div className="rounded-xl bg-yellow-950/40 px-4 py-3 text-sm font-black text-yellow-100">
+              Watch: {marketChecklist?.watch_count ?? "-"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {marketChecklist?.checks?.length ? (
+            marketChecklist.checks.map((check) => (
+              <div
+                key={check.name}
+                className={`rounded-2xl border p-4 ${checklistBadgeClass(check.status)}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-black text-white">{check.name}</div>
+                  <div className="rounded-lg bg-black/20 px-3 py-1 text-xs font-black">
+                    {check.status}
+                  </div>
+                </div>
+                <div className="mt-2 text-sm opacity-90">{check.detail}</div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-400">
+              Checklist not loaded yet. Click Run Once or Refresh.
+            </div>
+          )}
         </div>
       </section>
 
