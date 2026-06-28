@@ -232,7 +232,25 @@ def run_once() -> dict[str, Any]:
 
     save_market_snapshots([enriched_snapshot], source="live-quant-engine-v1")
 
-    result = score_symbol(MarketSnapshot(**snapshot))
+    scoring_snapshot = {
+        "symbol": snapshot.get("symbol", "NIFTY"),
+        "ltp": snapshot.get("ltp", 0),
+        "day_change_pct": snapshot.get("day_change_pct", 0),
+        "volume_ratio": snapshot.get("volume_ratio", 1),
+        "vwap_distance_pct": snapshot.get("vwap_distance_pct", 0),
+        "trend_strength": snapshot.get("trend_strength", 0),
+        "breadth_support": snapshot.get("breadth_support", 0),
+        "retest_quality": snapshot.get("retest_quality", 0),
+        "liquidity_sweep_score": snapshot.get("liquidity_sweep_score", 0),
+        "option_ce_momentum": snapshot.get("option_ce_momentum", 0),
+        "option_pe_momentum": snapshot.get("option_pe_momentum", 0),
+        "iv_rank": snapshot.get("iv_rank", 0),
+        "spread_quality": snapshot.get("spread_quality", 0),
+        "option_pricing_score": snapshot.get("option_pricing_score", 0),
+        "option_pricing_side": snapshot.get("option_pricing_side", "NO_SIDE"),
+    }
+
+    result = score_symbol(MarketSnapshot(**scoring_snapshot))
     result_dict = asdict(result)
     result_dict["model_features"] = model_features
     result_dict["model_score"] = model_features["model_score"]
