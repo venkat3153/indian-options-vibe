@@ -17,6 +17,7 @@ from quant.snapshot_store import save_market_snapshots
 from quant.feature_engine import build_model_features, enrich_snapshot_with_features
 from quant.live_price_memory import update_live_price_features, get_last_valid_price
 from quant.market_session import get_market_session_status
+from quant.data_readiness import assess_data_readiness
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
@@ -235,6 +236,11 @@ def run_once() -> dict[str, Any]:
 
     model_features = build_model_features(snapshot)
 
+    data_readiness = assess_data_readiness(snapshot, model_features, market_session)
+
+    if not data_readiness.get("ready_for_trade_candidate"):
+        model_features["model_decision"] = "NO_TRADE"
+
     if not market_session.get("is_open"):
         model_features["model_decision"] = "NO_TRADE"
         model_features["market_session"] = market_session
@@ -243,7 +249,13 @@ def run_once() -> dict[str, Any]:
             "reason": market_session.get("reason"),
         }
 
+    model_features["data_readiness"] = data_readiness
+
     enriched_snapshot = enrich_snapshot_with_features(snapshot)
+    enriched_snapshot["data_readiness"] = data_readiness
+    enriched_snapshot["data_readiness_status"] = data_readiness.get("status")
+    enriched_snapshot["ready_for_watch"] = data_readiness.get("ready_for_watch")
+    enriched_snapshot["ready_for_trade_candidate"] = data_readiness.get("ready_for_trade_candidate")
     enriched_snapshot["market_session"] = market_session
     enriched_snapshot["session_guard_blocked"] = not market_session.get("is_open")
     enriched_snapshot["session_guard_reason"] = market_session.get("reason")
@@ -283,6 +295,7 @@ def run_once() -> dict[str, Any]:
             "latest_result": result_dict,
             "structure_agrees": live.get("structure_agrees"),
             "market_session": market_session,
+            "data_readiness": data_readiness,
             "last_error": None,
             "auto_order_allowed": False,
             "manual_only": True,
