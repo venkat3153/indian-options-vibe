@@ -79,6 +79,14 @@ type LiveState = {
   auto_order_allowed: boolean;
   manual_only: boolean;
   structure_agrees?: boolean;
+  market_session?: {
+    timezone: string;
+    now_ist: string;
+    is_weekday: boolean;
+    is_open_time: boolean;
+    is_open: boolean;
+    reason: string;
+  };
 };
 
 const API_BASE =
@@ -273,6 +281,77 @@ export default function LiveQuantScannerPanel() {
           </div>
           <div className="mt-2 text-3xl font-black text-red-100">
             OFF
+          </div>
+        </div>
+      </section>
+
+      <section
+        className={`rounded-3xl border p-6 ${
+          state?.market_session?.is_open
+            ? "border-emerald-800 bg-emerald-950/30"
+            : "border-red-900 bg-red-950/30"
+        }`}
+      >
+        <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">
+          Market Session Guard
+        </div>
+
+        <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-3xl font-black text-white">
+              {state?.market_session?.is_open ? "MARKET OPEN" : "MARKET CLOSED"}
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-300">
+              {state?.market_session?.reason || snapshot?.session_guard_reason || "Session status not loaded yet."}
+            </p>
+          </div>
+
+          <div
+            className={`rounded-2xl px-6 py-4 text-center ${
+              state?.market_session?.is_open
+                ? "bg-emerald-900 text-emerald-100"
+                : "bg-red-900 text-red-100"
+            }`}
+          >
+            <div className="text-xs font-black uppercase tracking-widest">Session Guard</div>
+            <div className="mt-1 text-2xl font-black">
+              {state?.market_session?.is_open ? "ALLOWED" : "BLOCKED"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+            Timezone:{" "}
+            <span className="font-black text-white">
+              {state?.market_session?.timezone || "-"}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+            IST Time:{" "}
+            <span className="font-black text-white">
+              {state?.market_session?.now_ist
+                ? new Date(state.market_session.now_ist).toLocaleString("en-IN", {
+                    timeZone: "Asia/Kolkata",
+                  })
+                : "-"}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+            Weekday:{" "}
+            <span className="font-black text-white">
+              {String(state?.market_session?.is_weekday ?? false)}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+            Open Time:{" "}
+            <span className="font-black text-white">
+              {String(state?.market_session?.is_open_time ?? false)}
+            </span>
           </div>
         </div>
       </section>
