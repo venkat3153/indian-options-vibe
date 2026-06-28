@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +73,19 @@ def log_paper_signal(
         "manual_only": True,
     }
 
+    duplicate = is_duplicate_recent_signal(row, window_seconds=60)
+
+    if duplicate.get("is_duplicate"):
+        return {
+            "status": "skipped_duplicate",
+            "message": duplicate.get("reason"),
+            "row": duplicate.get("latest"),
+            "duplicate_age_seconds": duplicate.get("age_seconds"),
+            "path": str(SIGNALS_PATH),
+            "auto_order_allowed": False,
+            "manual_only": True,
+        }
+
     with SIGNALS_PATH.open("a", encoding="utf-8") as file:
         file.write(json.dumps(row) + "\n")
 
@@ -81,6 +94,8 @@ def log_paper_signal(
         "message": "Paper signal logged.",
         "row": row,
         "path": str(SIGNALS_PATH),
+        "auto_order_allowed": False,
+        "manual_only": True,
     }
 
 
@@ -237,4 +252,63 @@ def update_latest_paper_outcome(
         "latest": latest,
         "auto_order_allowed": False,
         "manual_only": True,
+    }
+
+
+
+def parse_utc_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def is_duplicate_recent_signal(new_row: dict[str, Any], window_seconds: int = 60) -> dict[str, Any]:
+    latest = latest_paper_signal()
+
+    if not latest:
+        return {
+            "is_duplicate": False,
+            "reason": None,
+        }
+
+    same_identity = (
+        latest.get("symbol") == new_row.get("symbol")
+        and latest.get("side") == new_row.get("side")
+        and latest.get("decision") == new_row.get("decision")
+        and latest.get("data_readiness_status") == new_row.get("data_readiness_status")
+        and latest.get("market_reason") == new_row.get("market_reason")
+    )
+
+    if not same_identity:
+        return {
+            "is_duplicate": False,
+            "reason": None,
+        }
+
+    latest_time = parse_utc_timestamp(latest.get("logged_at_utc"))
+    new_time = parse_utc_timestamp(new_row.get("logged_at_utc"))
+
+    if not latest_time or not new_time:
+        return {
+            "is_duplicate": False,
+            "reason": None,
+        }
+
+    age_seconds = abs((new_time - latest_time).total_seconds())
+
+    if age_seconds <= window_seconds:
+        return {
+            "is_duplicate": True,
+            "reason": f"Duplicate signal inside {window_seconds}s window.",
+            "latest": latest,
+            "age_seconds": age_seconds,
+        }
+
+    return {
+        "is_duplicate": False,
+        "reason": None,
     }
