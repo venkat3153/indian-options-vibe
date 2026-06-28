@@ -9,6 +9,7 @@ from quant.snapshot_store import save_market_snapshots, load_latest_market_snaps
 from quant.scanner_review import save_scanner_review, read_recent_reviews, summarize_reviews
 from quant.calibration import build_calibration_report
 from quant.live_engine import start_live_engine, stop_live_engine, get_live_state, get_live_latest, run_once
+from quant.live_price_memory import reset_price_memory
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -242,6 +243,17 @@ def quant_live_run_once():
     return {
         "status": "success",
         "data": run_once(),
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+
+@router.post("/live/reset-memory")
+def quant_live_reset_memory():
+    return {
+        "status": "success",
+        "data": reset_price_memory("NIFTY"),
         "auto_order_allowed": False,
         "manual_only": True,
     }

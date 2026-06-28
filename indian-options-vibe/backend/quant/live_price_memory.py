@@ -131,3 +131,33 @@ def get_last_valid_price(symbol: str) -> float:
         if price > 0:
             return price
     return 0
+
+
+
+def reset_price_memory(symbol: str | None = None) -> dict[str, Any]:
+    if symbol:
+        symbol = symbol.upper()
+        _price_memory.pop(symbol, None)
+
+        if MEMORY_PATH.exists():
+            try:
+                data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+                data.pop(symbol, None)
+                MEMORY_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+
+        return {
+            "status": "success",
+            "message": f"Reset live price memory for {symbol}.",
+        }
+
+    _price_memory.clear()
+
+    if MEMORY_PATH.exists():
+        MEMORY_PATH.write_text(json.dumps({}, indent=2), encoding="utf-8")
+
+    return {
+        "status": "success",
+        "message": "Reset all live price memory.",
+    }
