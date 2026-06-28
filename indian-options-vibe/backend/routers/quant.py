@@ -8,6 +8,7 @@ from quant.scanner_log import log_scanner_run, read_recent_scanner_runs
 from quant.snapshot_store import save_market_snapshots, load_latest_market_snapshots
 from quant.scanner_review import save_scanner_review, read_recent_reviews, summarize_reviews
 from quant.calibration import build_calibration_report
+from quant.live_engine import start_live_engine, stop_live_engine, get_live_state, get_live_latest, run_once
 
 
 router = APIRouter(prefix="/api/quant", tags=["quant"])
@@ -207,4 +208,40 @@ def quant_scanner_latest():
         "snapshot_created_at": latest.get("created_at"),
         "log_status": log_status,
         "scanner": scanner_dicts,
+    }
+
+
+
+@router.post("/live/start")
+def quant_live_start():
+    return start_live_engine(interval_seconds=60)
+
+
+@router.post("/live/stop")
+def quant_live_stop():
+    return stop_live_engine()
+
+
+@router.get("/live/status")
+def quant_live_status():
+    return {
+        "status": "success",
+        "state": get_live_state(),
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+@router.get("/live/latest")
+def quant_live_latest():
+    return get_live_latest()
+
+
+@router.post("/live/run-once")
+def quant_live_run_once():
+    return {
+        "status": "success",
+        "data": run_once(),
+        "auto_order_allowed": False,
+        "manual_only": True,
     }
