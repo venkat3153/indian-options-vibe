@@ -5,6 +5,7 @@ const items = [
   ['Full Model', '/full-model'],
   ['Quant Engine', '/quant'],
   ['Quant Data', '/quant/snapshots'],
+  ['Live Scanner', '/quant/live'],
   ['Quant Scanner', '/quant/scanner'],
   ['Option Pricing', '/quant/options'],
   ['Quant Review', '/quant/review'],
