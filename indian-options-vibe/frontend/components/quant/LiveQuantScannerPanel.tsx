@@ -130,6 +130,8 @@ type PaperSignal = {
   target_1: number | null;
   target_2: number | null;
   paper_status: string;
+  paper_outcome?: string | null;
+  outcome_notes?: string | null;
 };
 
 type PaperSummary = {
@@ -139,6 +141,7 @@ type PaperSummary = {
   no_trade_count: number;
   ready_candidate_count: number;
   market_open_count: number;
+  outcome_counts?: Record<string, number>;
   latest: PaperSignal | null;
 };
 
@@ -192,6 +195,43 @@ export default function LiveQuantScannerPanel() {
       await loadPaperSummary();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load live scanner.");
+    }
+  }
+
+  async function markLatestOutcome(outcome: string, notes: string) {
+    setLoading(true);
+    setActionMessage("");
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/api/quant/paper/mark-latest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          outcome,
+          notes,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Outcome update failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status !== "success") {
+        throw new Error(data.error || "Failed to mark outcome.");
+      }
+
+      setActionMessage(`Marked latest paper signal as ${outcome}.`);
+      await loadPaperSummary();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to mark outcome.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -848,6 +888,22 @@ export default function LiveQuantScannerPanel() {
           </div>
         </div>
 
+        {paperSummary?.outcome_counts ? (
+          <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Outcome Counts
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {Object.entries(paperSummary.outcome_counts).map(([key, value]) => (
+                <div key={key} className="rounded-xl bg-black/20 px-4 py-2 text-sm font-bold text-slate-200">
+                  {key}: {value}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {paperSummary?.latest ? (
           <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5">
             <div className="text-xs font-black uppercase tracking-widest text-slate-500">
@@ -900,6 +956,93 @@ export default function LiveQuantScannerPanel() {
                 ))}
               </div>
             ) : null}
+
+            <div className="mt-5 rounded-2xl border border-slate-700 bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Mark Latest Outcome
+              </div>
+
+              <div className="mt-3 grid gap-2 md:grid-cols-4">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("TARGET_HIT", "Paper signal later reached target.")}
+                  className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-black text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  Target Hit
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("SL_HIT", "Paper signal later hit stop loss.")}
+                  className="rounded-xl bg-red-500 px-4 py-3 text-sm font-black text-white hover:bg-red-400 disabled:opacity-50"
+                >
+                  SL Hit
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("NO_MOVE", "Paper signal did not move enough.")}
+                  className="rounded-xl bg-slate-700 px-4 py-3 text-sm font-black text-white hover:bg-slate-600 disabled:opacity-50"
+                >
+                  No Move
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("AVOIDED", "Signal was avoided or blocked correctly.")}
+                  className="rounded-xl bg-yellow-400 px-4 py-3 text-sm font-black text-slate-950 hover:bg-yellow-300 disabled:opacity-50"
+                >
+                  Avoided
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("GOOD_FILTER", "Filter correctly protected from a bad trade.")}
+                  className="rounded-xl border border-emerald-700 px-4 py-3 text-sm font-black text-emerald-100 hover:bg-emerald-950 disabled:opacity-50"
+                >
+                  Good Filter
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("BAD_SIGNAL", "Signal quality was poor.")}
+                  className="rounded-xl border border-red-700 px-4 py-3 text-sm font-black text-red-100 hover:bg-red-950 disabled:opacity-50"
+                >
+                  Bad Signal
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => markLatestOutcome("MANUAL_SKIP", "Skipped manually.")}
+                  className="rounded-xl border border-slate-700 px-4 py-3 text-sm font-black text-slate-200 hover:bg-slate-900 disabled:opacity-50"
+                >
+                  Manual Skip
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl bg-slate-900 p-3 text-sm text-slate-300">
+                  Current Outcome:{" "}
+                  <span className="font-black text-white">
+                    {paperSummary.latest.paper_outcome || "UNMARKED"}
+                  </span>
+                </div>
+
+                <div className="rounded-xl bg-slate-900 p-3 text-sm text-slate-300 md:col-span-2">
+                  Notes:{" "}
+                  <span className="font-black text-white">
+                    {paperSummary.latest.outcome_notes || "-"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="mt-5 rounded-xl bg-slate-900 p-4 text-sm text-slate-400">
