@@ -142,6 +142,17 @@ type PaperSummary = {
   ready_candidate_count: number;
   market_open_count: number;
   outcome_counts?: Record<string, number>;
+  target_hit_count?: number;
+  sl_hit_count?: number;
+  no_move_count?: number;
+  avoided_count?: number;
+  good_filter_count?: number;
+  bad_signal_count?: number;
+  manual_skip_count?: number;
+  unmarked_count?: number;
+  resolved_trade_tests?: number;
+  research_win_rate?: number | null;
+  protection_ratio?: number | null;
   latest: PaperSignal | null;
 };
 
@@ -885,6 +896,49 @@ export default function LiveQuantScannerPanel() {
             <span className="font-black">
               {paperSummary?.ready_candidate_count ?? 0}
             </span>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-purple-800 bg-purple-950/30 p-4">
+          <div className="text-xs font-black uppercase tracking-widest text-purple-300">
+            Research Performance
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-5">
+            <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+              Target Hit:{" "}
+              <span className="font-black text-emerald-100">
+                {paperSummary?.target_hit_count ?? 0}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+              SL Hit:{" "}
+              <span className="font-black text-red-100">
+                {paperSummary?.sl_hit_count ?? 0}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+              No Move:{" "}
+              <span className="font-black text-white">
+                {paperSummary?.no_move_count ?? 0}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+              Research WR:{" "}
+              <span className="font-black text-white">
+                {paperSummary?.research_win_rate ?? "-"}%
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+              Protection Ratio:{" "}
+              <span className="font-black text-white">
+                {paperSummary?.protection_ratio ?? "-"}%
+              </span>
+            </div>
           </div>
         </div>
 
