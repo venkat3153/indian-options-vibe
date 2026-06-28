@@ -49,6 +49,19 @@ type LiveResult = {
       execution_mode: string;
       trade_plan_note: string;
     };
+    data_readiness?: {
+      status: string;
+      ready_for_watch: boolean;
+      ready_for_trade_candidate: boolean;
+      market_open: boolean;
+      ltp_available: boolean;
+      rolling_price_points: number;
+      option_score: number;
+      structure_score: number;
+      alignment_score: number;
+      blockers: string[];
+      warnings: string[];
+    };
   };
   auto_order_allowed: boolean;
   manual_only: boolean;
@@ -414,6 +427,82 @@ export default function LiveQuantScannerPanel() {
           </div>
         </section>
       )}
+
+      {result?.model_features?.data_readiness ? (
+        <section
+          className={`rounded-3xl border p-6 ${
+            result.model_features.data_readiness.ready_for_trade_candidate
+              ? "border-emerald-800 bg-emerald-950/30"
+              : result.model_features.data_readiness.ready_for_watch
+                ? "border-yellow-800 bg-yellow-950/30"
+                : "border-red-900 bg-red-950/30"
+          }`}
+        >
+          <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">
+            Data Readiness Gate
+          </div>
+
+          <h2 className="mt-3 text-3xl font-black text-white">
+            {result.model_features.data_readiness.status}
+          </h2>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+              Watch Ready:{" "}
+              <span className="font-black text-white">
+                {String(result.model_features.data_readiness.ready_for_watch)}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+              Candidate Ready:{" "}
+              <span className="font-black text-white">
+                {String(result.model_features.data_readiness.ready_for_trade_candidate)}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+              Rolling Points:{" "}
+              <span className="font-black text-white">
+                {result.model_features.data_readiness.rolling_price_points}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4 text-sm text-slate-300">
+              Structure Score:{" "}
+              <span className="font-black text-white">
+                {result.model_features.data_readiness.structure_score}
+              </span>
+            </div>
+          </div>
+
+          {result.model_features.data_readiness.blockers.length ? (
+            <div className="mt-4 space-y-3">
+              <div className="text-xs font-black uppercase tracking-widest text-red-200">
+                Blockers
+              </div>
+              {result.model_features.data_readiness.blockers.map((blocker) => (
+                <div key={blocker} className="rounded-xl bg-black/20 p-3 text-sm font-bold text-red-100">
+                  {blocker}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {result.model_features.data_readiness.warnings.length ? (
+            <div className="mt-4 space-y-3">
+              <div className="text-xs font-black uppercase tracking-widest text-yellow-200">
+                Warnings
+              </div>
+              {result.model_features.data_readiness.warnings.map((warning) => (
+                <div key={warning} className="rounded-xl bg-black/20 p-3 text-sm font-bold text-yellow-100">
+                  {warning}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {result?.model_features ? (
         <section className="rounded-3xl border border-purple-800 bg-purple-950/30 p-6">
