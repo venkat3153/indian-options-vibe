@@ -228,6 +228,15 @@ export default function LiveQuantScannerPanel() {
           >
             Refresh
           </button>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runAction("/api/quant/live/reset-memory", "NIFTY live price memory reset.")}
+            className="rounded-xl border border-yellow-700 px-5 py-3 text-sm font-black text-yellow-100 hover:bg-yellow-950 disabled:opacity-50"
+          >
+            Reset Memory
+          </button>
         </div>
 
         {actionMessage ? (
