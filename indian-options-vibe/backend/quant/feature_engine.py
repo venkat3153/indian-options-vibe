@@ -145,14 +145,7 @@ def build_model_features(snapshot: dict[str, Any]) -> dict[str, Any]:
     ltp = safe_float(snapshot.get("ltp"))
     option_score = safe_float(snapshot.get("option_pricing_score"))
 
-    entry_plan = None
-    stop_loss_plan = None
-    target_plan = None
-
-    if model_decision in ["WATCH", "TRADE_CANDIDATE"]:
-        entry_plan = "Wait for candle confirmation. Do not chase."
-        stop_loss_plan = "Use fixed predefined SL. No widening after entry."
-        target_plan = "Use fixed target. No emotional early exit."
+    trade_plan = build_trade_plan(snapshot, model_decision, model_side)
 
     return {
         "model_score": model_score,
@@ -160,9 +153,10 @@ def build_model_features(snapshot: dict[str, Any]) -> dict[str, Any]:
         "model_side": model_side,
         "structure": structure,
         "alignment": alignment,
-        "entry_plan": entry_plan,
-        "stop_loss_plan": stop_loss_plan,
-        "target_plan": target_plan,
+        "trade_plan": trade_plan,
+        "entry_plan": trade_plan.get("entry_zone"),
+        "stop_loss_plan": trade_plan.get("stop_loss"),
+        "target_plan": trade_plan.get("target_1"),
         "ltp_available": ltp > 0,
         "option_score_available": option_score > 0,
         "auto_order_allowed": False,
@@ -181,5 +175,107 @@ def enrich_snapshot_with_features(snapshot: dict[str, Any]) -> dict[str, Any]:
     enriched["structure_side"] = features["structure"]["structure_side"]
     enriched["alignment_score"] = features["alignment"]["alignment_score"]
     enriched["alignment_message"] = features["alignment"]["alignment_message"]
+    enriched["trade_plan"] = features.get("trade_plan")
+    enriched["entry_zone"] = features.get("trade_plan", {}).get("entry_zone")
+    enriched["stop_loss"] = features.get("trade_plan", {}).get("stop_loss")
+    enriched["target_1"] = features.get("trade_plan", {}).get("target_1")
+    enriched["target_2"] = features.get("trade_plan", {}).get("target_2")
+    enriched["risk_reward_1"] = features.get("trade_plan", {}).get("risk_reward_1")
+    enriched["risk_reward_2"] = features.get("trade_plan", {}).get("risk_reward_2")
 
     return enriched
+
+
+
+def build_trade_plan(snapshot: dict[str, Any], model_decision: str, model_side: str) -> dict[str, Any]:
+    ltp = safe_float(snapshot.get("ltp"))
+    option_score = safe_float(snapshot.get("option_pricing_score"))
+    structure_score = safe_float(snapshot.get("structure_score"))
+    alignment_score = safe_float(snapshot.get("alignment_score"))
+
+    if model_decision not in ["WATCH", "TRADE_CANDIDATE"] or model_side == "NO_SIDE":
+        return {
+            "has_trade_plan": False,
+            "entry_zone": None,
+            "stop_loss": None,
+            "target_1": None,
+            "target_2": None,
+            "risk_reward_1": None,
+            "risk_reward_2": None,
+            "position_size": "NO_TRADE",
+            "execution_mode": "NO_ORDER",
+            "trade_plan_note": "No trade plan because model does not have enough confirmation.",
+        }
+
+    if ltp <= 0:
+        return {
+            "has_trade_plan": False,
+            "entry_zone": None,
+            "stop_loss": None,
+            "target_1": None,
+            "target_2": None,
+            "risk_reward_1": None,
+            "risk_reward_2": None,
+            "position_size": "WAIT",
+            "execution_mode": "MANUAL_ONLY",
+            "trade_plan_note": "Option signal exists, but live underlying price is missing. Wait for price/VWAP structure data.",
+        }
+
+    # First v2 rule:
+    # For index options, we use underlying-based planning first.
+    # Later we will convert this to exact option premium SL/TGT from selected strike.
+    if model_side == "BUY_CE":
+        entry_low = round(ltp * 0.9995, 2)
+        entry_high = round(ltp * 1.0005, 2)
+        stop_loss = round(ltp * 0.9975, 2)
+        target_1 = round(ltp * 1.0035, 2)
+        target_2 = round(ltp * 1.0055, 2)
+    elif model_side == "BUY_PE":
+        entry_low = round(ltp * 0.9995, 2)
+        entry_high = round(ltp * 1.0005, 2)
+        stop_loss = round(ltp * 1.0025, 2)
+        target_1 = round(ltp * 0.9965, 2)
+        target_2 = round(ltp * 0.9945, 2)
+    else:
+        return {
+            "has_trade_plan": False,
+            "entry_zone": None,
+            "stop_loss": None,
+            "target_1": None,
+            "target_2": None,
+            "risk_reward_1": None,
+            "risk_reward_2": None,
+            "position_size": "NO_TRADE",
+            "execution_mode": "NO_ORDER",
+            "trade_plan_note": "No clean CE/PE direction.",
+        }
+
+    risk = abs(ltp - stop_loss)
+    reward_1 = abs(target_1 - ltp)
+    reward_2 = abs(target_2 - ltp)
+
+    rr1 = round(reward_1 / risk, 2) if risk else None
+    rr2 = round(reward_2 / risk, 2) if risk else None
+
+    if model_decision == "TRADE_CANDIDATE":
+        note = "Trade candidate exists. Execute manually only after checking Groww/Dhan and fixed SL/TGT."
+    else:
+        note = "Watch only. Do not execute until structure, option pricing, and model score improve."
+
+    return {
+        "has_trade_plan": True,
+        "entry_zone": f"{entry_low} - {entry_high}",
+        "stop_loss": stop_loss,
+        "target_1": target_1,
+        "target_2": target_2,
+        "risk_reward_1": rr1,
+        "risk_reward_2": rr2,
+        "position_size": "1 quantity / 1 lot only",
+        "execution_mode": "MANUAL_GROWW_ONLY",
+        "trade_plan_note": note,
+        "quality_inputs": {
+            "option_score": option_score,
+            "structure_score": structure_score,
+            "alignment_score": alignment_score,
+        },
+    }
