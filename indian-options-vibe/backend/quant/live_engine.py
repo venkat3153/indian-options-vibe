@@ -288,6 +288,21 @@ def run_once() -> dict[str, Any]:
     result_dict["model_decision"] = model_features["model_decision"]
     result_dict["model_side"] = model_features["model_side"]
 
+    # Final decision must follow the new model/data-readiness/session guards.
+    # Old score_symbol can still say CANDIDATE from option-only score, but that is not allowed.
+    final_decision = model_features.get("model_decision", "NO_TRADE")
+    final_side = model_features.get("model_side", result_dict.get("side", "NO_SIDE"))
+
+    if final_decision == "TRADE_CANDIDATE":
+        result_dict["decision"] = "CANDIDATE"
+    elif final_decision == "WATCH":
+        result_dict["decision"] = "WATCH"
+    else:
+        result_dict["decision"] = "NO_TRADE"
+
+    result_dict["side"] = final_side
+    result_dict["final_decision_source"] = "model_features_v2"
+
     paper_log = log_paper_signal(
         snapshot=enriched_snapshot,
         result=result_dict,
