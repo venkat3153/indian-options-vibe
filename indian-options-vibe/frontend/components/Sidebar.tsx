@@ -1,13 +1,13 @@
 import Link from 'next/link';
 
 const items = [
-  { label: "Home", href: "/" },
-  { label: "Live Scanner", href: "/quant/live" },
-  { label: "Quant Scanner", href: "/quant/scanner" },
-  { label: "Option Pricing", href: "/quant/options" },
-  { label: "Quant Review", href: "/quant/review" },
-  { label: "Journal Dashboard", href: "/journal" },
-  { label: "Settings", href: "/settings" },
+  ["Home", "/"],
+  ["Live Scanner", "/quant/live"],
+  ["Quant Scanner", "/quant/scanner"],
+  ["Option Pricing", "/quant/options"],
+  ["Quant Review", "/quant/review"],
+  ["Journal Dashboard", "/journal"],
+  ["Settings", "/settings"],
 ];
 
 export function Sidebar() {
