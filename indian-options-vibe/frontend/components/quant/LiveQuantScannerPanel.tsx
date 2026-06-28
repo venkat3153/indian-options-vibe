@@ -12,6 +12,32 @@ type LiveResult = {
   warnings: string[];
   option_pricing_score?: number;
   option_pricing_side?: string;
+  model_score?: number;
+  model_decision?: string;
+  model_side?: string;
+  model_features?: {
+    model_score: number;
+    model_decision: string;
+    model_side: string;
+    structure?: {
+      has_price: boolean;
+      has_structure: boolean;
+      structure_side: string;
+      structure_score: number;
+      structure_warning?: string | null;
+    };
+    alignment?: {
+      option_has_signal: boolean;
+      structure_has_signal: boolean;
+      agrees: boolean;
+      conflicts: boolean;
+      alignment_score: number;
+      alignment_message: string;
+    };
+    entry_plan?: string | null;
+    stop_loss_plan?: string | null;
+    target_plan?: string | null;
+  };
   auto_order_allowed: boolean;
   manual_only: boolean;
 };
@@ -289,6 +315,89 @@ export default function LiveQuantScannerPanel() {
         </section>
       )}
 
+      {result?.model_features ? (
+        <section className="rounded-3xl border border-purple-800 bg-purple-950/30 p-6">
+          <div className="text-xs font-black uppercase tracking-[0.35em] text-purple-300">
+            Model Feature Engine
+          </div>
+
+          <h2 className="mt-3 text-2xl font-black text-white">
+            {result.model_features.model_decision} · {result.model_features.model_side}
+          </h2>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-purple-200">
+                Model Score
+              </div>
+              <div className="mt-1 text-3xl font-black text-white">
+                {result.model_features.model_score}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-purple-200">
+                Structure Score
+              </div>
+              <div className="mt-1 text-3xl font-black text-white">
+                {result.model_features.structure?.structure_score ?? "-"}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-purple-200">
+                Structure Side
+              </div>
+              <div className="mt-1 text-3xl font-black text-white">
+                {result.model_features.structure?.structure_side ?? "-"}
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-black/20 p-4">
+              <div className="text-xs font-black uppercase tracking-widest text-purple-200">
+                Alignment
+              </div>
+              <div className="mt-1 text-3xl font-black text-white">
+                {result.model_features.alignment?.alignment_score ?? "-"}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-black/20 p-4 text-sm text-purple-100">
+            {result.model_features.alignment?.alignment_message}
+          </div>
+
+          {result.model_features.structure?.structure_warning ? (
+            <div className="mt-3 rounded-xl border border-yellow-800 bg-yellow-950/50 p-4 text-sm font-bold text-yellow-100">
+              {result.model_features.structure.structure_warning}
+            </div>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Entry Plan:{" "}
+              <span className="font-black text-white">
+                {result.model_features.entry_plan || "No entry plan yet"}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              SL Plan:{" "}
+              <span className="font-black text-white">
+                {result.model_features.stop_loss_plan || "No SL plan yet"}
+              </span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Target Plan:{" "}
+              <span className="font-black text-white">
+                {result.model_features.target_plan || "No target plan yet"}
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {snapshot ? (
         <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
           <h2 className="text-xl font-black text-white">Live Feature Snapshot</h2>
@@ -324,6 +433,22 @@ export default function LiveQuantScannerPanel() {
 
             <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
               PE Momentum: <span className="font-black text-white">{snapshot.option_pe_momentum}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Model Score: <span className="font-black text-white">{snapshot.model_score ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Model Decision: <span className="font-black text-white">{snapshot.model_decision ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Structure Score: <span className="font-black text-white">{snapshot.structure_score ?? "-"}</span>
+            </div>
+
+            <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+              Alignment: <span className="font-black text-white">{snapshot.alignment_message ?? "-"}</span>
             </div>
           </div>
         </section>
