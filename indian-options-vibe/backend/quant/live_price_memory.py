@@ -1,8 +1,11 @@
+import json
 from collections import deque
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 
+MEMORY_PATH = Path("backend/data/live_price_memory.json")
 _price_memory: dict[str, deque[dict[str, Any]]] = {}
 
 
@@ -15,22 +18,60 @@ def safe_float(value: Any, default: float = 0) -> float:
         return default
 
 
+def load_memory(symbol: str, max_points: int = 30) -> deque[dict[str, Any]]:
+    symbol = symbol.upper()
+
+    if symbol in _price_memory:
+        return _price_memory[symbol]
+
+    MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    if not MEMORY_PATH.exists():
+        _price_memory[symbol] = deque(maxlen=max_points)
+        return _price_memory[symbol]
+
+    try:
+        data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+        rows = data.get(symbol, [])
+        _price_memory[symbol] = deque(rows[-max_points:], maxlen=max_points)
+    except Exception:
+        _price_memory[symbol] = deque(maxlen=max_points)
+
+    return _price_memory[symbol]
+
+
+def save_memory() -> None:
+    MEMORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    data = {
+        symbol: list(points)
+        for symbol, points in _price_memory.items()
+    }
+
+    MEMORY_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def update_live_price_features(symbol: str, ltp: float, max_points: int = 30) -> dict[str, Any]:
     symbol = symbol.upper()
     ltp = safe_float(ltp)
 
-    if symbol not in _price_memory:
-        _price_memory[symbol] = deque(maxlen=max_points)
+    memory = load_memory(symbol, max_points=max_points)
 
     if ltp > 0:
-        _price_memory[symbol].append(
+        last_price = safe_float(memory[-1].get("ltp")) if memory else 0
+
+        # Avoid saving exact duplicate ticks too aggressively, but still allow repeated scans.
+        memory.append(
             {
                 "ts": datetime.utcnow().isoformat(),
                 "ltp": ltp,
+                "changed": ltp != last_price,
             }
         )
 
-    points = list(_price_memory[symbol])
+        save_memory()
+
+    points = list(memory)
 
     if len(points) < 2:
         return {
@@ -79,4 +120,4 @@ def update_live_price_features(symbol: str, ltp: float, max_points: int = 30) ->
 
 
 def get_price_memory(symbol: str) -> list[dict[str, Any]]:
-    return list(_price_memory.get(symbol.upper(), []))
+    return list(load_memory(symbol.upper()))
