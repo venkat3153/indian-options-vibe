@@ -15,6 +15,7 @@ from quant.dhan_option_adapter import (
 )
 from quant.snapshot_store import save_market_snapshots
 from quant.feature_engine import build_model_features, enrich_snapshot_with_features
+from quant.live_price_memory import update_live_price_features
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
@@ -160,11 +161,31 @@ def build_live_nifty_snapshot() -> dict[str, Any]:
     structure = fetch_nifty_structure_snapshot()
 
     pricing_signal = option_data["pricing_signal"]
+    option_snapshot = option_data["option_snapshot"]
+
     side = pricing_signal.get("side", "NO_SIDE")
     option_score = float(pricing_signal.get("option_pricing_score", 0) or 0)
 
+    # Dhan OHLC for index may return weak structure. Use option-chain underlying price as fallback.
+    structure_ltp = float(structure.get("ltp", 0) or 0)
+    option_underlying_price = float(option_snapshot.get("underlying_price", 0) or 0)
+    live_ltp = structure_ltp if structure_ltp > 0 else option_underlying_price
+
+    rolling_price = update_live_price_features("NIFTY", live_ltp)
+
     trend_strength = float(structure.get("trend_strength", 0) or 0)
     vwap_distance_pct = float(structure.get("vwap_distance_pct", 0) or 0)
+
+    # If Dhan OHLC structure is missing, use rolling live-price structure.
+    if trend_strength == 0 and rolling_price.get("has_live_price_memory"):
+        trend_strength = float(rolling_price.get("trend_strength", 0) or 0)
+
+    if vwap_distance_pct == 0 and rolling_price.get("has_live_price_memory"):
+        vwap_distance_pct = float(rolling_price.get("vwap_proxy_distance_pct", 0) or 0)
+
+    day_change_pct = float(structure.get("day_change_pct", 0) or 0)
+    if day_change_pct == 0 and rolling_price.get("has_live_price_memory"):
+        day_change_pct = float(rolling_price.get("price_change_pct", 0) or 0)
 
     structure_agrees = (
         (side == "BUY_CE" and trend_strength > 0 and vwap_distance_pct > 0)
@@ -173,10 +194,10 @@ def build_live_nifty_snapshot() -> dict[str, Any]:
 
     snapshot = {
         "symbol": "NIFTY",
-        "ltp": structure.get("ltp", 0),
-        "day_change_pct": structure.get("day_change_pct", 0),
+        "ltp": live_ltp,
+        "day_change_pct": day_change_pct,
         "volume_ratio": structure.get("volume_ratio", 1),
-        "vwap_distance_pct": structure.get("vwap_distance_pct", 0),
+        "vwap_distance_pct": vwap_distance_pct,
         "trend_strength": trend_strength,
         "breadth_support": 55 if structure_agrees else 0,
         "retest_quality": 55 if structure_agrees else 0,
@@ -187,6 +208,9 @@ def build_live_nifty_snapshot() -> dict[str, Any]:
         "spread_quality": 70,
         "option_pricing_score": option_score,
         "option_pricing_side": side,
+        "rolling_price_points": rolling_price.get("points", 0),
+        "rolling_avg": rolling_price.get("rolling_avg", 0),
+        "price_memory_message": rolling_price.get("message"),
     }
 
     return {
