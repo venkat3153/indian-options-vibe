@@ -1,23 +1,13 @@
 import Link from 'next/link';
 
 const items = [
-  ['Home', '/'],
-  ['Full Model', '/full-model'],
-  ['Quant Engine', '/quant'],
-  ['Quant Data', '/quant/snapshots'],
-  ['Live Scanner', '/quant/live'],
-  ['Quant Scanner', '/quant/scanner'],
-  ['Option Pricing', '/quant/options'],
-  ['Quant Review', '/quant/review'],
-  ['Quant Calibration', '/quant/calibration'],
-  ['Trade Candidate', '/trade/candidate'],
-  ['Stocks Research', '/stocks'],
-  ['Market Screener', '/screener'],
-  ['Paper Trading', '/paper'],
-  ['Journal Dashboard', '/journal'],
-  ['Dhan Read-Only', '/broker/dhan-readonly'],
-  ['Live Permission', '/live/permission'],
-  ['Settings', '/settings'],
+  { label: "Home", href: "/" },
+  { label: "Live Scanner", href: "/quant/live" },
+  { label: "Quant Scanner", href: "/quant/scanner" },
+  { label: "Option Pricing", href: "/quant/options" },
+  { label: "Quant Review", href: "/quant/review" },
+  { label: "Journal Dashboard", href: "/journal" },
+  { label: "Settings", href: "/settings" },
 ];
 
 export function Sidebar() {
