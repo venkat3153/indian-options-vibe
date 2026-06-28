@@ -119,9 +119,15 @@ def paper_signal_summary() -> dict[str, Any]:
 
     latest = rows[-1] if rows else None
 
+    outcome_counts: dict[str, int] = {}
+    for row in rows:
+        outcome = row.get("paper_outcome") or "UNMARKED"
+        outcome_counts[outcome] = outcome_counts.get(outcome, 0) + 1
+
     return {
         "status": "success",
         "total_signals_logged": total,
+        "outcome_counts": outcome_counts,
         "watch_count": watch,
         "candidate_count": candidate,
         "no_trade_count": no_trade,
@@ -140,6 +146,68 @@ def reset_paper_signals() -> dict[str, Any]:
     return {
         "status": "success",
         "message": "Paper signal log reset.",
+        "auto_order_allowed": False,
+        "manual_only": True,
+    }
+
+
+
+def update_latest_paper_outcome(
+    outcome: str,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    ensure_parent()
+
+    allowed = {
+        "TARGET_HIT",
+        "SL_HIT",
+        "NO_MOVE",
+        "AVOIDED",
+        "BAD_SIGNAL",
+        "GOOD_FILTER",
+        "MANUAL_SKIP",
+    }
+
+    if outcome not in allowed:
+        return {
+            "status": "failed",
+            "error": f"Invalid outcome. Allowed: {sorted(allowed)}",
+            "auto_order_allowed": False,
+            "manual_only": True,
+        }
+
+    if not SIGNALS_PATH.exists():
+        return {
+            "status": "failed",
+            "error": "No paper signals file found.",
+            "auto_order_allowed": False,
+            "manual_only": True,
+        }
+
+    rows = read_paper_signals(limit=100000)
+
+    if not rows:
+        return {
+            "status": "failed",
+            "error": "No paper signals found.",
+            "auto_order_allowed": False,
+            "manual_only": True,
+        }
+
+    latest = rows[-1]
+    latest["paper_outcome"] = outcome
+    latest["outcome_notes"] = notes
+    latest["outcome_marked_at_utc"] = datetime.utcnow().isoformat()
+
+    SIGNALS_PATH.write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "status": "success",
+        "message": "Latest paper signal outcome updated.",
+        "latest": latest,
         "auto_order_allowed": False,
         "manual_only": True,
     }
