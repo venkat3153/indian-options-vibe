@@ -14,6 +14,7 @@ from quant.dhan_option_adapter import (
     build_option_pricing_signal,
 )
 from quant.snapshot_store import save_market_snapshots
+from quant.feature_engine import build_model_features, enrich_snapshot_with_features
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
@@ -202,16 +203,23 @@ def run_once() -> dict[str, Any]:
     live = build_live_nifty_snapshot()
     snapshot = live["snapshot"]
 
-    save_market_snapshots([snapshot], source="live-quant-engine-v1")
+    model_features = build_model_features(snapshot)
+    enriched_snapshot = enrich_snapshot_with_features(snapshot)
+
+    save_market_snapshots([enriched_snapshot], source="live-quant-engine-v1")
 
     result = score_symbol(MarketSnapshot(**snapshot))
     result_dict = asdict(result)
+    result_dict["model_features"] = model_features
+    result_dict["model_score"] = model_features["model_score"]
+    result_dict["model_decision"] = model_features["model_decision"]
+    result_dict["model_side"] = model_features["model_side"]
 
     _live_state.update(
         {
             "running": _live_state.get("running", False),
             "last_updated": datetime.utcnow().isoformat(),
-            "latest_snapshot": snapshot,
+            "latest_snapshot": enriched_snapshot,
             "latest_result": result_dict,
             "structure_agrees": live.get("structure_agrees"),
             "last_error": None,
@@ -221,8 +229,9 @@ def run_once() -> dict[str, Any]:
     )
 
     return {
-        "snapshot": snapshot,
+        "snapshot": enriched_snapshot,
         "result": result_dict,
+        "model_features": model_features,
         "structure_agrees": live.get("structure_agrees"),
         "auto_order_allowed": False,
         "manual_only": True,
