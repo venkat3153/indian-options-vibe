@@ -102,6 +102,46 @@ type LiveState = {
   };
 };
 
+
+type PaperSignal = {
+  logged_at_utc: string;
+  symbol: string;
+  side: string;
+  decision: string;
+  edge_score: number;
+  model_score: number;
+  model_decision: string;
+  model_side: string;
+  setup: string;
+  ltp: number;
+  option_pricing_score: number;
+  option_pricing_side: string;
+  structure_score: number;
+  alignment_score: number;
+  market_is_open: boolean;
+  market_reason: string;
+  data_readiness_status: string;
+  ready_for_watch: boolean;
+  ready_for_trade_candidate: boolean;
+  readiness_blockers: string[];
+  readiness_warnings: string[];
+  entry_zone: string | null;
+  stop_loss: number | null;
+  target_1: number | null;
+  target_2: number | null;
+  paper_status: string;
+};
+
+type PaperSummary = {
+  total_signals_logged: number;
+  watch_count: number;
+  candidate_count: number;
+  no_trade_count: number;
+  ready_candidate_count: number;
+  market_open_count: number;
+  latest: PaperSignal | null;
+};
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -115,7 +155,25 @@ export default function LiveQuantScannerPanel() {
   const [state, setState] = useState<LiveState | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
+  const [paperSummary, setPaperSummary] = useState<PaperSummary | null>(null);
   const [error, setError] = useState("");
+
+  async function loadPaperSummary() {
+    try {
+      const response = await fetch(`${API_BASE}/api/quant/paper/summary`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setPaperSummary(data);
+    } catch {
+      // Keep live scanner usable even if paper summary fails.
+    }
+  }
 
   async function loadLatest() {
     setError("");
@@ -131,6 +189,7 @@ export default function LiveQuantScannerPanel() {
 
       const data = await response.json();
       setState(data.state || null);
+      await loadPaperSummary();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load live scanner.");
     }
@@ -742,6 +801,112 @@ export default function LiveQuantScannerPanel() {
           </div>
         </section>
       ) : null}
+
+      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6">
+        <div className="text-xs font-black uppercase tracking-[0.35em] text-slate-500">
+          Paper Signal Logger
+        </div>
+
+        <h2 className="mt-3 text-2xl font-black text-white">
+          Research Log Status
+        </h2>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          <div className="rounded-xl bg-slate-900 p-4 text-sm text-slate-300">
+            Total:{" "}
+            <span className="font-black text-white">
+              {paperSummary?.total_signals_logged ?? 0}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-yellow-950/40 p-4 text-sm text-yellow-100">
+            Watch:{" "}
+            <span className="font-black">
+              {paperSummary?.watch_count ?? 0}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-emerald-950/40 p-4 text-sm text-emerald-100">
+            Candidates:{" "}
+            <span className="font-black">
+              {paperSummary?.candidate_count ?? 0}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-red-950/40 p-4 text-sm text-red-100">
+            No Trade:{" "}
+            <span className="font-black">
+              {paperSummary?.no_trade_count ?? 0}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-purple-950/40 p-4 text-sm text-purple-100">
+            Ready Candidate:{" "}
+            <span className="font-black">
+              {paperSummary?.ready_candidate_count ?? 0}
+            </span>
+          </div>
+        </div>
+
+        {paperSummary?.latest ? (
+          <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-5">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Latest Logged Signal
+            </div>
+
+            <div className="mt-3 text-2xl font-black text-white">
+              {paperSummary.latest.symbol} · {paperSummary.latest.decision} · {paperSummary.latest.side}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+                Model Score:{" "}
+                <span className="font-black text-white">
+                  {paperSummary.latest.model_score ?? "-"}
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+                Readiness:{" "}
+                <span className="font-black text-white">
+                  {paperSummary.latest.data_readiness_status ?? "-"}
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+                Market Open:{" "}
+                <span className="font-black text-white">
+                  {String(paperSummary.latest.market_is_open)}
+                </span>
+              </div>
+
+              <div className="rounded-xl bg-black/20 p-3 text-sm text-slate-300">
+                Paper Status:{" "}
+                <span className="font-black text-white">
+                  {paperSummary.latest.paper_status}
+                </span>
+              </div>
+            </div>
+
+            {paperSummary.latest.readiness_blockers?.length ? (
+              <div className="mt-4 space-y-2">
+                <div className="text-xs font-black uppercase tracking-widest text-red-200">
+                  Latest Blockers
+                </div>
+                {paperSummary.latest.readiness_blockers.map((blocker) => (
+                  <div key={blocker} className="rounded-xl bg-red-950/40 p-3 text-sm font-bold text-red-100">
+                    {blocker}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl bg-slate-900 p-4 text-sm text-slate-400">
+            No paper signals logged yet. Click Run Once.
+          </div>
+        )}
+      </section>
 
       {result ? (
         <section className="grid gap-6 lg:grid-cols-2">
