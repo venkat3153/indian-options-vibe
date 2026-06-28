@@ -121,3 +121,13 @@ def update_live_price_features(symbol: str, ltp: float, max_points: int = 30) ->
 
 def get_price_memory(symbol: str) -> list[dict[str, Any]]:
     return list(load_memory(symbol.upper()))
+
+
+
+def get_last_valid_price(symbol: str) -> float:
+    points = list(load_memory(symbol.upper()))
+    for point in reversed(points):
+        price = safe_float(point.get("ltp"))
+        if price > 0:
+            return price
+    return 0

@@ -15,7 +15,7 @@ from quant.dhan_option_adapter import (
 )
 from quant.snapshot_store import save_market_snapshots
 from quant.feature_engine import build_model_features, enrich_snapshot_with_features
-from quant.live_price_memory import update_live_price_features
+from quant.live_price_memory import update_live_price_features, get_last_valid_price
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
@@ -170,6 +170,9 @@ def build_live_nifty_snapshot() -> dict[str, Any]:
     structure_ltp = float(structure.get("ltp", 0) or 0)
     option_underlying_price = float(option_snapshot.get("underlying_price", 0) or 0)
     live_ltp = structure_ltp if structure_ltp > 0 else option_underlying_price
+
+    if live_ltp <= 0:
+        live_ltp = get_last_valid_price("NIFTY")
 
     rolling_price = update_live_price_features("NIFTY", live_ltp)
 
