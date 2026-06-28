@@ -170,7 +170,25 @@ export default function LiveQuantScannerPanel() {
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [paperSummary, setPaperSummary] = useState<PaperSummary | null>(null);
+  const [paperSignals, setPaperSignals] = useState<PaperSignal[]>([]);
   const [error, setError] = useState("");
+
+  async function loadPaperSignals() {
+    try {
+      const response = await fetch(`${API_BASE}/api/quant/paper/signals?limit=10`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setPaperSignals(Array.isArray(data.signals) ? data.signals.reverse() : []);
+    } catch {
+      // Keep live scanner usable even if signal history fails.
+    }
+  }
 
   async function loadPaperSummary() {
     try {
@@ -184,6 +202,7 @@ export default function LiveQuantScannerPanel() {
 
       const data = await response.json();
       setPaperSummary(data);
+      await loadPaperSignals();
     } catch {
       // Keep live scanner usable even if paper summary fails.
     }
@@ -954,6 +973,63 @@ export default function LiveQuantScannerPanel() {
                   {key}: {value}
                 </div>
               ))}
+            </div>
+          </div>
+        ) : null}
+
+        {paperSignals.length ? (
+          <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+            <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Paper Signal History
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="text-xs uppercase tracking-widest text-slate-500">
+                  <tr>
+                    <th className="p-3">Time</th>
+                    <th className="p-3">Signal</th>
+                    <th className="p-3">Model</th>
+                    <th className="p-3">Readiness</th>
+                    <th className="p-3">Market</th>
+                    <th className="p-3">Outcome</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {paperSignals.map((signal, index) => (
+                    <tr key={`${signal.logged_at_utc}-${index}`} className="border-t border-slate-800">
+                      <td className="p-3 text-slate-300">
+                        {signal.logged_at_utc
+                          ? new Date(signal.logged_at_utc).toLocaleString("en-IN", {
+                              timeZone: "Asia/Kolkata",
+                            })
+                          : "-"}
+                      </td>
+
+                      <td className="p-3 font-black text-white">
+                        {signal.symbol} · {signal.decision} · {signal.side}
+                      </td>
+
+                      <td className="p-3 text-slate-300">
+                        Score: <span className="font-black text-white">{signal.model_score ?? "-"}</span>
+                      </td>
+
+                      <td className="p-3 text-slate-300">
+                        {signal.data_readiness_status || "-"}
+                      </td>
+
+                      <td className="p-3 text-slate-300">
+                        {signal.market_is_open ? "OPEN" : "CLOSED"}
+                      </td>
+
+                      <td className="p-3 font-black text-white">
+                        {signal.paper_outcome || "UNMARKED"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         ) : null}
