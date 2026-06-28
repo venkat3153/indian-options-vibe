@@ -16,6 +16,7 @@ from quant.dhan_option_adapter import (
 from quant.snapshot_store import save_market_snapshots
 from quant.feature_engine import build_model_features, enrich_snapshot_with_features
 from quant.live_price_memory import update_live_price_features, get_last_valid_price
+from quant.market_session import get_market_session_status
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
@@ -230,8 +231,22 @@ def run_once() -> dict[str, Any]:
     live = build_live_nifty_snapshot()
     snapshot = live["snapshot"]
 
+    market_session = get_market_session_status()
+
     model_features = build_model_features(snapshot)
+
+    if not market_session.get("is_open"):
+        model_features["model_decision"] = "NO_TRADE"
+        model_features["market_session"] = market_session
+        model_features["session_guard"] = {
+            "blocked": True,
+            "reason": market_session.get("reason"),
+        }
+
     enriched_snapshot = enrich_snapshot_with_features(snapshot)
+    enriched_snapshot["market_session"] = market_session
+    enriched_snapshot["session_guard_blocked"] = not market_session.get("is_open")
+    enriched_snapshot["session_guard_reason"] = market_session.get("reason")
 
     save_market_snapshots([enriched_snapshot], source="live-quant-engine-v1")
 
@@ -267,6 +282,7 @@ def run_once() -> dict[str, Any]:
             "latest_snapshot": enriched_snapshot,
             "latest_result": result_dict,
             "structure_agrees": live.get("structure_agrees"),
+            "market_session": market_session,
             "last_error": None,
             "auto_order_allowed": False,
             "manual_only": True,
