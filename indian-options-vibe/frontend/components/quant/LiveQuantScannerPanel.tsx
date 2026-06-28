@@ -325,6 +325,8 @@ export default function LiveQuantScannerPanel() {
       await response.json();
       setActionMessage(message);
       await loadLatest();
+      await loadMarketChecklist();
+      await loadPaperSummary();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed.");
     } finally {
