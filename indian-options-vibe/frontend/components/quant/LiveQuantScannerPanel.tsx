@@ -456,11 +456,7 @@ export default function LiveQuantScannerPanel() {
             Last Updated
           </div>
           <div className="mt-2 text-lg font-black text-white">
-            {state?.last_updated
-              ? new Date(state.last_updated).toLocaleString("en-IN", {
-                  timeZone: "Asia/Kolkata",
-                })
-              : "-"}
+            {formatUtcToIst(state?.last_updated)}
           </div>
         </div>
 
