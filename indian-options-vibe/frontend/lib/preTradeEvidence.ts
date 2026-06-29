@@ -69,7 +69,7 @@ export function buildBlankEvidence(): PreTradeEvidence {
   };
 }
 
-export function calculateEvidenceGate(evidence?: PreTradeEvidence | null) {
+export function calculateEvidenceGate(evidence?: PreTradeEvidence | null): EvidenceGateResult {
   const reasons: string[] = [];
 
   if (!evidence) {
@@ -77,6 +77,7 @@ export function calculateEvidenceGate(evidence?: PreTradeEvidence | null) {
       allowed: false,
       status: "BLOCK" as const,
       score: 0,
+      total: 100,
       reasons: ["No pre-trade evidence saved for today."],
     };
   }
@@ -86,7 +87,7 @@ export function calculateEvidenceGate(evidence?: PreTradeEvidence | null) {
   if (!evidence.setupName?.trim()) reasons.push("Setup name is missing.");
   if (!evidence.entryPlan?.trim()) reasons.push("Entry plan is missing.");
   if (!evidence.stopLossPlan?.trim()) reasons.push("Stop-loss plan is missing.");
-  if (!evidence.targetExitPlan?.trim()) reasons.push("Target/exit plan is missing.");
+  if (!evidence.targetPlan?.trim()) reasons.push("Target/exit plan is missing.");
   if (!evidence.invalidationReason?.trim()) reasons.push("Invalidation reason is missing.");
   if (!evidence.marketContext?.trim()) reasons.push("Market context is missing.");
 
@@ -94,11 +95,11 @@ export function calculateEvidenceGate(evidence?: PreTradeEvidence | null) {
     reasons.push("Dhan read-only check is not confirmed.");
   }
 
-  if (!evidence.oneQuantityOnlyConfirmed) {
+  if (!evidence.oneQtyOnlyConfirmed) {
     reasons.push("One-quantity-only discipline confirmation is missing.");
   }
 
-  if (!evidence.manualDhanOnlyConfirmed) {
+  if (!evidence.noAutoOrderConfirmed) {
     reasons.push("Manual Dhan only / no auto-order confirmation is missing.");
   }
 
@@ -106,8 +107,9 @@ export function calculateEvidenceGate(evidence?: PreTradeEvidence | null) {
 
   return {
     allowed,
-    status: allowed ? ("READY" as const) : ("BLOCK" as const),
+    status: allowed ? ("PASS" as const) : ("BLOCK" as const),
     score: allowed ? 100 : Math.max(0, 100 - reasons.length * 10),
+    total: 100,
     reasons,
   };
 }
