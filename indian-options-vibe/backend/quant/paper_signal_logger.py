@@ -73,7 +73,7 @@ def log_paper_signal(
         "manual_only": True,
     }
 
-    duplicate = is_duplicate_recent_signal(row, window_seconds=60)
+    duplicate = is_duplicate_recent_signal(row, window_seconds=300)
 
     if duplicate.get("is_duplicate"):
         return {
@@ -266,7 +266,20 @@ def parse_utc_timestamp(value: str | None) -> datetime | None:
         return None
 
 
-def is_duplicate_recent_signal(new_row: dict[str, Any], window_seconds: int = 60) -> dict[str, Any]:
+def is_duplicate_recent_signal(new_row: dict[str, Any], window_seconds: int = 300) -> dict[str, Any]:
+    """
+    Paper de-dup v2:
+    Do not spam repeated WATCH/NO_TRADE rows every minute.
+
+    New row is skipped if:
+    - symbol is same
+    - side is same
+    - decision is same
+    - readiness status is same
+    - market reason is same
+    - model score changed by less than 3 points
+    - latest similar signal is within 5 minutes
+    """
     latest = latest_paper_signal()
 
     if not latest:
@@ -286,7 +299,7 @@ def is_duplicate_recent_signal(new_row: dict[str, Any], window_seconds: int = 60
     if not same_identity:
         return {
             "is_duplicate": False,
-            "reason": None,
+            "reason": "Decision/side/readiness changed, log allowed.",
         }
 
     latest_time = parse_utc_timestamp(latest.get("logged_at_utc"))
@@ -300,15 +313,25 @@ def is_duplicate_recent_signal(new_row: dict[str, Any], window_seconds: int = 60
 
     age_seconds = abs((new_time - latest_time).total_seconds())
 
-    if age_seconds <= window_seconds:
+    try:
+        latest_score = float(latest.get("model_score") or latest.get("edge_score") or 0)
+        new_score = float(new_row.get("model_score") or new_row.get("edge_score") or 0)
+    except Exception:
+        latest_score = 0
+        new_score = 0
+
+    score_change = abs(new_score - latest_score)
+
+    if age_seconds <= window_seconds and score_change < 3:
         return {
             "is_duplicate": True,
-            "reason": f"Duplicate signal inside {window_seconds}s window.",
+            "reason": f"Duplicate-like signal inside {window_seconds}s window with score change {round(score_change, 2)}.",
             "latest": latest,
             "age_seconds": age_seconds,
+            "score_change": round(score_change, 2),
         }
 
     return {
         "is_duplicate": False,
-        "reason": None,
+        "reason": "Time window passed or score changed meaningfully.",
     }
