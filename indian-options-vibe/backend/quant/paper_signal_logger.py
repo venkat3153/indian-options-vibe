@@ -1,10 +1,10 @@
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
+from quant.runtime_paths import runtime_data_path
 
-SIGNALS_PATH = Path("backend/data/paper_signals.jsonl")
+SIGNALS_PATH = runtime_data_path("paper_signals.jsonl")
 
 
 def ensure_parent() -> None:

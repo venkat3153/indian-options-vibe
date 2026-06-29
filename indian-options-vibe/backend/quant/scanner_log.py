@@ -1,11 +1,12 @@
 import json
 from dataclasses import asdict
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-LOG_DIR = Path("data")
-LOG_FILE = LOG_DIR / "quant_scanner_log.jsonl"
+from quant.runtime_paths import RUNTIME_DATA_DIR, runtime_data_path
+
+LOG_DIR = RUNTIME_DATA_DIR
+LOG_FILE = runtime_data_path("quant_scanner_log.jsonl")
 
 
 def ensure_log_dir():

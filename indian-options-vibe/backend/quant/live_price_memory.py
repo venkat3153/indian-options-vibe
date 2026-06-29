@@ -1,11 +1,11 @@
 import json
 from collections import deque
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
+from quant.runtime_paths import runtime_data_path
 
-MEMORY_PATH = Path("backend/data/live_price_memory.json")
+MEMORY_PATH = runtime_data_path("live_price_memory.json")
 _price_memory: dict[str, deque[dict[str, Any]]] = {}
 
 

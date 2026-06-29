@@ -1,10 +1,11 @@
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Literal
 
-REVIEW_DIR = Path("data")
-REVIEW_FILE = REVIEW_DIR / "quant_scanner_reviews.jsonl"
+from quant.runtime_paths import RUNTIME_DATA_DIR, runtime_data_path
+
+REVIEW_DIR = RUNTIME_DATA_DIR
+REVIEW_FILE = runtime_data_path("quant_scanner_reviews.jsonl")
 
 Outcome = Literal[
     "TARGET_HIT",

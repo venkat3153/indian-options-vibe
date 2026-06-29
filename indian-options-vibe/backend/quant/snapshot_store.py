@@ -1,10 +1,11 @@
 import json
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-DATA_DIR = Path("data")
-SNAPSHOT_FILE = DATA_DIR / "quant_market_snapshots.json"
+from quant.runtime_paths import RUNTIME_DATA_DIR, runtime_data_path
+
+DATA_DIR = RUNTIME_DATA_DIR
+SNAPSHOT_FILE = runtime_data_path("quant_market_snapshots.json")
 
 
 def ensure_data_dir():
