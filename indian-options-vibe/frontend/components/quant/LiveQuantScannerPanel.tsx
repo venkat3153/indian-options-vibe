@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 
 type LiveResult = {
   symbol: string;
@@ -173,9 +174,6 @@ type PaperSummary = {
   latest: PaperSignal | null;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-
 function formatUtcToIst(value?: string | null) {
   if (!value) return "-";
 
@@ -211,7 +209,7 @@ export default function LiveQuantScannerPanel() {
 
   async function loadMarketChecklist() {
     try {
-      const response = await fetch(`${API_BASE}/api/quant/live/checklist`, {
+      const response = await apiFetch("/api/quant/live/checklist", {
         cache: "no-store",
       });
 
@@ -228,7 +226,7 @@ export default function LiveQuantScannerPanel() {
 
   async function loadPaperSignals() {
     try {
-      const response = await fetch(`${API_BASE}/api/quant/paper/signals?limit=10`, {
+      const response = await apiFetch("/api/quant/paper/signals?limit=10", {
         cache: "no-store",
       });
 
@@ -245,7 +243,7 @@ export default function LiveQuantScannerPanel() {
 
   async function loadPaperSummary() {
     try {
-      const response = await fetch(`${API_BASE}/api/quant/paper/summary`, {
+      const response = await apiFetch("/api/quant/paper/summary", {
         cache: "no-store",
       });
 
@@ -265,7 +263,7 @@ export default function LiveQuantScannerPanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/live/latest`, {
+      const response = await apiFetch("/api/quant/live/latest", {
         cache: "no-store",
       });
 
@@ -288,7 +286,7 @@ export default function LiveQuantScannerPanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/paper/mark-latest`, {
+      const response = await apiFetch("/api/quant/paper/mark-latest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -325,7 +323,7 @@ export default function LiveQuantScannerPanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}${path}`, {
+      const response = await apiFetch(path, {
         method: "POST",
         cache: "no-store",
       });

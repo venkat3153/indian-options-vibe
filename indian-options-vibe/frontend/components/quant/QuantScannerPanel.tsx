@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 import { saveTradeCandidate, TradeCandidate } from "@/lib/tradeCandidate";
 
 type ScannerItem = {
@@ -17,9 +18,6 @@ type ScannerItem = {
   option_pricing_side?: string;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-
 export default function QuantScannerPanel() {
   const [items, setItems] = useState<ScannerItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,7 +31,7 @@ export default function QuantScannerPanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/scanner/latest`, {
+      const response = await apiFetch("/api/quant/scanner/latest", {
         cache: "no-store",
       });
 

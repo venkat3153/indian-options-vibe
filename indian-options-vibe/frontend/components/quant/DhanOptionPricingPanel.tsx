@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 
 type OptionSnapshot = {
   underlying_price: number;
@@ -42,9 +43,6 @@ type ApiResult = {
   error?: string;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-
 export default function DhanOptionPricingPanel() {
   const [result, setResult] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,8 +58,8 @@ export default function DhanOptionPricingPanel() {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/dhan-data/nifty/save-combined-snapshot`,
+      const response = await apiFetch(
+        "/api/dhan-data/nifty/save-combined-snapshot",
         { cache: "no-store" }
       );
 
@@ -91,8 +89,8 @@ export default function DhanOptionPricingPanel() {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/dhan-data/nifty/save-option-snapshot`,
+      const response = await apiFetch(
+        "/api/dhan-data/nifty/save-option-snapshot",
         { cache: "no-store" }
       );
 
@@ -119,8 +117,8 @@ export default function DhanOptionPricingPanel() {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/dhan-data/nifty/option-pricing-snapshot`,
+      const response = await apiFetch(
+        "/api/dhan-data/nifty/option-pricing-snapshot",
         { cache: "no-store" }
       );
 

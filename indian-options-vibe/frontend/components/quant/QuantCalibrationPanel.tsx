@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 
 type GroupSummary = {
   total: number;
@@ -26,9 +27,6 @@ type CalibrationReport = {
   automation_allowed: boolean;
   message: string;
 };
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
 function SummaryTable({
   title,
@@ -92,7 +90,7 @@ export default function QuantCalibrationPanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/scanner/calibration`, {
+      const response = await apiFetch("/api/quant/scanner/calibration", {
         cache: "no-store",
       });
 

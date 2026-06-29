@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 
 type QuantResult = {
   symbol: string;
@@ -26,9 +27,6 @@ type FormState = {
   volatility_score: number;
   risk_penalty: number;
 };
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
 export default function QuantEnginePanel() {
   const [form, setForm] = useState<FormState>({
@@ -56,7 +54,7 @@ export default function QuantEnginePanel() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/evaluate`, {
+      const response = await apiFetch("/api/quant/evaluate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

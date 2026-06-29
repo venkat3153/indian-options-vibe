@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/apiClient";
 
 type ScannerItem = {
   symbol: string;
@@ -35,9 +36,6 @@ type ReviewRow = {
   notes: string;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-
 const outcomes = [
   "TARGET_HIT",
   "SL_HIT",
@@ -59,7 +57,7 @@ export default function QuantScannerReviewPanel() {
     setError("");
 
     try {
-      const scannerResponse = await fetch(`${API_BASE}/api/quant/scanner/sample`, {
+      const scannerResponse = await apiFetch("/api/quant/scanner/sample", {
         cache: "no-store",
       });
 
@@ -70,7 +68,7 @@ export default function QuantScannerReviewPanel() {
       const scannerData = await scannerResponse.json();
       setScanner(Array.isArray(scannerData.scanner) ? scannerData.scanner : []);
 
-      const reviewResponse = await fetch(`${API_BASE}/api/quant/scanner/reviews`, {
+      const reviewResponse = await apiFetch("/api/quant/scanner/reviews", {
         cache: "no-store",
       });
 
@@ -95,7 +93,7 @@ export default function QuantScannerReviewPanel() {
     setSaved("");
 
     try {
-      const response = await fetch(`${API_BASE}/api/quant/scanner/review`, {
+      const response = await apiFetch("/api/quant/scanner/review", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
