@@ -176,6 +176,18 @@ type PaperSummary = {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
+function formatUtcToIst(value?: string | null) {
+  if (!value) return "-";
+
+  const normalized = value.endsWith("Z") || value.includes("+")
+    ? value
+    : `${value}Z`;
+
+  return new Date(normalized).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 function checklistBadgeClass(status?: string) {
   if (status === "PASS") return "border-emerald-800 bg-emerald-950/50 text-emerald-100";
   if (status === "WATCH") return "border-yellow-800 bg-yellow-950/50 text-yellow-100";
@@ -1093,11 +1105,7 @@ export default function LiveQuantScannerPanel() {
                   {paperSignals.map((signal, index) => (
                     <tr key={`${signal.logged_at_utc}-${index}`} className="border-t border-slate-800">
                       <td className="p-3 text-slate-300">
-                        {signal.logged_at_utc
-                          ? new Date(signal.logged_at_utc).toLocaleString("en-IN", {
-                              timeZone: "Asia/Kolkata",
-                            })
-                          : "-"}
+                        {formatUtcToIst(signal.logged_at_utc)}
                       </td>
 
                       <td className="p-3 font-black text-white">
