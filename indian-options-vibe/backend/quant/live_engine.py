@@ -2,8 +2,9 @@ import os
 import time
 import threading
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -22,6 +23,7 @@ from quant.paper_signal_logger import log_paper_signal
 
 
 DHAN_BASE_URL = "https://api.dhan.co/v2"
+IST = ZoneInfo("Asia/Kolkata")
 
 _live_thread: threading.Thread | None = None
 _stop_event = threading.Event()
@@ -32,6 +34,7 @@ _live_state: dict[str, Any] = {
     "interval_seconds": 60,
     "latest_snapshot": None,
     "latest_result": None,
+    "last_candle_ist": None,
     "last_error": None,
     "auto_order_allowed": False,
     "manual_only": True,
@@ -48,6 +51,17 @@ def dhan_headers():
 
 def credentials_present() -> bool:
     return bool(os.getenv("DHAN_ACCESS_TOKEN")) and bool(os.getenv("DHAN_CLIENT_ID"))
+
+
+def current_ist_minute_key() -> str:
+    return datetime.now(IST).replace(second=0, microsecond=0).isoformat(timespec="minutes")
+
+
+def seconds_until_next_ist_minute() -> float:
+    now = datetime.now(IST)
+    next_minute = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
+    wake_at = next_minute + timedelta(seconds=1)
+    return max(0.1, (wake_at - now).total_seconds())
 
 
 def find_first_number(obj: Any, keys: list[str]) -> float:
@@ -226,9 +240,11 @@ def build_live_nifty_snapshot() -> dict[str, Any]:
     }
 
 
-def run_once() -> dict[str, Any]:
+def run_once(last_candle_ist: str | None = None) -> dict[str, Any]:
     if not credentials_present():
         raise RuntimeError("Missing DHAN_CLIENT_ID or DHAN_ACCESS_TOKEN in backend/.env")
+
+    last_candle_ist = last_candle_ist or current_ist_minute_key()
 
     live = build_live_nifty_snapshot()
     snapshot = live["snapshot"]
@@ -260,6 +276,7 @@ def run_once() -> dict[str, Any]:
     enriched_snapshot["market_session"] = market_session
     enriched_snapshot["session_guard_blocked"] = not market_session.get("is_open")
     enriched_snapshot["session_guard_reason"] = market_session.get("reason")
+    enriched_snapshot["last_candle_ist"] = last_candle_ist
 
     save_market_snapshots([enriched_snapshot], source="live-quant-engine-v1")
 
@@ -302,6 +319,7 @@ def run_once() -> dict[str, Any]:
 
     result_dict["side"] = final_side
     result_dict["final_decision_source"] = "model_features_v2"
+    result_dict["last_candle_ist"] = last_candle_ist
 
     paper_log = log_paper_signal(
         snapshot=enriched_snapshot,
@@ -318,6 +336,7 @@ def run_once() -> dict[str, Any]:
             "last_updated": datetime.utcnow().isoformat(),
             "latest_snapshot": enriched_snapshot,
             "latest_result": result_dict,
+            "last_candle_ist": last_candle_ist,
             "latest_paper_log": paper_log.get("row"),
             "structure_agrees": live.get("structure_agrees"),
             "market_session": market_session,
@@ -334,6 +353,7 @@ def run_once() -> dict[str, Any]:
         "model_features": model_features,
         "paper_log": paper_log,
         "structure_agrees": live.get("structure_agrees"),
+        "last_candle_ist": last_candle_ist,
         "auto_order_allowed": False,
         "manual_only": True,
     }
@@ -342,15 +362,23 @@ def run_once() -> dict[str, Any]:
 def _loop(interval_seconds: int):
     _live_state["running"] = True
     _live_state["interval_seconds"] = interval_seconds
+    last_processed_ist_minute: str | None = None
 
     while not _stop_event.is_set():
+        current_minute = current_ist_minute_key()
+
+        if current_minute == last_processed_ist_minute:
+            _stop_event.wait(seconds_until_next_ist_minute())
+            continue
+
+        last_processed_ist_minute = current_minute
+
         try:
-            run_once()
+            run_once(last_candle_ist=current_minute)
         except Exception as error:
             _live_state["last_error"] = str(error)
             _live_state["last_updated"] = datetime.utcnow().isoformat()
-
-        _stop_event.wait(interval_seconds)
+            _live_state["last_candle_ist"] = current_minute
 
     _live_state["running"] = False
 
