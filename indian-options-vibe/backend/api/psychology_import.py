@@ -51,7 +51,7 @@ def stable_id(fill: dict[str, Any]) -> str:
     if trade_id:
         key = [account, exchange, trade_id]
     else:
-        key = [account, exchange, str(fill.get(k) or "") for k in (
+        key = [account, exchange] + [str(fill.get(k) or "") for k in (
             "orderId", "exchangeTime", "transactionType", "securityId",
             "tradedQuantity", "tradedPrice")]
     return hashlib.sha256(json.dumps(key).encode()).hexdigest()
