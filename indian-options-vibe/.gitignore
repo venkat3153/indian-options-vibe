@@ -27,3 +27,7 @@ frontend/.next_backup_*/
 # Logs / OS
 *.log
 .DS_Store
+
+# Local private trading journal
+backend/data/*.sqlite3
+backend/data/*.sqlite3-*

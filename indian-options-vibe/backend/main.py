@@ -7,6 +7,7 @@ from routers.quant import router as quant_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from api.psychology_import import router as psychology_router
 from api.backtest import router as backtest_router
 from api.scanner import router as scanner_router
 from api.runs import router as runs_router
@@ -41,6 +42,7 @@ app.add_middleware(
 def health() -> dict:
     return {"status": "ok", "mode": "paper"}
 
+app.include_router(psychology_router)
 app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
 app.include_router(scanner_router, prefix="/api/scanner", tags=["scanner"])
 app.include_router(runs_router, prefix="/api/runs", tags=["runs"])
