@@ -81,6 +81,16 @@ type LiveSnapshot = {
   option_pe_momentum: number;
   option_pricing_score: number;
   option_pricing_side: string;
+  // Optional fields already displayed by this existing read-only panel.
+  session_guard_reason?: string | null;
+  model_score?: number | null;
+  model_decision?: string | null;
+  structure_score?: number | null;
+  alignment_message?: string | null;
+  entry_zone?: string | null;
+  stop_loss?: number | null;
+  target_1?: number | null;
+  target_2?: number | null;
 };
 
 type LiveState = {
