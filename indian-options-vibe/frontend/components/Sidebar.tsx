@@ -3,6 +3,7 @@ import Link from 'next/link';
 const items = [
   ["Home", "/"],
   ["Live Scanner", "/quant/live"],
+  ["Stock Options Intelligence", "/stock-options"],
   ["Quant Scanner", "/quant/scanner"],
   ["Option Pricing", "/quant/options"],
   ["Quant Review", "/quant/review"],
