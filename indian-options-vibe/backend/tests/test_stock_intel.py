@@ -13,7 +13,7 @@ class StockIntelligenceCoreTests(unittest.TestCase):
         data = io.StringIO()
         writer = csv.DictWriter(data, fieldnames=[
             "EXCH_ID", "SEGMENT", "INSTRUMENT", "SYMBOL_NAME",
-            "SECURITY_ID", "UNDERLYING_SYMBOL", "EXPIRY_DATE"
+            "SECURITY_ID", "UNDERLYING_SYMBOL", "UNDERLYING_SECURITY_ID", "EXPIRY_DATE"
         ])
         writer.writeheader()
         writer.writerows([
@@ -24,13 +24,16 @@ class StockIntelligenceCoreTests(unittest.TestCase):
             {"EXCH_ID": "NSE", "SEGMENT": "D", "INSTRUMENT": "OPTSTK",
              "UNDERLYING_SYMBOL": "RELIANCE", "EXPIRY_DATE": "2026-12-29"},
             {"EXCH_ID": "NSE", "SEGMENT": "D", "INSTRUMENT": "OPTSTK",
+             "UNDERLYING_SYMBOL": "UNKNOWN_ALIAS", "UNDERLYING_SECURITY_ID": "2885",
+             "EXPIRY_DATE": "2026-11-20"},
+            {"EXCH_ID": "NSE", "SEGMENT": "D", "INSTRUMENT": "OPTSTK",
              "UNDERLYING_SYMBOL": "OLD", "EXPIRY_DATE": "2026-10-20"},
             {"EXCH_ID": "NSE", "SEGMENT": "D", "INSTRUMENT": "OPTIDX",
              "UNDERLYING_SYMBOL": "NIFTY", "EXPIRY_DATE": "2026-11-24"},
         ])
         result = parse_fno_universe(data.getvalue(), date(2026, 11, 12))
         self.assertEqual(result, [{"symbol": "RELIANCE", "security_id": "2885",
-                                    "nearest_expiry": "2026-11-24", "exchange_segment": "NSE_EQ"}])
+                                    "nearest_expiry": "2026-11-20", "exchange_segment": "NSE_EQ"}])
 
     def test_drops_in_progress_and_malformed_candles(self):
         ist = ZoneInfo("Asia/Kolkata")
