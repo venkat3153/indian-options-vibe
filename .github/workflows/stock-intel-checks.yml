@@ -25,3 +25,18 @@ jobs:
         run: python -m compileall -q stock_intel api/stock_intel.py
       - name: Unit tests (no Dhan credentials required)
         run: python -m unittest discover -s tests -p 'test_stock_intel.py' -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: indian-options-vibe/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type-check frontend
+        run: npx tsc --noEmit --pretty false
