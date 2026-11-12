@@ -47,7 +47,7 @@ class StockIntelligenceCoreTests(unittest.TestCase):
         first = date(2025, 1, 1)
         rows = []
         for i in range(280):
-            base = 100 + direction * i * 0.4
+            base = 500 + direction * i * 0.4
             rows.append({"date": str(first + timedelta(days=i)), "open": base - direction * 0.2,
                          "high": base + 1, "low": base - 1, "close": base,
                          "volume": 1500 if i == 279 else 500})
