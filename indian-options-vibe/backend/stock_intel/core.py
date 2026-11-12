@@ -49,6 +49,7 @@ def parse_fno_universe(csv_text: str, as_of: date) -> list[dict]:
             if symbol and sid.isdigit():
                 equity[symbol] = sid
 
+    equity_by_id = {sid: symbol for symbol, sid in equity.items()}
     symbols: dict[str, dict] = {}
     for row in rows:
         if _value(row, "EXCH_ID", "SEM_EXM_EXCH_ID") != "NSE":
@@ -61,7 +62,12 @@ def parse_fno_universe(csv_text: str, as_of: date) -> list[dict]:
         if expiry is None or expiry < as_of:
             continue
         symbol = _value(row, "UNDERLYING_SYMBOL", "SYMBOL_NAME", "SM_SYMBOL_NAME").upper()
-        sid = equity.get(symbol)
+        direct_sid = _value(row, "UNDERLYING_SECURITY_ID")
+        if direct_sid in equity_by_id:
+            symbol = equity_by_id[direct_sid]
+            sid = direct_sid
+        else:
+            sid = equity.get(symbol)
         if not symbol or not sid:
             continue
         previous = symbols.get(symbol)
