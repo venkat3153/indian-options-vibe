@@ -130,6 +130,12 @@ async def collect_report(
                 candles = normalize_daily_candles(payload, cutoff)
                 row = evaluate_stock(stock["symbol"], candles)
                 row["nearest_option_expiry"] = stock["nearest_expiry"]
+                expiry_days = (datetime.fromisoformat(stock["nearest_expiry"]).date() - now.date()).days
+                row["expiry_warning"] = (
+                    "Nearest listed stock-option expiry is close to a 5–6-day holding horizon; "
+                    "check the next monthly series and physical-settlement obligations."
+                    if expiry_days < 9 else None
+                )
                 if row["status"] == "TECHNICAL_WATCH":
                     rows.append(row)
                 else:
