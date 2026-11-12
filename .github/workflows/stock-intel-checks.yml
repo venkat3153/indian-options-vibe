@@ -1,0 +1,27 @@
+name: Stock intelligence core checks
+
+on:
+  push:
+    branches:
+      - feature/stock-options-intelligence-phase1
+  pull_request:
+    paths:
+      - "indian-options-vibe/backend/stock_intel/**"
+      - "indian-options-vibe/backend/tests/test_stock_intel.py"
+      - "indian-options-vibe/backend/api/stock_intel.py"
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: indian-options-vibe/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile source
+        run: python -m compileall -q stock_intel api/stock_intel.py
+      - name: Unit tests (no Dhan credentials required)
+        run: python -m unittest discover -s tests -p 'test_stock_intel.py' -v
